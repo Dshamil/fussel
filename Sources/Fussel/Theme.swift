@@ -79,6 +79,7 @@ extension Int64 {
         let f = ByteCountFormatter()
         f.countStyle = .file
         f.allowsNonnumericFormatting = false // "0 KB", not "Zero KB"
+        f.allowedUnits = [.useKB, .useMB, .useGB, .useTB]
         return f
     }()
 
