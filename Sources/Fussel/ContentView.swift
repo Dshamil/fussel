@@ -43,7 +43,7 @@ struct ContentView: View {
         .padding(.top, 8)
         .frame(minWidth: 700, idealWidth: 760, maxWidth: .infinity,
                minHeight: 770, maxHeight: .infinity, alignment: .top)
-        .background { palette.canvas.ignoresSafeArea() }
+        .background { Backdrop().ignoresSafeArea() }
         .environment(\.animationsPaused, !app.windowVisible)
         .overlay {
             if app.showTutorial {
@@ -64,6 +64,24 @@ struct ContentView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             app.refreshAccess()
+        }
+    }
+}
+
+/// The canvas with two soft color clouds, so the window isn't a flat sheet. Static, so it costs nothing.
+private struct Backdrop: View {
+    @Environment(\.palette) private var palette
+
+    var body: some View {
+        GeometryReader { geo in
+            let reach = max(geo.size.width, geo.size.height) * 0.6
+            ZStack {
+                Rectangle().fill(palette.canvas)
+                RadialGradient(colors: [palette.blobs.0, .clear], center: UnitPoint(x: 0.95, y: 0.3),
+                               startRadius: 0, endRadius: reach)
+                RadialGradient(colors: [palette.blobs.1, .clear], center: UnitPoint(x: 0.02, y: 0.98),
+                               startRadius: 0, endRadius: reach)
+            }
         }
     }
 }
@@ -437,6 +455,15 @@ struct HeroButtonStyle: ButtonStyle {
     }
 }
 
+/// Cards squish a little when pressed and spring back.
+struct CardPressStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.96 : 1)
+            .animation(.spring(duration: 0.25, bounce: 0.55), value: configuration.isPressed)
+    }
+}
+
 /// One of the three progress chips during a scan: spinner, then a bouncy checkmark.
 private struct ScanChip: View {
     let title: String
@@ -510,6 +537,11 @@ private struct ModuleCard: View {
     @State private var hovering = false
     @State private var bounces = 0
     @State private var appeared = false
+    /// -0.5…0.5 on both axes: where the pointer is on the card, for the tilt.
+    @State private var tilt = CGSize.zero
+    @State private var cardSize = CGSize(width: 1, height: 1)
+
+    private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: 22, style: .continuous) }
 
     var body: some View {
         Button(action: open) {
@@ -517,7 +549,7 @@ private struct ModuleCard: View {
                 HStack(alignment: .top) {
                     ZStack {
                         RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(palette.tint(module))
+                            .fill(palette.isDark ? palette.tint(module) : .white.opacity(0.75))
                         Image(systemName: module.symbol)
                             .font(.system(size: 17, weight: .semibold))
                             .foregroundStyle(palette.icon(module))
@@ -525,15 +557,19 @@ private struct ModuleCard: View {
                             .symbolEffect(.pulse, isActive: isBusy)
                     }
                     .frame(width: 40, height: 40)
-                    .rotationEffect(.degrees(hovering ? -6 : 0))
+                    .rotationEffect(.degrees(hovering ? -8 : 0))
+                    .scaleEffect(hovering ? 1.08 : 1)
 
                     Spacer(minLength: 0)
 
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(palette.secondary)
+                    Image(systemName: "arrow.right")
+                        .font(.system(size: 11, weight: .heavy))
+                        .foregroundStyle(palette.icon(module))
+                        .frame(width: 24, height: 24)
+                        .background(Circle().fill(palette.isDark ? palette.tint(module) : .white.opacity(0.75)))
                         .opacity(hovering ? 1 : 0)
-                        .offset(x: hovering ? 0 : -4)
+                        .scaleEffect(hovering ? 1 : 0.6)
+                        .offset(x: hovering ? 0 : -6)
                 }
 
                 VStack(alignment: .leading, spacing: 3) {
@@ -549,34 +585,74 @@ private struct ModuleCard: View {
             }
             .padding(14)
             .frame(maxWidth: .infinity, minHeight: 104, alignment: .topLeading)
-            .background(
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .fill(palette.card)
-                    .shadow(color: .black.opacity(hovering ? 0.12 : 0.04), radius: hovering ? 14 : 5, y: hovering ? 7 : 2)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .strokeBorder(palette.cardStroke, lineWidth: 1)
-            )
-            .scaleEffect(hovering ? 1.015 : 1)
-            .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .background {
+                ZStack(alignment: .bottomTrailing) {
+                    shape.fill(palette.card)
+                    shape.fill(palette.isDark ? Palette.pastel(module).opacity(0.13) : Palette.pastel(module))
+                    // Light falls from the top, like on a soft plastic toy.
+                    shape.fill(LinearGradient(colors: [.white.opacity(palette.isDark ? 0.05 : 0.55), .clear],
+                                              startPoint: .top, endPoint: .center))
+                    // The card's symbol, big and cropped, as a playful watermark.
+                    Image(systemName: module.symbol)
+                        .font(.system(size: 66, weight: .bold))
+                        .foregroundStyle(palette.icon(module).opacity(palette.isDark ? 0.12 : 0.08))
+                        .rotationEffect(.degrees(hovering ? -4 : -16))
+                        .scaleEffect(hovering ? 1.15 : 1)
+                        .offset(x: 16, y: 20)
+                }
+                .clipShape(shape)
+                .shadow(color: shadowColor.opacity(hovering ? 0.28 : 0.1), radius: hovering ? 16 : 6, y: hovering ? 10 : 3)
+            }
+            .overlay(shape.strokeBorder(palette.isDark ? palette.tint(module) : .white.opacity(0.7), lineWidth: 1))
+            // Fussel peeks over the top edge while the pointer is on the card.
+            .background(alignment: .topTrailing) {
+                FusselBody(mood: .idle, color: palette.isDark ? palette.mascot : Palette.pastel(module),
+                           look: CGSize(width: -0.6, height: -1.1))
+                    .frame(width: 46, height: 46)
+                    .rotationEffect(.degrees(hovering ? 8 : 0))
+                    .offset(x: -54, y: hovering ? -28 : 2)
+                    .opacity(hovering ? 1 : 0)
+                    .animation(.spring(duration: 0.45, bounce: 0.5).delay(hovering ? 0.08 : 0), value: hovering)
+            }
+            .contentShape(shape)
+            .onGeometryChange(for: CGSize.self) { $0.size } action: { cardSize = $0 }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(CardPressStyle())
+        .scaleEffect(hovering ? 1.02 : 1)
+        .rotation3DEffect(.degrees(Double(hypot(tilt.width, tilt.height)) * 10),
+                          axis: (x: -tilt.height, y: tilt.width, z: 0), perspective: 0.6)
+        .onContinuousHover { phase in
+            switch phase {
+            case .active(let point):
+                guard !reduceMotion else { return }
+                withAnimation(.interactiveSpring(duration: 0.3)) {
+                    tilt = CGSize(width: point.x / cardSize.width - 0.5, height: point.y / cardSize.height - 0.5)
+                }
+            case .ended:
+                withAnimation(.spring(duration: 0.5, bounce: 0.4)) { tilt = .zero }
+            }
+        }
         .onHover { inside in
-            withAnimation(.spring(duration: 0.3, bounce: 0.4)) { hovering = inside }
+            withAnimation(.spring(duration: 0.35, bounce: 0.45)) { hovering = inside }
             if inside { bounces += 1 }
         }
         .opacity(appeared ? 1 : 0)
-        .offset(y: appeared ? 0 : 18)
+        .scaleEffect(appeared ? 1 : 0.94)
+        .offset(y: appeared ? 0 : 22)
+        .blur(radius: appeared ? 0 : 6)
         .onAppear {
             if reduceMotion {
                 appeared = true
             } else {
-                withAnimation(.spring(duration: 0.55, bounce: 0.35).delay(0.08 * Double(index) + 0.1)) {
+                withAnimation(.spring(duration: 0.6, bounce: 0.35).delay(0.06 * Double(index) + 0.15)) {
                     appeared = true
                 }
             }
         }
+    }
+
+    private var shadowColor: Color {
+        palette.isDark ? .black : Palette.shadow(module)
     }
 
     private var isBusy: Bool {

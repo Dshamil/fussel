@@ -74,6 +74,7 @@ private struct StatTile<Gauge: View, Footer: View>: View {
                     .symbolEffect(.bounce, value: hovering)
             }
             .frame(width: 30, height: 30)
+            .rotationEffect(.degrees(hovering ? -10 : 0))
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(kind.title)
@@ -99,15 +100,24 @@ private struct StatTile<Gauge: View, Footer: View>: View {
         }
         .padding(13)
         .frame(maxWidth: .infinity, minHeight: 162, alignment: .topLeading)
-        .background(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(palette.card)
-        )
+        .background {
+            let shape = RoundedRectangle(cornerRadius: 20, style: .continuous)
+            ZStack {
+                shape.fill(palette.card)
+                // A whisper of the tile's pastel, fading out towards the bottom.
+                shape.fill(LinearGradient(colors: [kind.pastel.opacity(palette.isDark ? 0.10 : 0.5), .clear],
+                                          startPoint: .top, endPoint: .bottom))
+            }
+            .shadow(color: .black.opacity(hovering ? (palette.isDark ? 0.3 : 0.08) : 0), radius: 12, y: 6)
+        }
         .overlay(
             RoundedRectangle(cornerRadius: 20, style: .continuous)
                 .strokeBorder(palette.cardStroke, lineWidth: 1)
         )
-        .onHover { hovering = $0 }
+        .offset(y: hovering ? -3 : 0)
+        .onHover { inside in
+            withAnimation(.spring(duration: 0.35, bounce: 0.45)) { hovering = inside }
+        }
         .accessibilityElement(children: .contain)
     }
 }
@@ -117,18 +127,25 @@ private struct FillBar: View {
     @Environment(\.palette) private var palette
     let fraction: Double
     let tint: Color
+    @State private var grown = false
 
     var body: some View {
         GeometryReader { geo in
             ZStack(alignment: .leading) {
                 Capsule().fill(palette.text.opacity(0.08))
                 Capsule()
-                    .fill(tint)
-                    .frame(width: max(6, geo.size.width * min(1, max(0, fraction))))
-                    .animation(.spring(duration: 0.8), value: fraction)
+                    .fill(LinearGradient(colors: [tint.opacity(0.7), tint], startPoint: .leading, endPoint: .trailing))
+                    // A glossy stripe on top, like a candy bar.
+                    .overlay(alignment: .top) {
+                        Capsule().fill(.white.opacity(0.4)).frame(height: 2.5).padding(.horizontal, 4).padding(.top, 1.5)
+                    }
+                    .frame(width: max(9, geo.size.width * min(1, max(0, grown ? fraction : 0))))
+                    .animation(.spring(duration: 0.9, bounce: 0.3), value: fraction)
             }
         }
-        .frame(height: 6)
+        .frame(height: 9)
+        // Fills up once when the window first appears.
+        .onAppear { withAnimation(.spring(duration: 1.1, bounce: 0.35).delay(0.3)) { grown = true } }
         .accessibilityHidden(true)
     }
 }

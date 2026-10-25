@@ -44,6 +44,8 @@ struct Palette {
     var speck: Color
     var badge: LinearGradient
     var sheet: Color
+    /// Two soft color clouds behind everything: top right and bottom left.
+    var blobs: (Color, Color)
     /// Pastel per card, borrowed from the first icon sketches.
     var tint: (Module) -> Color
     var icon: (Module) -> Color
@@ -56,6 +58,18 @@ struct Palette {
         case .updates: return Color(hex: 0xCDE4F7)     // sky
         case .closet: return Color(hex: 0xF8D0E4)      // pink
         case .tidy: return Color(hex: 0xFFD3C4)        // peach
+        }
+    }
+
+    /// A deeper shade of each pastel, so cards cast a colored glow instead of a gray smudge.
+    static func shadow(_ module: Module) -> Color {
+        switch module {
+        case .junk: return Color(hex: 0x3E9A72)
+        case .large: return Color(hex: 0x6A55C8)
+        case .uninstaller: return Color(hex: 0xC99A1C)
+        case .updates: return Color(hex: 0x3B82C4)
+        case .closet: return Color(hex: 0xC8508A)
+        case .tidy: return Color(hex: 0xE0603F)
         }
     }
 
@@ -82,6 +96,7 @@ struct Palette {
         speck: .white,
         badge: coralGradient,
         sheet: Color(hex: 0xFFFFFF),
+        blobs: (Theme.coral.opacity(0.13), Color(hex: 0xDCD5F7).opacity(0.55)),
         tint: { pastel($0) },
         icon: { _ in Theme.ink }
     )
@@ -103,6 +118,7 @@ struct Palette {
         speck: Color(hex: 0xF4F1EC),
         badge: LinearGradient(colors: [Color(hex: 0x33364F), Color(hex: 0x1B1C2B)], startPoint: .top, endPoint: .bottom),
         sheet: Color(hex: 0x1C1D24),
+        blobs: (Color(hex: 0x3A3F6E).opacity(0.7), Theme.coral.opacity(0.08)),
         tint: { pastel($0).opacity(0.16) },
         icon: { pastel($0) }
     )
@@ -124,6 +140,7 @@ struct Palette {
         speck: .white,
         badge: coralGradient,
         sheet: Color(hex: 0xFFF6F2),
+        blobs: (.white.opacity(0.28), Color(hex: 0xF9E3A0).opacity(0.25)),
         tint: { pastel($0) },
         icon: { _ in Theme.ink }
     )
