@@ -47,13 +47,31 @@ final class AppModel {
         switch stage {
         case .scanning, .cleaning: return .busy
         case .done: return .happy
-        default: return .idle
+        default: return healthMood
         }
+    }
+
+    /// How the Mac is doing right now, shown on Fussel's face when nothing else is going on.
+    var healthMood: MascotMood {
+        let s = monitor.sample
+        guard monitor.hasSample else { return .idle }
+        if (s.temperature ?? 0) >= 85 || monitor.thermal == .serious || monitor.thermal == .critical {
+            return .hot
+        }
+        if let battery = s.battery, battery.percent <= 15, !battery.isPluggedIn {
+            return .sleepy
+        }
+        if s.diskTotal > 0, Double(s.diskFree) / Double(s.diskTotal) < 0.1 {
+            return .stuffed
+        }
+        return .idle
     }
 
     /// Scans System Junk, Large & Old Files and Trash & Downloads at the same time.
     func smartScan() async {
         ScanProgress.shared.reset()
+        UserDefaults.standard.set(Date(), forKey: FluffWatcher.lastScanKey)
+        pendingFluff = 0
         stage = .scanning
         let started = Date()
         let options = ScanOptions.current
@@ -79,13 +97,32 @@ final class AppModel {
     func cleanAll() async {
         stage = .cleaning
         var total = CleanResult()
+        var count = 0
         for module in withResults where !module.selected.isEmpty {
-            let result = await module.clean()
-            total.freed += result.freed
-            total.failures += result.failures
+            count += module.selected.count
+            total.merge(await module.clean(record: false))
         }
+        lastRecord = CleanHistory.shared.record(total, source: "Smart Clean", itemCount: count)
         stage = .done(freed: total.freed, failures: total.failures)
     }
+
+    /// The clean-up that the hero's Undo button would take back.
+    var lastRecord: CleanRecord?
+    /// Fluff found by the weekly background check, shown as a dot on the menu bar icon.
+    var pendingFluff: Int64 = 0
+
+    /// Puts a clean-up back. Results on screen are outdated afterwards, so start fresh.
+    func undo(_ record: CleanRecord) async -> (restored: Int, failed: [String]) {
+        let outcome = await CleanHistory.shared.undo(record)
+        if lastRecord?.id == record.id { lastRecord = nil }
+        for module in scannable { module.reset() }
+        stage = .idle
+        undoMessage = outcome.failed.isEmpty ? "Phew, everything's back!" : "Put back \(outcome.restored) item(s)."
+        return outcome
+    }
+
+    /// One-off message for Fussel's speech bubble after an undo.
+    var undoMessage: String?
 }
 
 /// Scan → review → clean flow shared by System Junk, Large & Old Files and Trash & Downloads.
@@ -153,7 +190,7 @@ final class ModuleModel {
     }
 
     @discardableResult
-    func clean() async -> CleanResult {
+    func clean(record: Bool = true) async -> CleanResult {
         let toClean = selectedItems
         guard !toClean.isEmpty else { return CleanResult() }
         phase = .cleaning
@@ -163,6 +200,9 @@ final class ModuleModel {
         items = []
         selected = []
         phase = .done(freed: result.freed, failures: result.failures)
+        if record {
+            CleanHistory.shared.record(result, source: module.title, itemCount: toClean.count)
+        }
         return result
     }
 
@@ -230,6 +270,7 @@ final class UninstallerModel {
         let result = await Task.detached(priority: .userInitiated) { Cleaner.clean(toClean) }.value
         working = false
         lastResult = (app.name, result.freed, result.failures)
+        CleanHistory.shared.record(result, source: "Uninstalled \(app.name)", itemCount: toClean.count)
         if !FileManager.default.fileExists(atPath: app.url.path) {
             apps.removeAll { $0 == app }
         }

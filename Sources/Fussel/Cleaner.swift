@@ -15,7 +15,12 @@ enum Cleaner {
                 if item.permanent {
                     try fm.removeItem(at: item.url)
                 } else {
-                    try fm.trashItem(at: item.url, resultingItemURL: nil)
+                    var trashedURL: NSURL?
+                    try fm.trashItem(at: item.url, resultingItemURL: &trashedURL)
+                    if let trashedURL = trashedURL as URL? {
+                        result.trashed.append(TrashedItem(name: item.name, original: item.url,
+                                                          trashed: trashedURL, size: item.size))
+                    }
                 }
                 result.freed += item.size
             } catch {

@@ -25,6 +25,7 @@ struct SettingsView: View {
     @AppStorage(SettingsKey.oldFileDays) private var oldFileDays = 365
     @AppStorage(SettingsKey.downloadDays) private var downloadDays = 30
     @State private var openAtLogin = LoginItem.isEnabled
+    @AppStorage(FluffWatcher.enabledKey) private var weeklyCheck = true
     @AppStorage(SettingsKey.appStyle) private var appStyle: AppStyle = .system
     @AppStorage(SettingsKey.sounds) private var playSounds = true
 
@@ -66,6 +67,14 @@ struct SettingsView: View {
                     .onChange(of: openAtLogin) { _, enabled in
                         LoginItem.setEnabled(enabled)
                     }
+                Toggle("Weekly fluff check", isOn: $weeklyCheck)
+                    .onChange(of: weeklyCheck) { _, enabled in
+                        if enabled { Task { _ = await Notifier.requestPermission() } }
+                    }
+                Text("Once a week Fussel peeks at caches and logs in the background and lets you know when there's a lot of fluff.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text("Fussel lives in the menu bar. Click the little fluff to open it, right-click for more.")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)

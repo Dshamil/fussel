@@ -73,4 +73,19 @@ struct InstalledApp: Identifiable, Hashable, Sendable {
 struct CleanResult: Sendable {
     var freed: Int64 = 0
     var failures: [String] = []
+    /// Where each item ended up in the Trash, so it can be put back.
+    var trashed: [TrashedItem] = []
+
+    mutating func merge(_ other: CleanResult) {
+        freed += other.freed
+        failures += other.failures
+        trashed += other.trashed
+    }
+}
+
+struct TrashedItem: Codable, Hashable, Sendable {
+    let name: String
+    let original: URL
+    let trashed: URL
+    let size: Int64
 }

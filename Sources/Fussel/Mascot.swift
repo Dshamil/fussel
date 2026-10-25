@@ -13,6 +13,12 @@ enum FusselGeometry {
 
 enum MascotMood: Equatable {
     case idle, busy, happy
+    /// Disk almost full: puffed up and round-cheeked.
+    case stuffed
+    /// CPU running hot: sweating and a bit flushed.
+    case hot
+    /// Battery almost empty: dozing off.
+    case sleepy
 }
 
 /// The fluff body and its face, drawn in a square frame.
@@ -39,10 +45,37 @@ struct FusselBody: View {
             ctx.fill(fluff, with: .color(color))
 
             let ink = Theme.ink
-            if cheeks || mood == .happy {
+            if cheeks || mood == .happy || mood == .stuffed || mood == .hot {
+                let r: CGFloat = mood == .stuffed ? 3.4 : 2.4
+                let tint = mood == .hot ? Color(hex: 0xF27A6B) : Color(hex: 0xF6A795)
                 for cx in [40.5, 59.5] as [CGFloat] {
-                    ctx.fill(Path(ellipseIn: circle(cx, 56.5, 2.4)), with: .color(Color(hex: 0xF6A795).opacity(0.75)))
+                    ctx.fill(Path(ellipseIn: circle(cx, 56.5, r)), with: .color(tint.opacity(0.8)))
                 }
+            }
+
+            if mood == .hot {
+                // Two little sweat drops.
+                for (dx, dy, k) in [(67.0, 37.0, 1.0), (31.5, 41.0, 0.8)] as [(CGFloat, CGFloat, CGFloat)] {
+                    var drop = Path()
+                    drop.move(to: CGPoint(x: dx * s, y: (dy - 4 * k) * s))
+                    drop.addQuadCurve(to: CGPoint(x: dx * s, y: (dy + 2.2 * k) * s),
+                                      control: CGPoint(x: (dx + 3.4 * k) * s, y: (dy + 1.5 * k) * s))
+                    drop.addQuadCurve(to: CGPoint(x: dx * s, y: (dy - 4 * k) * s),
+                                      control: CGPoint(x: (dx - 3.4 * k) * s, y: (dy + 1.5 * k) * s))
+                    ctx.fill(drop, with: .color(Color(hex: 0x7CC4F2)))
+                }
+            }
+
+            if mood == .sleepy && !surprised {
+                // Closed, peaceful eyes.
+                for (ex, ey) in FusselGeometry.eyes {
+                    var lid = Path()
+                    lid.move(to: CGPoint(x: (ex - 2.6) * s, y: (ey + 0.5) * s))
+                    lid.addQuadCurve(to: CGPoint(x: (ex + 2.6) * s, y: (ey + 0.5) * s),
+                                     control: CGPoint(x: ex * s, y: (ey + 3.2) * s))
+                    ctx.stroke(lid, with: .color(ink), style: StrokeStyle(lineWidth: 1.6 * s, lineCap: .round))
+                }
+                return
             }
 
             if mood == .happy && !surprised {
@@ -56,7 +89,7 @@ struct FusselBody: View {
                 return
             }
 
-            let r = surprised ? 3.3 : FusselGeometry.eyeRadius
+            let r = surprised ? 3.3 : (mood == .stuffed ? 2.9 : FusselGeometry.eyeRadius)
             for (ex, ey) in FusselGeometry.eyes {
                 let x = ex + look.width
                 let y = ey + look.height
@@ -116,6 +149,17 @@ struct FusselMascot: View {
                 .scaleEffect(x: m.scaleX, y: m.scaleY, anchor: .bottom)
                 .rotationEffect(.degrees(m.tilt + m.spin))
                 .offset(x: size * 0.04, y: -size * 0.06 - m.height * size)
+
+                if mood == .sleepy && !reduceMotion {
+                    let t = timeline.date.timeIntervalSinceReferenceDate
+                    ForEach(0..<3, id: \.self) { k in
+                        let p = (t * 0.35 + Double(k) / 3).truncatingRemainder(dividingBy: 1)
+                        Text("z")
+                            .font(.system(size: size * (0.09 + 0.05 * p), weight: .heavy, design: .rounded))
+                            .foregroundStyle(color.opacity(1 - p))
+                            .offset(x: size * (0.22 + 0.12 * p), y: -size * (0.2 + 0.25 * p))
+                    }
+                }
             }
             .frame(width: size, height: size)
         }
@@ -173,6 +217,24 @@ struct FusselMascot: View {
                 let squash = CGFloat(max(0, -wave))
                 m.scaleX = 1 + 0.06 * squash
                 m.scaleY = 1 - 0.06 * squash
+            case .stuffed:
+                let wave = sin(t * 1.6)
+                m.height = 0.012 + 0.012 * CGFloat(wave)
+                m.tilt = -6 + 2 * sin(t * 0.8)
+                m.scaleX = 1.12 + 0.02 * CGFloat(max(0, -wave))
+                m.scaleY = 1.06 - 0.02 * CGFloat(max(0, -wave))
+            case .hot:
+                let wave = sin(t * 2.6)
+                m.height = 0.02 + 0.02 * CGFloat(wave)
+                // A little shiver every couple of seconds.
+                let shiver = (t.truncatingRemainder(dividingBy: 2.4)) < 0.35 ? sin(t * 60) * 3 : 0
+                m.tilt = -10 + shiver
+            case .sleepy:
+                let wave = sin(t * 1.1)
+                m.height = 0.008 + 0.008 * CGFloat(wave)
+                m.tilt = -16 + 3 * sin(t * 0.55)
+                m.scaleX = 1 + 0.025 * CGFloat(wave)
+                m.scaleY = 1 - 0.025 * CGFloat(wave)
             case .happy:
                 let hop = abs(sin(t * 3.4))
                 m.height = 0.11 * CGFloat(hop)
@@ -218,7 +280,11 @@ struct FusselBadge: View {
 
 /// Monochrome template image of Fussel for the menu bar.
 enum MenuBarIcon {
-    static let image: NSImage = {
+    static let image: NSImage = make(dot: false)
+    /// Same icon with a little dot: Fussel found something while you were away.
+    static let imageWithDot: NSImage = make(dot: true)
+
+    private static func make(dot: Bool) -> NSImage {
         let side: CGFloat = 18
         let img = NSImage(size: NSSize(width: side, height: side), flipped: true) { rect in
             // Fluff spans x 27…73 and y 29…75 in design units; fit it into the rect.
@@ -240,9 +306,16 @@ enum MenuBarIcon {
                 NSBezierPath(ovalIn: oval(ex, ey, 3.1)).fill()
             }
             NSGraphicsContext.current?.compositingOperation = .sourceOver
+            if dot {
+                // Cut a ring around the dot so it reads clearly at menu bar size.
+                NSGraphicsContext.current?.compositingOperation = .destinationOut
+                NSBezierPath(ovalIn: NSRect(x: rect.maxX - 7.5, y: rect.minY - 0.5, width: 8, height: 8)).fill()
+                NSGraphicsContext.current?.compositingOperation = .sourceOver
+                NSBezierPath(ovalIn: NSRect(x: rect.maxX - 6, y: rect.minY + 1, width: 5, height: 5)).fill()
+            }
             return true
         }
         img.isTemplate = true
         return img
-    }()
+    }
 }

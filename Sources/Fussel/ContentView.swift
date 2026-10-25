@@ -29,6 +29,7 @@ struct ContentView: View {
                     FullDiskAccessHint()
                 }
                 Spacer(minLength: 0)
+                HistoryPill()
                 StyleSwitcher()
             }
         }
@@ -167,6 +168,20 @@ private struct HeroCard: View {
                 try? await Task.sleep(for: .milliseconds(120))
             }
         }
+        .onChange(of: app.undoMessage) { _, message in
+            guard let message else { return }
+            say(message)
+            app.undoMessage = nil
+        }
+        .onChange(of: app.healthMood) { _, mood in
+            guard app.stage == .idle else { return }
+            switch mood {
+            case .stuffed: say("Oof, I'm so full!")
+            case .hot: say("Is it warm in here?")
+            case .sleepy: say("*yawn*")
+            default: break
+            }
+        }
         .onChange(of: app.stage) { _, stage in
             switch stage {
             case .done(let freed, _):
@@ -229,45 +244,84 @@ private struct HeroCard: View {
     private var headline: some View {
         switch app.stage {
         case .idle:
-            Text("Hi, I'm Fussel!")
-        case .scanning:
-            HStack(spacing: 0) {
-                Text("Found ")
-                Text(liveBytes.byteString)
-                    .contentTransition(.numericText(value: Double(liveBytes)))
-                Text("…")
-            }
-        case .ready:
-            if app.foundTotal > 0 {
-                HStack(spacing: 0) {
-                    Text("Found ")
-                    CountingBytes(value: Double(app.foundTotal))
-                        .animation(.easeOut(duration: 1.2), value: app.foundTotal)
-                }
+            if app.pendingFluff > 0 {
+                Text("Psst, \(app.pendingFluff.byteString) of fluff!")
             } else {
-                Text("Already fluff-free!")
+                healthHeadline
             }
+        case .scanning:
+            scanningHeadline
+        case .ready:
+            readyHeadline
         case .cleaning:
             Text("Tidying up…")
         case .done(let freed, _):
-            if freed > 0 {
-                HStack(spacing: 0) {
-                    Text("Cleared ")
-                    CountingBytes(value: Double(freed))
-                        .animation(.easeOut(duration: 1.2), value: freed)
-                    Text("!")
-                }
-            } else {
-                Text("All tidy!")
+            doneHeadline(freed)
+        }
+    }
+
+    @ViewBuilder
+    private var healthHeadline: some View {
+            switch app.healthMood {
+            case .stuffed: Text("I'm stuffed!")
+            case .hot: Text("Phew, it's hot!")
+            case .sleepy: Text("So sleepy…")
+            default: Text("Hi, I'm Fussel!")
             }
+    }
+
+    private var scanningHeadline: some View {
+        HStack(spacing: 0) {
+            Text("Found ")
+            Text(liveBytes.byteString)
+                .contentTransition(.numericText(value: Double(liveBytes)))
+            Text("…")
+        }
+    }
+
+    @ViewBuilder
+    private var readyHeadline: some View {
+        if app.foundTotal > 0 {
+            HStack(spacing: 0) {
+                Text("Found ")
+                CountingBytes(value: Double(app.foundTotal))
+                    .animation(.easeOut(duration: 1.2), value: app.foundTotal)
+            }
+        } else {
+            Text("Already fluff-free!")
+        }
+    }
+
+    @ViewBuilder
+    private func doneHeadline(_ freed: Int64) -> some View {
+        if freed > 0 {
+            HStack(spacing: 0) {
+                Text("Cleared ")
+                CountingBytes(value: Double(freed))
+                    .animation(.easeOut(duration: 1.2), value: freed)
+                Text("!")
+            }
+        } else {
+            Text("All tidy!")
         }
     }
 
     @ViewBuilder
     private var subline: some View {
         switch app.stage {
+        case .idle where app.pendingFluff > 0:
+            Text("I found it during my weekly check while you were away. Start a scan to see everything.")
         case .idle:
-            Text("Let's find the fluff hiding on your Mac. Psst: you can poke me.")
+            switch app.healthMood {
+            case .stuffed:
+                Text("Your disk is almost full, only \(app.monitor.sample.diskFree.byteString) left. Let's make some room.")
+            case .hot:
+                Text("Your Mac is running hot. Quitting a hungry app in the memory tile might help.")
+            case .sleepy:
+                Text("Your battery is almost empty. Plug me in before I nod off completely.")
+            default:
+                Text("Let's find the fluff hiding on your Mac. Psst: you can poke me.")
+            }
         case .scanning:
             VStack(alignment: .leading, spacing: 4) {
                 TimelineView(.periodic(from: .now, by: 1.6)) { context in
@@ -334,8 +388,21 @@ private struct HeroCard: View {
                     .buttonStyle(style)
             }
         case .done:
-            Button("Scan Again") { Task { await app.smartScan() } }
-                .buttonStyle(style)
+            HStack(spacing: 14) {
+                Button("Scan Again") { Task { await app.smartScan() } }
+                    .buttonStyle(style)
+                if let record = app.lastRecord, record.canUndo {
+                    Button {
+                        Task { _ = await app.undo(record) }
+                    } label: {
+                        Label("Undo", systemImage: "arrow.uturn.backward")
+                    }
+                    .buttonStyle(.plain)
+                    .font(.rounded(13, .semibold))
+                    .foregroundStyle(palette.heroText)
+                    .help("Put everything back from the Trash")
+                }
+            }
         }
     }
 }

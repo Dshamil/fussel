@@ -12,7 +12,7 @@ enum PreviewRenderer {
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
 
         let styles: [AppStyle] = [.light, .dark, .coral]
-        let scenarios = ["idle", "scanning", "ready", "done", "tutorial"]
+        let scenarios = ["idle", "scanning", "ready", "done", "tutorial", "stuffed", "hot", "sleepy", "pending"]
         for style in styles {
             for scenario in scenarios {
                 let model = sampleModel(scenario)
@@ -46,12 +46,21 @@ enum PreviewRenderer {
         model.monitor.sample = SystemSample(
             diskName: "Macintosh HD", diskFree: 35_870_000_000, diskTotal: 494_000_000_000,
             memUsed: 14_200_000_000, memTotal: 16_000_000_000,
-            battery: BatteryInfo(percent: 11, isCharging: false, isPluggedIn: false, minutesLeft: 34),
+            battery: BatteryInfo(percent: 64, isCharging: false, isPluggedIn: false, minutesLeft: 214),
             cpu: 0.12, temperature: 36, downBytesPerSecond: 3_200, upBytesPerSecond: 0
         )
         model.monitor.downHistory = (0..<30).map { Double(($0 * 37) % 11) * 900 }
         model.monitor.hasSample = true
         switch scenario {
+        case "stuffed":
+            model.monitor.sample.diskFree = 21_000_000_000
+        case "hot":
+            model.monitor.sample.temperature = 93
+            model.monitor.sample.cpu = 0.97
+        case "sleepy":
+            model.monitor.sample.battery = BatteryInfo(percent: 8, isCharging: false, isPluggedIn: false, minutesLeft: 12)
+        case "pending":
+            model.pendingFluff = 2_400_000_000
         case "scanning":
             model.junk.phase = .results
             model.large.phase = .scanning

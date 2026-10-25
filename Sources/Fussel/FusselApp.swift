@@ -1,6 +1,7 @@
 import SwiftUI
 import AppKit
 import ServiceManagement
+import UserNotifications
 
 /// Fussel lives in the menu bar (LSUIElement): no Dock icon, always running in the background.
 /// Left-click the menu bar icon to show or hide the window, right-click for a small menu.
@@ -27,18 +28,26 @@ struct FusselApp: App {
 }
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNotificationCenterDelegate {
     let model = AppModel()
     private var statusItem: NSStatusItem?
     private var mainWindow: NSWindow?
     private var settingsWindow: NSWindow?
     private var keyMonitor: Any?
+    private var watcher: FluffWatcher?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
         setUpStatusItem()
         setUpKeyboardShortcuts()
         LoginItem.enableOnFirstLaunch()
+        UNUserNotificationCenter.current().delegate = self
+        let watcher = FluffWatcher(model: model)
+        watcher.start()
+        self.watcher = watcher
+        observePendingFluff()
+        // Keep an eye on the Mac's health even while the window is closed, so Fussel's mood is current.
+        model.monitor.start()
         // First launch: open the window right away so the tutorial greets people.
         if !UserDefaults.standard.bool(forKey: TutorialKey.seen) {
             showMainWindow()
@@ -106,6 +115,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     @objc private func settingsFromMenu() { showSettingsWindow() }
     @objc private func quitFromMenu() { NSApp.terminate(nil) }
 
+    /// Show a dot on the menu bar icon while there's fluff waiting from the weekly check.
+    private func observePendingFluff() {
+        let pending = withObservationTracking {
+            model.pendingFluff
+        } onChange: { [weak self] in
+            Task { @MainActor in self?.observePendingFluff() }
+        }
+        statusItem?.button?.image = pending > 0 ? MenuBarIcon.imageWithDot : MenuBarIcon.image
+    }
+
+    // MARK: Notifications
+
+    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                            didReceive response: UNNotificationResponse,
+                                            withCompletionHandler completionHandler: @escaping () -> Void) {
+        Task { @MainActor in self.showMainWindow() }
+        completionHandler()
+    }
+
+    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                            willPresent notification: UNNotification,
+                                            withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        completionHandler([.banner, .sound])
+    }
+
     // MARK: Windows
 
     private func toggleMainWindow() {
@@ -155,11 +189,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     /// Closing the window only hides it; Fussel keeps running in the menu bar.
-    func windowWillClose(_ notification: Notification) {
-        if (notification.object as? NSWindow) === mainWindow {
-            model.monitor.stop()
-        }
-    }
+    func windowWillClose(_ notification: Notification) {}
 
     // MARK: Keyboard
 
