@@ -1,13 +1,20 @@
-# Fussel
+<p align="center">
+  <img src="docs/logo.png" width="160" alt="Fussel app icon">
+</p>
 
-A small, friendly Mac cleaner. Fussel finds the fluff on your Mac and moves it to the Trash.
+<h1 align="center">Fussel</h1>
+
+<p align="center">A small, friendly Mac cleaner. Fussel finds the fluff on your Mac and moves it to the Trash.<br><i>Currently in beta.</i></p>
+
+<p align="center"><img src="docs/screenshots/styles.png" alt="Fussel in White, Dark and Coral style"></p>
 
 - **System Junk**: app caches, logs and Xcode build data
 - **Large & Old Files**: big files and things you haven't opened in ages
 - **Uninstaller**: remove apps together with their support files, caches and preferences
 - **Trash & Downloads**: empty the Trash and sweep out old downloads
 
-Fussel lives in its own window and in the menu bar, where a quick scan cleans caches and logs in one click.
+Plus live tiles for disk space, memory, battery, CPU and network, three styles (White, Dark, Coral),
+a playful tutorial, and a menu bar helper for a quick clean of caches and logs.
 
 ## Safety first
 
@@ -39,8 +46,9 @@ open dist/Fussel.app
 Needs Xcode 15 or later (or the Swift toolchain that comes with it).
 
 Every push to `main` is built by GitHub Actions. To publish a new release, bump the
-number in `VERSION` (for example to `0.2.0`) and push: a release `v0.2.0` with
-`Fussel.zip` attached is created automatically.
+number in `VERSION` (for example to `0.6.0`) and push: a beta release `v0.6.0` with
+`Fussel.zip` attached is created automatically. If `release-notes/<version>.md` exists,
+it becomes the release text; otherwise GitHub generates notes from the commits.
 
 ## Project layout
 
