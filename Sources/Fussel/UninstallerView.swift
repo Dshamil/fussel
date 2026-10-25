@@ -62,7 +62,7 @@ struct UninstallerView: View {
             appDetail(app)
         } else if let result = model.lastResult {
             VStack(spacing: 16) {
-                FusselMascot(mood: .happy, size: 140)
+                FusselBadge(mood: .happy, size: 140)
                 Text("\(result.name) is gone")
                     .font(.rounded(24, .semibold))
                 Text("Fussel cleared \(result.freed.byteString).")

@@ -33,6 +33,22 @@ jobs:
           name: Fussel
           path: dist/Fussel.zip
 
+      - name: Render style previews
+        continue-on-error: true
+        timeout-minutes: 3
+        run: dist/Fussel.app/Contents/MacOS/Fussel --render-previews "$PWD/previews"
+
+      # Screenshots land on the ci-previews branch so they can be looked at without a Mac.
+      - name: Publish previews
+        if: github.event_name == 'push'
+        continue-on-error: true
+        run: |
+          cd previews
+          git init -q -b ci-previews
+          git add .
+          git -c user.name="Fussel CI" -c user.email="ci@fussel.invalid" commit -q -m "Previews for $GITHUB_SHA"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" ci-previews
+
       # A new release is published whenever VERSION changes to a number that has no release yet.
       - name: Publish release
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'

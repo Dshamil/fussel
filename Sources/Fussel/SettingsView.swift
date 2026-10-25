@@ -5,6 +5,8 @@ enum SettingsKey {
     static let oldFileDays = "oldFileDays"
     static let downloadDays = "downloadDays"
     static let showMenuBarIcon = "showMenuBarIcon"
+    static let appStyle = "appStyle"
+    static let sounds = "playSounds"
 }
 
 extension ScanOptions {
@@ -23,9 +25,19 @@ struct SettingsView: View {
     @AppStorage(SettingsKey.oldFileDays) private var oldFileDays = 365
     @AppStorage(SettingsKey.downloadDays) private var downloadDays = 30
     @AppStorage(SettingsKey.showMenuBarIcon) private var showMenuBarIcon = true
+    @AppStorage(SettingsKey.appStyle) private var appStyle: AppStyle = .system
+    @AppStorage(SettingsKey.sounds) private var playSounds = true
 
     var body: some View {
         Form {
+            Section("Look & Feel") {
+                Picker("Style", selection: $appStyle) {
+                    ForEach(AppStyle.allCases) { style in
+                        Text(style.title).tag(style)
+                    }
+                }
+                Toggle("Play little sounds", isOn: $playSounds)
+            }
             Section("Large & Old Files") {
                 Picker("Count a file as large from", selection: $largeFileMB) {
                     Text("100 MB").tag(100)

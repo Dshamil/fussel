@@ -61,7 +61,7 @@ struct BusyState: View {
 
     var body: some View {
         VStack(spacing: 18) {
-            FusselMascot(mood: .busy, size: 150)
+            FusselBadge(mood: .busy, size: 150)
             Text(text)
                 .font(.rounded(16, .medium))
                 .foregroundStyle(.secondary)
@@ -80,7 +80,7 @@ private struct DoneState: View {
 
     var body: some View {
         VStack(spacing: 18) {
-            FusselMascot(mood: .happy, size: 150)
+            FusselBadge(mood: .happy, size: 150)
             Text(title)
                 .font(.rounded(26, .semibold))
             Text(detail)
@@ -117,7 +117,7 @@ private struct ResultsList: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 16) {
-                FusselMascot(mood: .idle, size: 64, showShadow: false)
+                FusselBadge(mood: .idle, size: 60)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Found \(model.totalSize.byteString)")
                         .font(.rounded(22, .semibold))

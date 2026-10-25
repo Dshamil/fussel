@@ -1,25 +1,39 @@
 import SwiftUI
+import AppKit
 
 @main
 struct FusselApp: App {
     @State private var model = AppModel()
     @AppStorage("showMenuBarIcon") private var showMenuBarIcon = true
 
+    init() {
+        // Used by the build pipeline to render screenshots of every style.
+        let args = CommandLine.arguments
+        if let i = args.firstIndex(of: "--render-previews"), i + 1 < args.count {
+            PreviewRenderer.renderAll(to: args[i + 1])
+            exit(0)
+        }
+    }
+
     var body: some Scene {
         Window("Fussel", id: "main") {
-            ContentView()
-                .environment(model)
+            StyledRoot {
+                ContentView()
+            }
+            .environment(model)
         }
         .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentMinSize)
-        .defaultSize(width: 760, height: 580)
+        .defaultSize(width: 760, height: 600)
         .commands {
             FusselCommands(model: model)
         }
 
         MenuBarExtra(isInserted: $showMenuBarIcon) {
-            MenuBarView()
-                .environment(model)
+            StyledRoot {
+                MenuBarView()
+            }
+            .environment(model)
         } label: {
             Image(nsImage: MenuBarIcon.image)
                 .accessibilityLabel("Fussel")
@@ -27,7 +41,9 @@ struct FusselApp: App {
         .menuBarExtraStyle(.window)
 
         Settings {
-            SettingsView()
+            StyledRoot {
+                SettingsView()
+            }
         }
     }
 }

@@ -1,0 +1,76 @@
+import SwiftUI
+import AppKit
+
+/// Renders the main screen in every style and state to PNG files, so the look can be checked
+/// without running the app by hand. Invoked with `Fussel --render-previews <folder>`.
+@MainActor
+enum PreviewRenderer {
+    static func renderAll(to folder: String) {
+        _ = NSApplication.shared
+        let dir = URL(fileURLWithPath: folder)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+
+        let styles: [AppStyle] = [.light, .dark, .coral]
+        let scenarios = ["idle", "ready", "done"]
+        for style in styles {
+            for scenario in scenarios {
+                let model = sampleModel(scenario)
+                let view = StyledRoot(override: style) {
+                    ContentView()
+                }
+                .environment(model)
+                .environment(\.colorScheme, style == .dark ? .dark : .light)
+                .frame(width: 760, height: 600)
+
+                let renderer = ImageRenderer(content: view)
+                renderer.scale = 2
+                guard let image = renderer.nsImage,
+                      let tiff = image.tiffRepresentation,
+                      let bitmap = NSBitmapImageRep(data: tiff),
+                      let png = bitmap.representation(using: .png, properties: [:]) else {
+                    print("Could not render \(style.rawValue)-\(scenario)")
+                    continue
+                }
+                let file = dir.appendingPathComponent("\(style.rawValue)-\(scenario).png")
+                try? png.write(to: file)
+                print("Rendered \(file.lastPathComponent)")
+            }
+        }
+    }
+
+    private static func sampleModel(_ scenario: String) -> AppModel {
+        let model = AppModel()
+        model.hasFullDiskAccess = scenario != "idle"
+        let home = FileManager.default.homeDirectoryForCurrentUser
+        switch scenario {
+        case "ready":
+            model.junk.items = [
+                CleanupItem(url: home.appendingPathComponent("Library/Caches/com.example.browser"), name: "Browser",
+                            group: "App Caches", size: 1_840_000_000, preselected: true),
+                CleanupItem(url: home.appendingPathComponent("Library/Logs/Example"), name: "Example",
+                            group: "Logs", size: 320_000_000, preselected: true),
+            ]
+            model.junk.selected = Set(model.junk.items.map(\.url))
+            model.junk.phase = .results
+            model.large.items = [
+                CleanupItem(url: home.appendingPathComponent("Movies/Holiday.mov"), name: "Holiday.mov",
+                            group: "Large Files", size: 4_200_000_000),
+            ]
+            model.large.phase = .results
+            model.tidy.phase = .results
+            model.stage = .ready
+        case "done":
+            model.junk.phase = .done(freed: 2_160_000_000, failures: [])
+            model.large.phase = .results
+            model.large.items = [
+                CleanupItem(url: home.appendingPathComponent("Movies/Holiday.mov"), name: "Holiday.mov",
+                            group: "Large Files", size: 4_200_000_000),
+            ]
+            model.tidy.phase = .done(freed: 0, failures: [])
+            model.stage = .done(freed: 2_160_000_000, failures: [])
+        default:
+            break
+        }
+        return model
+    }
+}
