@@ -25,7 +25,16 @@ jobs:
       - name: Build Fussel.app
         run: |
           chmod +x scripts/*.sh
-          scripts/build.sh "${{ steps.version.outputs.value }}"
+          set -o pipefail
+          scripts/build.sh "${{ steps.version.outputs.value }}" 2>&1 | tee build.log
+
+      # Surface compiler errors as annotations, readable through the API.
+      - name: Report build errors
+        if: failure()
+        run: |
+          grep -E "error:" build.log | sort -u | head -40 | while IFS= read -r line; do
+            echo "::error::${line//$GITHUB_WORKSPACE\//}"
+          done
 
       - name: Upload build
         uses: actions/upload-artifact@v4
@@ -61,7 +70,8 @@ jobs:
             echo "Release $TAG already exists, skipping."
           else
             gh release create "$TAG" dist/Fussel.zip \
+              --prerelease \
               --target "$GITHUB_SHA" \
-              --title "Fussel $TAG" \
+              --title "Fussel $TAG (Beta)" \
               --generate-notes
           fi
