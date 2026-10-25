@@ -162,12 +162,12 @@ final class Sampler: @unchecked Sendable {
         }
         guard result == KERN_SUCCESS else { return (0, total) }
         let page = UInt64(vm_kernel_page_size)
-        let internal = UInt64(stats.internal_page_count) * page
+        let appPages = UInt64(stats.internal_page_count) * page
         let purgeable = UInt64(stats.purgeable_count) * page
         let wired = UInt64(stats.wire_count) * page
         let compressed = UInt64(stats.compressor_page_count) * page
         // Same idea as Activity Monitor's "Memory Used": app memory + wired + compressed.
-        let used = (internal > purgeable ? internal - purgeable : 0) + wired + compressed
+        let used = (appPages > purgeable ? appPages - purgeable : 0) + wired + compressed
         return (min(used, total), total)
     }
 
