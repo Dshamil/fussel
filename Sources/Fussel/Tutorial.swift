@@ -156,7 +156,7 @@ struct TutorialOverlay: View {
                 Button(page == lastPage ? "Let's Go!" : "Next") {
                     if page == lastPage { finish(celebrate: true) } else { go(to: page + 1) }
                 }
-                .buttonStyle(HeroButtonStyle(fill: Theme.ink, text: .white))
+                .buttonStyle(HeroButtonStyle(fill: palette.heroButtonFill, text: palette.heroButtonText))
                 .keyboardShortcut(.defaultAction)
                 .disabled(finishing)
             }
