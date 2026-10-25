@@ -58,8 +58,8 @@ private struct HeroCard: View {
     @State private var bubbleID = 0
     @State private var burstDate: Date?
 
-    private let mascotSize: CGFloat = 150
-    private let mascotCenter = CGPoint(x: 22 + 8 + 75, y: 112)
+    private let mascotSize: CGFloat = 168
+    private let mascotCenter = CGPoint(x: 22 + 8 + 84, y: 115)
 
     private static let pokeLines = [
         "Hehe, that tickles!", "Boop!", "Wheee!", "I'm 100% fluff.",
@@ -71,21 +71,7 @@ private struct HeroCard: View {
     ]
 
     var body: some View {
-        ZStack(alignment: .leading) {
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .fill(palette.heroFill)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 28, style: .continuous)
-                        .strokeBorder(palette.heroStroke, lineWidth: 1)
-                )
-                .shadow(color: palette.isDark ? .black.opacity(0.35) : Theme.coralDeep.opacity(0.25),
-                        radius: 18, y: 10)
-
-            ParticleField(mode: particleMode, tint: palette.speck,
-                          center: UnitPoint(x: 0.15, y: 0.5), burstDate: burstDate)
-                .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-
-            HStack(spacing: 24) {
+        HStack(spacing: 24) {
                 FusselMascot(mood: app.mood, size: mascotSize, color: palette.mascot,
                              lookAt: lookAt, interactive: true) {
                     Sounds.play("Pop")
@@ -112,11 +98,26 @@ private struct HeroCard: View {
                         .padding(.top, 10)
                 }
                 Spacer(minLength: 0)
-            }
-            .padding(.vertical, 26)
-            .padding(.horizontal, 22)
         }
-        .frame(maxWidth: .infinity, minHeight: 224)
+        .padding(.vertical, 24)
+        .padding(.horizontal, 22)
+        .frame(maxWidth: .infinity, minHeight: 230)
+        .background {
+            ZStack {
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                    .fill(palette.heroFill)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 28, style: .continuous)
+                            .strokeBorder(palette.heroStroke, lineWidth: 1)
+                    )
+                    .shadow(color: palette.isDark ? .black.opacity(0.35) : Theme.coralDeep.opacity(0.25),
+                            radius: 18, y: 10)
+                ParticleField(mode: particleMode, tint: palette.speck,
+                              center: UnitPoint(x: 0.15, y: 0.5), burstDate: burstDate)
+                    .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+            }
+        }
+        .fixedSize(horizontal: false, vertical: true)
         .onContinuousHover(coordinateSpace: .local) { phase in
             switch phase {
             case .active(let point):

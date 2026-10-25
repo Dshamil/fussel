@@ -182,6 +182,7 @@ struct StyledRoot<Content: View>: View {
 /// Four little dots to switch styles right from the window.
 struct StyleSwitcher: View {
     @AppStorage(SettingsKey.appStyle) private var style: AppStyle = .system
+    @Environment(\.appStyle) private var activeStyle
     @Environment(\.palette) private var palette
 
     var body: some View {
@@ -195,14 +196,14 @@ struct StyleSwitcher: View {
                         .frame(width: 18, height: 18)
                         .padding(3)
                         .overlay(
-                            Circle().strokeBorder(palette.text.opacity(style == option ? 0.7 : 0), lineWidth: 1.5)
+                            Circle().strokeBorder(palette.text.opacity(activeStyle == option ? 0.7 : 0), lineWidth: 1.5)
                         )
                         .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
                 .help(option.title)
                 .accessibilityLabel("\(option.title) style")
-                .accessibilityAddTraits(style == option ? .isSelected : [])
+                .accessibilityAddTraits(activeStyle == option ? .isSelected : [])
             }
         }
         .padding(.horizontal, 8)
@@ -224,6 +225,7 @@ struct StyleSwitcher: View {
                 .overlay(Circle().strokeBorder(.black.opacity(0.15), lineWidth: 0.5))
         case .dark:
             Circle().fill(LinearGradient(colors: [Color(hex: 0x363A5E), Color(hex: 0x1B1C2B)], startPoint: .top, endPoint: .bottom))
+                .overlay(Circle().strokeBorder(.white.opacity(0.25), lineWidth: 0.5))
         case .coral:
             Circle().fill(Palette.coralGradient)
         }
