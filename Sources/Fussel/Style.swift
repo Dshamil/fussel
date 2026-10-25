@@ -267,7 +267,7 @@ enum Sounds {
 enum AnimationBudget {
     /// Seconds between frames.
     static func interval(busy: Bool, active: ControlActiveState) -> Double {
-        if active == .inactive { return 1.0 / 12 }  // window in the background: barely move
-        return busy ? 1.0 / 60 : 1.0 / 30           // scanning: buttery; idle: relaxed
+        if active == .inactive { return 1.0 / 10 }  // window in the background: barely move
+        return busy ? 1.0 / 60 : 1.0 / 24           // scanning: buttery; idle: relaxed
     }
 }
