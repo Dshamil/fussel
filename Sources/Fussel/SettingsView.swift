@@ -24,7 +24,7 @@ struct SettingsView: View {
     @AppStorage(SettingsKey.largeFileMB) private var largeFileMB = 500
     @AppStorage(SettingsKey.oldFileDays) private var oldFileDays = 365
     @AppStorage(SettingsKey.downloadDays) private var downloadDays = 30
-    @AppStorage(SettingsKey.showMenuBarIcon) private var showMenuBarIcon = true
+    @State private var openAtLogin = LoginItem.isEnabled
     @AppStorage(SettingsKey.appStyle) private var appStyle: AppStyle = .system
     @AppStorage(SettingsKey.sounds) private var playSounds = true
 
@@ -62,7 +62,13 @@ struct SettingsView: View {
                 }
             }
             Section("General") {
-                Toggle("Show Fussel in the menu bar", isOn: $showMenuBarIcon)
+                Toggle("Open Fussel at login", isOn: $openAtLogin)
+                    .onChange(of: openAtLogin) { _, enabled in
+                        LoginItem.setEnabled(enabled)
+                    }
+                Text("Fussel lives in the menu bar. Click the little fluff to open it, right-click for more.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)

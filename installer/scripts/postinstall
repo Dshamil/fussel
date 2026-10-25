@@ -1,0 +1,8 @@
+#!/bin/bash
+# Start Fussel for the person who is logged in, so it appears in the menu bar right away.
+CONSOLE_USER=$(/usr/bin/stat -f%Su /dev/console)
+if [ -n "$CONSOLE_USER" ] && [ "$CONSOLE_USER" != "root" ] && [ "$CONSOLE_USER" != "loginwindow" ]; then
+  CONSOLE_UID=$(/usr/bin/id -u "$CONSOLE_USER")
+  /bin/launchctl asuser "$CONSOLE_UID" /usr/bin/sudo -u "$CONSOLE_USER" /usr/bin/open -g "/Applications/Fussel.app" || true
+fi
+exit 0

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<installer-gui-script minSpecVersion="2">
+    <title>Fussel</title>
+    <welcome file="welcome.html" mime-type="text/html"/>
+    <conclusion file="conclusion.html" mime-type="text/html"/>
+    <background file="background.png" alignment="bottomleft" scaling="proportional"/>
+    <background-darkAqua file="background-dark.png" alignment="bottomleft" scaling="proportional"/>
+    <options customize="never" require-scripts="false" hostArchitectures="arm64,x86_64"/>
+    <domains enable_localSystem="true"/>
+    <volume-check>
+        <allowed-os-versions>
+            <os-version min="14.0"/>
+        </allowed-os-versions>
+    </volume-check>
+    <choices-outline>
+        <line choice="default">
+            <line choice="app.fussel.Fussel"/>
+        </line>
+    </choices-outline>
+    <choice id="default"/>
+    <choice id="app.fussel.Fussel" visible="false">
+        <pkg-ref id="app.fussel.Fussel"/>
+    </choice>
+    <pkg-ref id="app.fussel.Fussel" version="__VERSION__" onConclusion="none">Fussel-component.pkg</pkg-ref>
+</installer-gui-script>

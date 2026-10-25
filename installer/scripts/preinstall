@@ -1,0 +1,5 @@
+#!/bin/bash
+# Quit a running Fussel so the new version can replace it.
+/usr/bin/pkill -x Fussel 2>/dev/null || true
+sleep 1
+exit 0

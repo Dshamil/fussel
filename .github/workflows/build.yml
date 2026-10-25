@@ -28,6 +28,9 @@ jobs:
           set -o pipefail
           scripts/build.sh "${{ steps.version.outputs.value }}" 2>&1 | tee build.log
 
+      - name: Build installer and disk image
+        run: scripts/package.sh "${{ steps.version.outputs.value }}"
+
       # Surface compiler errors as annotations, readable through the API.
       - name: Report build errors
         if: failure()
@@ -40,7 +43,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Fussel
-          path: dist/Fussel.zip
+          path: |
+            dist/Fussel-Installer.pkg
+            dist/Fussel.dmg
+            dist/Fussel.zip
 
       - name: Render style previews
         continue-on-error: true
@@ -71,7 +77,7 @@ jobs:
           else
             NOTES="release-notes/$VERSION.md"
             if [ -f "$NOTES" ]; then NOTES_ARG=(--notes-file "$NOTES"); else NOTES_ARG=(--generate-notes); fi
-            gh release create "$TAG" dist/Fussel.zip \
+            gh release create "$TAG" dist/Fussel-Installer.pkg dist/Fussel.dmg dist/Fussel.zip \
               --prerelease \
               --target "$GITHUB_SHA" \
               --title "Fussel $VERSION Beta" \
