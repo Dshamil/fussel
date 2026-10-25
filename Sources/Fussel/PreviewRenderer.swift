@@ -11,12 +11,13 @@ enum PreviewRenderer {
         let dir = URL(fileURLWithPath: folder)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
 
+        renderCloset(to: dir)
         let styles: [AppStyle] = [.light, .dark, .coral]
-        let scenarios = ["idle", "scanning", "ready", "done", "tutorial", "stuffed", "hot", "sleepy", "pending"]
+        let scenarios = ["idle", "scanning", "ready", "done", "tutorial", "stuffed", "hot", "sleepy", "pending", "santa"]
         for style in styles {
             for scenario in scenarios {
                 let model = sampleModel(scenario)
-                let view = StyledRoot(override: style) {
+                let view = StyledRoot(override: style, costumeOverride: scenario == "santa" ? .santa : Costume.none) {
                     ContentView()
                 }
                 .environment(model)
@@ -35,6 +36,24 @@ enum PreviewRenderer {
                 let file = dir.appendingPathComponent("\(style.rawValue)-\(scenario).png")
                 try? png.write(to: file)
                 print("Rendered \(file.lastPathComponent)")
+            }
+        }
+    }
+
+    /// The closet tabs, rendered on their own (sheets don't show up in ImageRenderer).
+    static func renderCloset(to dir: URL) {
+        for (name, tab) in [("closet-costumes", ClosetView.Tab.costumes), ("closet-icons", .icon), ("closet-badges", .badges)] {
+            let view = StyledRoot(override: .light, costumeOverride: Costume.none) {
+                ClosetView(tab: tab)
+            }
+            .environment(\.colorScheme, .light)
+            .frame(width: 720, height: 460)
+            .background(Color.white)
+            let renderer = ImageRenderer(content: view)
+            renderer.scale = 2
+            if let tiff = renderer.nsImage?.tiffRepresentation, let bitmap = NSBitmapImageRep(data: tiff),
+               let png = bitmap.representation(using: .png, properties: [:]) {
+                try? png.write(to: dir.appendingPathComponent("\(name).png"))
             }
         }
     }
@@ -61,6 +80,8 @@ enum PreviewRenderer {
             model.monitor.sample.battery = BatteryInfo(percent: 8, isCharging: false, isPluggedIn: false, minutesLeft: 12)
         case "pending":
             model.pendingFluff = 2_400_000_000
+        case "santa":
+            model.stage = .done(freed: 1_200_000_000, failures: [])
         case "scanning":
             model.junk.phase = .results
             model.large.phase = .scanning

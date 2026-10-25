@@ -16,7 +16,7 @@ enum Scanner {
         case .junk: return scanJunk()
         case .large: return scanLargeAndOld(options: options)
         case .tidy: return scanTidy(options: options)
-        case .uninstaller: return []
+        case .uninstaller, .updates, .closet: return []
         }
     }
 

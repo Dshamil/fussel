@@ -10,12 +10,14 @@ final class AppModel {
     let tidy = ModuleModel(module: .tidy)
     let uninstaller = UninstallerModel()
     let monitor = SystemMonitor()
+    let appUpdates = AppUpdatesModel()
+    let updater = FusselUpdater()
     /// Shows the onboarding tutorial over the main window.
     var showTutorial = false
 
     func model(for module: Module) -> ModuleModel {
         switch module {
-        case .junk, .uninstaller: return junk
+        case .junk, .uninstaller, .updates, .closet: return junk
         case .large: return large
         case .tidy: return tidy
         }
@@ -72,6 +74,7 @@ final class AppModel {
         ScanProgress.shared.reset()
         UserDefaults.standard.set(Date(), forKey: FluffWatcher.lastScanKey)
         pendingFluff = 0
+        Achievements.shared.record(.scanned)
         stage = .scanning
         let started = Date()
         let options = ScanOptions.current
@@ -103,6 +106,7 @@ final class AppModel {
             total.merge(await module.clean(record: false))
         }
         lastRecord = CleanHistory.shared.record(total, source: "Smart Clean", itemCount: count)
+        if total.freed > 0 { Achievements.shared.record(.cleaned) }
         stage = .done(freed: total.freed, failures: total.failures)
     }
 
@@ -114,6 +118,7 @@ final class AppModel {
     /// Puts a clean-up back. Results on screen are outdated afterwards, so start fresh.
     func undo(_ record: CleanRecord) async -> (restored: Int, failed: [String]) {
         let outcome = await CleanHistory.shared.undo(record)
+        Achievements.shared.record(.undid)
         if lastRecord?.id == record.id { lastRecord = nil }
         for module in scannable { module.reset() }
         stage = .idle
@@ -202,6 +207,7 @@ final class ModuleModel {
         phase = .done(freed: result.freed, failures: result.failures)
         if record {
             CleanHistory.shared.record(result, source: module.title, itemCount: toClean.count)
+            if result.freed > 0 { Achievements.shared.record(.cleaned) }
         }
         return result
     }
@@ -271,6 +277,7 @@ final class UninstallerModel {
         working = false
         lastResult = (app.name, result.freed, result.failures)
         CleanHistory.shared.record(result, source: "Uninstalled \(app.name)", itemCount: toClean.count)
+        Achievements.shared.record(.uninstalled)
         if !FileManager.default.fileExists(atPath: app.url.path) {
             apps.removeAll { $0 == app }
         }

@@ -53,6 +53,8 @@ struct Palette {
         case .junk: return Color(hex: 0xCFE8DC)        // mint
         case .large: return Color(hex: 0xDCD5F7)       // lavender
         case .uninstaller: return Color(hex: 0xF9E3A0) // butter
+        case .updates: return Color(hex: 0xCDE4F7)     // sky
+        case .closet: return Color(hex: 0xF8D0E4)      // pink
         case .tidy: return Color(hex: 0xFFD3C4)        // peach
         }
     }
@@ -144,7 +146,17 @@ private struct StyleKey: EnvironmentKey {
     static let defaultValue = AppStyle.system
 }
 
+private struct AnimationsPausedKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
 extension EnvironmentValues {
+    /// Set where an animation is hidden behind something else (e.g. the hero under the tutorial).
+    var animationsPaused: Bool {
+        get { self[AnimationsPausedKey.self] }
+        set { self[AnimationsPausedKey.self] = newValue }
+    }
+
     var palette: Palette {
         get { self[PaletteKey.self] }
         set { self[PaletteKey.self] = newValue }
@@ -158,17 +170,27 @@ extension EnvironmentValues {
 /// Wraps a scene's content: resolves the palette and applies the style's appearance app-wide.
 struct StyledRoot<Content: View>: View {
     @AppStorage(SettingsKey.appStyle) private var storedStyle: AppStyle = .system
+    @AppStorage(Costume.storageKey) private var storedCostume: String = Costume.auto.rawValue
     @Environment(\.colorScheme) private var scheme
     /// Used for rendering previews without touching the real setting.
     var override: AppStyle?
+    var costumeOverride: Costume? = nil
     @ViewBuilder var content: Content
 
     private var style: AppStyle { override ?? storedStyle }
+
+    /// The crown stays in the closet until it's earned.
+    private var wornCostume: Costume {
+        let chosen = (Costume(rawValue: storedCostume) ?? .auto).resolved()
+        if let badge = chosen.requiredBadge, !Achievements.shared.has(badge) { return .none }
+        return chosen
+    }
 
     var body: some View {
         content
             .environment(\.palette, Palette.resolve(style, scheme: scheme))
             .environment(\.appStyle, style)
+            .environment(\.costume, costumeOverride ?? wornCostume)
             .onAppear { apply(style) }
             .onChange(of: storedStyle) { _, newStyle in apply(newStyle) }
     }
@@ -190,6 +212,7 @@ struct StyleSwitcher: View {
             ForEach(AppStyle.allCases) { option in
                 Button {
                     withAnimation(.spring(duration: 0.35)) { style = option }
+                    Achievements.shared.record(.restyled)
                     Sounds.play("Tink")
                 } label: {
                     swatch(option)
@@ -237,5 +260,14 @@ enum Sounds {
         let enabled = UserDefaults.standard.object(forKey: SettingsKey.sounds) as? Bool ?? true
         guard enabled else { return }
         NSSound(named: NSSound.Name(name))?.play()
+    }
+}
+
+/// Frame rate budget for Fussel's animations: smooth when it matters, calm otherwise.
+enum AnimationBudget {
+    /// Seconds between frames.
+    static func interval(busy: Bool, active: ControlActiveState) -> Double {
+        if active == .inactive { return 1.0 / 12 }  // window in the background: barely move
+        return busy ? 1.0 / 60 : 1.0 / 30           // scanning: buttery; idle: relaxed
     }
 }

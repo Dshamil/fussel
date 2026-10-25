@@ -1,8 +1,9 @@
 import Foundation
 import UserNotifications
 
-/// Once a week, if nobody has scanned in a while, Fussel quietly checks caches and logs in the
-/// background. When there's enough fluff, it sends a notification and puts a dot on the menu bar icon.
+/// The weekly reminder: if nobody has scanned for a week, Fussel quietly checks caches and logs in
+/// the background and sends a friendly reminder. When there's a lot of fluff, it says how much and
+/// puts a dot on the menu bar icon.
 @MainActor
 final class FluffWatcher {
     static let lastScanKey = "lastScanDate"
@@ -49,11 +50,13 @@ final class FluffWatcher {
 
         let items = await Task.detached(priority: .background) { Scanner.scanJunk() }.value
         let bytes = items.filter(\.preselected).reduce(Int64(0)) { $0 + $1.size }
-        guard bytes >= threshold else { return }
-
-        model.pendingFluff = bytes
         defaults.set(Date(), forKey: Self.lastNudgeKey)
-        await Notifier.fluffFound(bytes)
+        if bytes >= threshold {
+            model.pendingFluff = bytes
+            await Notifier.fluffFound(bytes)
+        } else {
+            await Notifier.weeklyReminder()
+        }
     }
 }
 
@@ -61,6 +64,16 @@ enum Notifier {
     static func requestPermission() async -> Bool {
         let center = UNUserNotificationCenter.current()
         return (try? await center.requestAuthorization(options: [.alert, .sound])) ?? false
+    }
+
+    static func weeklyReminder() async {
+        guard await requestPermission() else { return }
+        let content = UNMutableNotificationContent()
+        content.title = "Weekly tidy-up time!"
+        content.body = "It's been a week since your last scan. Want me to take a quick look?"
+        content.sound = .default
+        let request = UNNotificationRequest(identifier: "weekly-reminder", content: content, trigger: nil)
+        try? await UNUserNotificationCenter.current().add(request)
     }
 
     static func fluffFound(_ bytes: Int64) async {

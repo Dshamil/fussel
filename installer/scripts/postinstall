@@ -3,6 +3,8 @@
 CONSOLE_USER=$(/usr/bin/stat -f%Su /dev/console)
 if [ -n "$CONSOLE_USER" ] && [ "$CONSOLE_USER" != "root" ] && [ "$CONSOLE_USER" != "loginwindow" ]; then
   CONSOLE_UID=$(/usr/bin/id -u "$CONSOLE_USER")
+  # Let Fussel change its own icon (Fussel's Closet) without asking for an admin password.
+  /usr/sbin/chown -R "$CONSOLE_USER":staff "/Applications/Fussel.app" || true
   /bin/launchctl asuser "$CONSOLE_UID" /usr/bin/sudo -u "$CONSOLE_USER" /usr/bin/open -g "/Applications/Fussel.app" || true
 fi
 exit 0

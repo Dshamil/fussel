@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 enum SettingsKey {
     static let largeFileMB = "largeFileMB"
@@ -26,6 +27,8 @@ struct SettingsView: View {
     @AppStorage(SettingsKey.downloadDays) private var downloadDays = 30
     @State private var openAtLogin = LoginItem.isEnabled
     @AppStorage(FluffWatcher.enabledKey) private var weeklyCheck = true
+    @AppStorage(FusselUpdater.autoKey) private var autoUpdate = true
+    @State private var updateStatus = ""
     @AppStorage(SettingsKey.appStyle) private var appStyle: AppStyle = .system
     @AppStorage(SettingsKey.sounds) private var playSounds = true
 
@@ -38,6 +41,32 @@ struct SettingsView: View {
                     }
                 }
                 Toggle("Play little sounds", isOn: $playSounds)
+            }
+            Section("Updates") {
+                Toggle("Check for Fussel updates automatically", isOn: $autoUpdate)
+                HStack {
+                    Text("Version \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?")")
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    if !updateStatus.isEmpty {
+                        Text(updateStatus)
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                    }
+                    Button("Check Now") {
+                        updateStatus = "Checking…"
+                        Task { @MainActor in
+                            let updater = AppDelegate.shared?.model.updater
+                            await updater?.check()
+                            switch updater?.state {
+                            case .available(let release)?: updateStatus = "Fussel \(release.version) is available"
+                            case .upToDate?: updateStatus = "You're up to date"
+                            case .failed(let message)?: updateStatus = message
+                            default: updateStatus = ""
+                            }
+                        }
+                    }
+                }
             }
             Section("Large & Old Files") {
                 Picker("Count a file as large from", selection: $largeFileMB) {
@@ -67,11 +96,11 @@ struct SettingsView: View {
                     .onChange(of: openAtLogin) { _, enabled in
                         LoginItem.setEnabled(enabled)
                     }
-                Toggle("Weekly fluff check", isOn: $weeklyCheck)
+                Toggle("Weekly reminder", isOn: $weeklyCheck)
                     .onChange(of: weeklyCheck) { _, enabled in
                         if enabled { Task { _ = await Notifier.requestPermission() } }
                     }
-                Text("Once a week Fussel peeks at caches and logs in the background and lets you know when there's a lot of fluff.")
+                Text("If you haven't scanned for a week, Fussel peeks at caches and logs and sends a friendly reminder.")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)

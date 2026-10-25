@@ -29,7 +29,14 @@ struct FusselApp: App {
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNotificationCenterDelegate {
+    /// The running delegate, for the few places outside the window that need the model.
+    static weak var shared: AppDelegate?
+
     let model = AppModel()
+    private var wiggleTimer: Timer?
+    private var wiggleFrame = 0
+    private var happyUntil: Date?
+    private var updateTimer: Timer?
     private var statusItem: NSStatusItem?
     private var mainWindow: NSWindow?
     private var settingsWindow: NSWindow?
@@ -37,7 +44,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
     private var watcher: FluffWatcher?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        Self.shared = self
         NSApp.setActivationPolicy(.accessory)
+        IconChanger.reapplyIfNeeded()
         setUpStatusItem()
         setUpKeyboardShortcuts()
         LoginItem.enableOnFirstLaunch()
@@ -45,8 +54,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         let watcher = FluffWatcher(model: model)
         watcher.start()
         self.watcher = watcher
-        observePendingFluff()
-        // Keep an eye on the Mac's health even while the window is closed, so Fussel's mood is current.
+        observeStatusIcon()
+        scheduleUpdateChecks()
+        // Keep an eye on the Mac's health even while the window is closed, so Fussel's mood is current,
+        // but only at a slow background pace until the window opens.
+        model.monitor.setFast(false)
         model.monitor.start()
         // First launch: open the window right away so the tutorial greets people.
         if !UserDefaults.standard.bool(forKey: TutorialKey.seen) {
@@ -94,6 +106,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         menu.addItem(withTitle: "Scan Mac", action: #selector(scanFromMenu), keyEquivalent: "").target = self
         menu.addItem(.separator())
         menu.addItem(withTitle: "Show Tutorial", action: #selector(tutorialFromMenu), keyEquivalent: "").target = self
+        if let release = model.updater.release, case .available = model.updater.state {
+            menu.addItem(withTitle: "Update to Fussel \(release.version)…", action: #selector(installUpdateFromMenu), keyEquivalent: "").target = self
+        } else {
+            menu.addItem(withTitle: "Check for Updates…", action: #selector(checkUpdatesFromMenu), keyEquivalent: "").target = self
+        }
         menu.addItem(withTitle: "Settings…", action: #selector(settingsFromMenu), keyEquivalent: ",").target = self
         menu.addItem(.separator())
         menu.addItem(withTitle: "Quit Fussel", action: #selector(quitFromMenu), keyEquivalent: "q").target = self
@@ -113,16 +130,74 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         model.showTutorial = true
     }
     @objc private func settingsFromMenu() { showSettingsWindow() }
+    @objc private func checkUpdatesFromMenu() {
+        showMainWindow()
+        Task { await model.updater.check() }
+    }
+    @objc private func installUpdateFromMenu() {
+        Task { await model.updater.install() }
+    }
     @objc private func quitFromMenu() { NSApp.terminate(nil) }
 
-    /// Show a dot on the menu bar icon while there's fluff waiting from the weekly check.
-    private func observePendingFluff() {
-        let pending = withObservationTracking {
-            model.pendingFluff
+    /// The menu bar icon is alive: it wiggles while scanning, smiles after cleaning,
+    /// and wears a dot while fluff from the weekly check is waiting.
+    private func observeStatusIcon() {
+        let (stage, _) = withObservationTracking {
+            (model.stage, model.pendingFluff)
         } onChange: { [weak self] in
-            Task { @MainActor in self?.observePendingFluff() }
+            Task { @MainActor in self?.observeStatusIcon() }
         }
-        statusItem?.button?.image = pending > 0 ? MenuBarIcon.imageWithDot : MenuBarIcon.image
+        switch stage {
+        case .scanning, .cleaning:
+            startWiggle()
+        case .done:
+            stopWiggle()
+            happyUntil = Date().addingTimeInterval(3)
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(for: .seconds(3.1))
+                self?.refreshStatusIcon()
+            }
+        default:
+            stopWiggle()
+        }
+        refreshStatusIcon()
+    }
+
+    private func refreshStatusIcon() {
+        guard wiggleTimer == nil else { return }
+        if let until = happyUntil, until > Date() {
+            statusItem?.button?.image = MenuBarIcon.happy
+        } else {
+            statusItem?.button?.image = model.pendingFluff > 0 ? MenuBarIcon.imageWithDot : MenuBarIcon.image
+        }
+    }
+
+    private func startWiggle() {
+        guard wiggleTimer == nil else { return }
+        // 10 frames per second only while scanning; the timer is gone the rest of the time.
+        wiggleTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                guard let self else { return }
+                self.wiggleFrame = (self.wiggleFrame + 1) % MenuBarIcon.wiggle.count
+                self.statusItem?.button?.image = MenuBarIcon.wiggle[self.wiggleFrame]
+            }
+        }
+    }
+
+    private func stopWiggle() {
+        wiggleTimer?.invalidate()
+        wiggleTimer = nil
+    }
+
+    /// Fussel looks for its own updates shortly after launch and then every few hours (at most daily).
+    private func scheduleUpdateChecks() {
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(20))
+            await self?.model.updater.checkIfDue()
+        }
+        updateTimer = Timer.scheduledTimer(withTimeInterval: 6 * 3600, repeats: true) { [weak self] _ in
+            Task { @MainActor in await self?.model.updater.checkIfDue() }
+        }
     }
 
     // MARK: Notifications
@@ -145,6 +220,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
     private func toggleMainWindow() {
         if let window = mainWindow, window.isVisible, window.isKeyWindow {
             window.orderOut(nil)
+            model.monitor.setFast(false)
         } else {
             showMainWindow()
         }
@@ -171,7 +247,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         }
         NSApp.activate(ignoringOtherApps: true)
         mainWindow?.makeKeyAndOrderFront(nil)
-        model.monitor.start()
+        model.monitor.setFast(true)
     }
 
     func showSettingsWindow() {
@@ -189,7 +265,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
     }
 
     /// Closing the window only hides it; Fussel keeps running in the menu bar.
-    func windowWillClose(_ notification: Notification) {}
+    func windowWillClose(_ notification: Notification) {
+        if (notification.object as? NSWindow) === mainWindow { model.monitor.setFast(false) }
+    }
+
+    func windowDidMiniaturize(_ notification: Notification) {
+        if (notification.object as? NSWindow) === mainWindow { model.monitor.setFast(false) }
+    }
+
+    func windowDidDeminiaturize(_ notification: Notification) {
+        if (notification.object as? NSWindow) === mainWindow { model.monitor.setFast(true) }
+    }
 
     // MARK: Keyboard
 

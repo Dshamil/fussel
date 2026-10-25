@@ -8,17 +8,21 @@ struct ContentView: View {
     @State private var openModule: Module?
 
     private let columns = [
-        GridItem(.flexible(), spacing: 16),
-        GridItem(.flexible(), spacing: 16),
+        GridItem(.flexible(), spacing: 14),
+        GridItem(.flexible(), spacing: 14),
+        GridItem(.flexible(), spacing: 14),
     ]
 
     var body: some View {
         VStack(spacing: 16) {
+            UpdateBanner(updater: app.updater)
+                .animation(.spring(duration: 0.4), value: app.updater.state)
+
             HeroCard()
 
             StatsRow()
 
-            LazyVGrid(columns: columns, spacing: 16) {
+            LazyVGrid(columns: columns, spacing: 14) {
                 ForEach(Array(Module.allCases.enumerated()), id: \.element) { index, module in
                     ModuleCard(module: module, index: index) { openModule = module }
                 }
@@ -93,6 +97,7 @@ private struct HeroCard: View {
                 FusselMascot(mood: app.mood, size: mascotSize, color: palette.mascot,
                              lookAt: lookAt, interactive: true) {
                     Sounds.play("Pop")
+                    Achievements.shared.record(.poked)
                     say(Self.pokeLines.randomElement() ?? "Boop!")
                 }
                 .overlay(alignment: .top) {
@@ -138,6 +143,8 @@ private struct HeroCard: View {
             }
         }
         .fixedSize(horizontal: false, vertical: true)
+        // Nothing to animate while the tutorial covers the hero.
+        .environment(\.animationsPaused, app.showTutorial)
         .onContinuousHover(coordinateSpace: .local) { phase in
             switch phase {
             case .active(let point):
@@ -167,6 +174,13 @@ private struct HeroCard: View {
                 livePath = snap.path
                 try? await Task.sleep(for: .milliseconds(120))
             }
+        }
+        .onChange(of: Achievements.shared.justEarned) { _, badge in
+            guard let badge else { return }
+            Achievements.shared.justEarned = nil
+            burstDate = Date()
+            Sounds.play("Hero")
+            say("Badge unlocked: \(badge.title)!")
         }
         .onChange(of: app.undoMessage) { _, message in
             guard let message else { return }
@@ -526,22 +540,25 @@ private struct ModuleCard: View {
                         .symbolEffect(.bounce, value: bounces)
                         .symbolEffect(.pulse, isActive: isBusy)
                 }
-                .frame(width: 48, height: 48)
+                .frame(width: 44, height: 44)
                 .rotationEffect(.degrees(hovering ? -6 : 0))
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(module.title)
                         .font(.rounded(15, .bold))
                         .foregroundStyle(palette.text)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
                     status
                 }
 
                 Spacer(minLength: 0)
 
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .bold))
+                    .font(.system(size: 11, weight: .bold))
                     .foregroundStyle(palette.secondary)
-                    .offset(x: hovering ? 3 : 0)
+                    .opacity(hovering ? 1 : 0)
+                    .offset(x: hovering ? 2 : -2)
             }
             .padding(16)
             .frame(maxWidth: .infinity, minHeight: 92, alignment: .leading)
@@ -576,7 +593,8 @@ private struct ModuleCard: View {
     }
 
     private var isBusy: Bool {
-        guard module != .uninstaller else { return false }
+        if module == .updates, case .checking = app.appUpdates.phase { return true }
+        guard module != .uninstaller, module != .updates, module != .closet else { return false }
         let phase = app.model(for: module).phase
         return phase == .scanning || phase == .cleaning
     }
@@ -585,6 +603,31 @@ private struct ModuleCard: View {
     private var status: some View {
         if module == .uninstaller {
             Text("Remove apps and their leftovers")
+                .font(.system(size: 12))
+                .foregroundStyle(palette.secondary)
+        } else if module == .updates {
+            switch app.appUpdates.phase {
+            case .idle:
+                Text(shortBlurb)
+                    .font(.system(size: 12))
+                    .foregroundStyle(palette.secondary)
+            case .checking(let done, let total):
+                Text("Checking \(done) of \(total)…")
+                    .font(.system(size: 12))
+                    .foregroundStyle(palette.secondary)
+            case .done:
+                if app.appUpdates.updates.isEmpty {
+                    Label("All up to date", systemImage: "checkmark.circle.fill")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(palette.secondary)
+                } else {
+                    Text("\(app.appUpdates.updates.count) waiting")
+                        .font(.rounded(19, .heavy))
+                        .foregroundStyle(palette.text)
+                }
+            }
+        } else if module == .closet {
+            Text("\(Achievements.shared.earned.count) of \(Achievements.all.count) badges")
                 .font(.system(size: 12))
                 .foregroundStyle(palette.secondary)
         } else {
@@ -628,6 +671,8 @@ private struct ModuleCard: View {
         case .large: return "Big files and forgotten ones"
         case .tidy: return "Trash and old downloads"
         case .uninstaller: return "Remove apps and their leftovers"
+        case .updates: return "Updates for your apps"
+        case .closet: return "Costumes, icons and badges"
         }
     }
 }
@@ -665,6 +710,10 @@ private struct DetailSheet: View {
             Group {
                 if module == .uninstaller {
                     UninstallerView(model: app.uninstaller)
+                } else if module == .updates {
+                    AppUpdatesView(model: app.appUpdates)
+                } else if module == .closet {
+                    ClosetView()
                 } else {
                     ModuleView(model: app.model(for: module))
                 }

@@ -237,7 +237,7 @@ private struct TrashScene: View {
                     .foregroundStyle(Theme.ink)
             }
             .offset(x: 120, y: 10)
-            TimelineView(.animation(paused: reduceMotion)) { timeline in
+            TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduceMotion)) { timeline in
                 let t = timeline.date.timeIntervalSinceReferenceDate
                 ZStack {
                     ForEach(0..<3, id: \.self) { k in
@@ -267,7 +267,7 @@ private struct StatsScene: View {
         ZStack {
             FusselMascot(mood: .idle, size: 110, color: color)
                 .offset(y: 30)
-            TimelineView(.animation(paused: reduceMotion)) { timeline in
+            TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduceMotion)) { timeline in
                 let t = timeline.date.timeIntervalSinceReferenceDate
                 ZStack {
                     ForEach(Array(kinds.enumerated()), id: \.offset) { index, kind in
@@ -301,7 +301,7 @@ private struct KeyScene: View {
         ZStack {
             FusselMascot(mood: .idle, size: 130, color: color)
                 .offset(x: -40)
-            TimelineView(.animation(paused: reduceMotion)) { timeline in
+            TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduceMotion)) { timeline in
                 let t = timeline.date.timeIntervalSinceReferenceDate
                 ZStack {
                     Circle().fill(Color(hex: 0xF9E3A0)).frame(width: 64, height: 64)

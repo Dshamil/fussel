@@ -30,6 +30,7 @@ struct FusselBody: View {
     var look: CGSize = .zero
     var surprised = false
     var cheeks = false
+    var costume: Costume = .none
 
     var body: some View {
         Canvas { ctx, size in
@@ -44,6 +45,10 @@ struct FusselBody: View {
             }
             ctx.fill(fluff, with: .color(color))
 
+            drawFace()
+            CostumeArt.draw(costume, in: ctx, scale: s)
+
+            func drawFace() {
             let ink = Theme.ink
             if cheeks || mood == .happy || mood == .stuffed || mood == .hot {
                 let r: CGFloat = mood == .stuffed ? 3.4 : 2.4
@@ -106,6 +111,7 @@ struct FusselBody: View {
             if surprised {
                 ctx.fill(Path(ellipseIn: circle(50 + look.width * 0.5, 58, 1.6)), with: .color(ink))
             }
+            }
         }
     }
 }
@@ -123,12 +129,16 @@ struct FusselMascot: View {
     var onPoke: (() -> Void)? = nil
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.animationsPaused) private var paused
+    @Environment(\.costume) private var costume
+    @Environment(\.controlActiveState) private var activeState
     @State private var blink = false
     @State private var pokeDate = Date.distantPast
     @State private var pokeCount = 0
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 60, paused: reduceMotion)) { timeline in
+        TimelineView(.animation(minimumInterval: AnimationBudget.interval(busy: mood == .busy, active: activeState),
+                                paused: reduceMotion || paused)) { timeline in
             let m = motion(at: timeline.date)
             ZStack {
                 if showShadow {
@@ -143,7 +153,8 @@ struct FusselMascot: View {
                     blink: blink && !m.surprised,
                     look: look,
                     surprised: m.surprised,
-                    cheeks: m.surprised
+                    cheeks: m.surprised,
+                    costume: costume
                 )
                 .frame(width: size, height: size)
                 .scaleEffect(x: m.scaleX, y: m.scaleY, anchor: .bottom)
@@ -283,10 +294,21 @@ enum MenuBarIcon {
     static let image: NSImage = make(dot: false)
     /// Same icon with a little dot: Fussel found something while you were away.
     static let imageWithDot: NSImage = make(dot: true)
+    /// Closed, happy eyes for a moment after cleaning.
+    static let happy: NSImage = make(dot: false, happy: true)
+    /// Wiggle frames while scanning.
+    static let wiggle: [NSImage] = [-14, -8, 0, 8, 14, 8, 0, -8].map { make(dot: false, rotation: $0) }
 
-    private static func make(dot: Bool) -> NSImage {
+    private static func make(dot: Bool, rotation: CGFloat = 0, happy: Bool = false) -> NSImage {
         let side: CGFloat = 18
         let img = NSImage(size: NSSize(width: side, height: side), flipped: true) { rect in
+            if rotation != 0 {
+                let transform = NSAffineTransform()
+                transform.translateX(by: rect.midX, yBy: rect.midY)
+                transform.rotate(byDegrees: rotation)
+                transform.translateX(by: -rect.midX, yBy: -rect.midY)
+                transform.concat()
+            }
             // Fluff spans x 27…73 and y 29…75 in design units; fit it into the rect.
             let s = (rect.width - 2) / 46
             let ox = 1 - 27 * s
@@ -302,8 +324,21 @@ enum MenuBarIcon {
             fluff.fill()
 
             NSGraphicsContext.current?.compositingOperation = .destinationOut
-            for (ex, ey) in FusselGeometry.eyes {
-                NSBezierPath(ovalIn: oval(ex, ey, 3.1)).fill()
+            if happy {
+                for (ex, ey) in FusselGeometry.eyes {
+                    let arc = NSBezierPath()
+                    arc.move(to: NSPoint(x: ox + (ex - 3.2) * s, y: oy + (ey + 1.5) * s))
+                    arc.curve(to: NSPoint(x: ox + (ex + 3.2) * s, y: oy + (ey + 1.5) * s),
+                              controlPoint1: NSPoint(x: ox + (ex - 2) * s, y: oy + (ey - 3.5) * s),
+                              controlPoint2: NSPoint(x: ox + (ex + 2) * s, y: oy + (ey - 3.5) * s))
+                    arc.lineWidth = 2.2 * s
+                    arc.lineCapStyle = .round
+                    arc.stroke()
+                }
+            } else {
+                for (ex, ey) in FusselGeometry.eyes {
+                    NSBezierPath(ovalIn: oval(ex, ey, 3.1)).fill()
+                }
             }
             NSGraphicsContext.current?.compositingOperation = .sourceOver
             if dot {

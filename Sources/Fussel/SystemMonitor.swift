@@ -55,14 +55,29 @@ final class SystemMonitor {
 
     private var loop: Task<Void, Never>?
     private let sampler = Sampler()
+    /// Every 2 s while the window is open, every 30 s in the background (just enough for Fussel's mood).
+    private(set) var fast = true
 
     func start() {
         guard loop == nil else { return }
         loop = Task { [weak self] in
             while !Task.isCancelled {
                 await self?.tick()
-                try? await Task.sleep(for: .seconds(2))
+                let pause = (self?.fast ?? false) ? 2.0 : 30.0
+                try? await Task.sleep(for: .seconds(pause))
             }
+        }
+    }
+
+    /// Switch between live updates (window open) and a slow background pace.
+    func setFast(_ isFast: Bool) {
+        guard isFast != fast else { return }
+        fast = isFast
+        if isFast {
+            // Restart the loop so the window shows fresh numbers right away.
+            loop?.cancel()
+            loop = nil
+            start()
         }
     }
 
@@ -83,6 +98,7 @@ final class SystemMonitor {
 
     func runSpeedTest() async {
         speedTest = .running
+        Achievements.shared.record(.speedTest)
         let result = await Task.detached(priority: .userInitiated) { SpeedTest.run() }.value
         if let result {
             speedTest = .done(downMbps: result.down, upMbps: result.up)

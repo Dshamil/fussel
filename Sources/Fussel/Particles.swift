@@ -14,8 +14,10 @@ struct ParticleField: View {
     var burstDate: Date?
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.animationsPaused) private var paused
+    @Environment(\.controlActiveState) private var activeState
 
-    private static let count = 22
+    private static let count = 16
     private static let confettiCount = 44
     private static let confettiColors: [Color] = [
         .white, Color(hex: 0xCFE8DC), Color(hex: 0xDCD5F7), Color(hex: 0xF9E3A0),
@@ -27,7 +29,8 @@ struct ParticleField: View {
     ]
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 60, paused: reduceMotion)) { timeline in
+        TimelineView(.animation(minimumInterval: AnimationBudget.interval(busy: mode == .vacuum || burstDate != nil, active: activeState),
+                                paused: reduceMotion || paused || (mode == .off && burstDate == nil))) { timeline in
             Canvas { ctx, size in
                 guard !reduceMotion else { return }
                 let t = timeline.date.timeIntervalSinceReferenceDate
