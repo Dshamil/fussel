@@ -182,7 +182,7 @@ struct FusselMascot: View {
             .frame(width: size, height: size)
         }
         .frame(width: size, height: size)
-        .background { if followsPointer { PointerAnchor(gaze: gaze) } }
+        .background { if followsPointer && Gaze.enabled { PointerAnchor(gaze: gaze) } }
         .contentShape(Circle().scale(0.6))
         .onTapGesture {
             guard interactive else { return }
@@ -288,6 +288,8 @@ final class Gaze {
     }
 
     weak var anchor: NSView?
+    /// Screenshot rendering can't draw AppKit views, so the anchor is left out there.
+    static var enabled = true
     private var current = Look()
     private var lastTime: Double?
     private var lastMouse = CGPoint.zero

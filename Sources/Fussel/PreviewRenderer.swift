@@ -7,6 +7,7 @@ import AppKit
 enum PreviewRenderer {
     static func renderAll(to folder: String) {
         _ = NSApplication.shared
+        Gaze.enabled = false
         UserDefaults.standard.set(true, forKey: TutorialKey.seen)
         let dir = URL(fileURLWithPath: folder)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
