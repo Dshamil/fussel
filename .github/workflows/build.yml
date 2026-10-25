@@ -28,6 +28,11 @@ jobs:
           set -o pipefail
           scripts/build.sh "${{ steps.version.outputs.value }}" 2>&1 | tee build.log
 
+      - name: Run tests
+        run: |
+          set -o pipefail
+          swift test 2>&1 | tee test.log
+
       - name: Build installer and disk image
         run: scripts/package.sh "${{ steps.version.outputs.value }}"
 
@@ -35,7 +40,7 @@ jobs:
       - name: Report build errors
         if: failure()
         run: |
-          grep -E "error:" build.log | sort -u | head -40 | while IFS= read -r line; do
+          grep -hE "error:|failed" build.log test.log 2>/dev/null | sort -u | head -40 | while IFS= read -r line; do
             echo "::error::${line//$GITHUB_WORKSPACE\//}"
           done
 

@@ -35,6 +35,7 @@ struct ContentView: View {
                 Spacer(minLength: 0)
                 HistoryPill()
                 StyleSwitcher()
+                SettingsButton()
             }
         }
         .padding(.horizontal, 26)
@@ -43,6 +44,7 @@ struct ContentView: View {
         .frame(minWidth: 700, idealWidth: 760, maxWidth: .infinity,
                minHeight: 770, maxHeight: .infinity, alignment: .top)
         .background { palette.canvas.ignoresSafeArea() }
+        .environment(\.animationsPaused, !app.windowVisible)
         .overlay {
             if app.showTutorial {
                 TutorialOverlay()
@@ -72,7 +74,6 @@ private struct HeroCard: View {
     @Environment(AppModel.self) private var app
     @Environment(\.palette) private var palette
     @State private var confirming = false
-    @State private var lookAt: CGVector?
     @State private var bubble: String?
     @State private var bubbleID = 0
     @State private var burstDate: Date?
@@ -81,7 +82,6 @@ private struct HeroCard: View {
     @State private var puff: CGFloat = 1
 
     private let mascotSize: CGFloat = 168
-    private let mascotCenter = CGPoint(x: 22 + 8 + 84, y: 115)
 
     private static let pokeLines = [
         "Hehe, that tickles!", "Boop!", "Wheee!", "I'm 100% fluff.",
@@ -95,7 +95,7 @@ private struct HeroCard: View {
     var body: some View {
         HStack(spacing: 24) {
                 FusselMascot(mood: app.mood, size: mascotSize, color: palette.mascot,
-                             lookAt: lookAt, interactive: true) {
+                             followsPointer: true, interactive: true) {
                     Sounds.play("Pop")
                     Achievements.shared.record(.poked)
                     say(Self.pokeLines.randomElement() ?? "Boop!")
@@ -143,20 +143,8 @@ private struct HeroCard: View {
             }
         }
         .fixedSize(horizontal: false, vertical: true)
-        // Nothing to animate while the tutorial covers the hero.
-        .environment(\.animationsPaused, app.showTutorial)
-        .onContinuousHover(coordinateSpace: .local) { phase in
-            switch phase {
-            case .active(let point):
-                let dx = point.x - mascotCenter.x
-                let dy = point.y - mascotCenter.y
-                let length = max(1, hypot(dx, dy))
-                let reach = min(1, length / 160)
-                lookAt = CGVector(dx: dx / length * reach, dy: dy / length * reach)
-            case .ended:
-                lookAt = nil
-            }
-        }
+        // Nothing to animate while the tutorial covers the hero or the window is hidden.
+        .environment(\.animationsPaused, app.showTutorial || !app.windowVisible)
         .animation(.spring(duration: 0.4), value: app.stage)
         .task(id: app.stage) {
             // While scanning, read the live counter a few times a second and puff Fussel up.
@@ -208,11 +196,6 @@ private struct HeroCard: View {
             default:
                 break
             }
-        }
-        .onChange(of: app.confirmCleanRequested) { _, requested in
-            guard requested else { return }
-            app.confirmCleanRequested = false
-            if app.selectedTotal > 0 { confirming = true }
         }
         .confirmationDialog("Clean \(app.selectedTotal.byteString)?", isPresented: $confirming) {
             Button(app.selectionIncludesPermanent ? "Clean and Delete Permanently" : "Move to Trash",

@@ -35,8 +35,8 @@ final class AppModel {
     }
 
     var stage: Stage = .idle
-    /// Set by the Clean menu command; the hero shows the same confirmation as its button.
-    var confirmCleanRequested = false
+    /// False while the window is closed, minimised or fully covered: all animations stop.
+    var windowVisible = true
 
     var scannable: [ModuleModel] { [junk, large, tidy] }
     private var withResults: [ModuleModel] { scannable.filter { $0.phase == .results } }
@@ -119,6 +119,10 @@ final class AppModel {
     /// Puts a clean-up back. Results on screen are outdated afterwards, so start fresh.
     func undo(_ record: CleanRecord) async -> (restored: Int, failed: [String]) {
         let outcome = await CleanHistory.shared.undo(record)
+        guard outcome.restored > 0 else {
+            undoMessage = "Hmm, I couldn't put anything back. Was the Trash emptied?"
+            return outcome
+        }
         Achievements.shared.record(.undid)
         if lastRecord?.id == record.id { lastRecord = nil }
         for module in scannable { module.reset() }
@@ -161,14 +165,6 @@ final class ModuleModel {
     }
 
     func items(in group: String) -> [CleanupItem] { items.filter { $0.group == group } }
-
-    var mood: MascotMood {
-        switch phase {
-        case .scanning, .cleaning: return .busy
-        case .done: return .happy
-        default: return .idle
-        }
-    }
 
     func isSelected(_ item: CleanupItem) -> Bool { selected.contains(item.url) }
 

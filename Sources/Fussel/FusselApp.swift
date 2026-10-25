@@ -269,6 +269,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         if (notification.object as? NSWindow) === mainWindow { model.monitor.setFast(false) }
     }
 
+    /// Hidden, minimised or covered by other windows: stop drawing frames nobody sees.
+    func windowDidChangeOcclusionState(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow, window === mainWindow else { return }
+        model.windowVisible = window.occlusionState.contains(.visible)
+    }
+
     func windowDidMiniaturize(_ notification: Notification) {
         if (notification.object as? NSWindow) === mainWindow { model.monitor.setFast(false) }
     }

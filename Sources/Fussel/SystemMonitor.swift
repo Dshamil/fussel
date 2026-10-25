@@ -57,14 +57,24 @@ final class SystemMonitor {
     private let sampler = Sampler()
     /// Every 2 s while the window is open, every 30 s in the background (just enough for Fussel's mood).
     private(set) var fast = true
+    /// Ends the current pause early, e.g. when the window opens.
+    private var wakeNow = false
+    private var forceDisk = false
 
+    /// One loop for the app's whole life, so only one sample ever runs at a time.
     func start() {
         guard loop == nil else { return }
         loop = Task { [weak self] in
             while !Task.isCancelled {
                 await self?.tick()
-                let pause = (self?.fast ?? false) ? 2.0 : 30.0
-                try? await Task.sleep(for: .seconds(pause))
+                var waited = 0.0
+                while !Task.isCancelled {
+                    guard let self else { return }
+                    if self.wakeNow || waited >= (self.fast ? 2.0 : 30.0) { break }
+                    try? await Task.sleep(for: .seconds(1))
+                    waited += 1
+                }
+                self?.wakeNow = false
             }
         }
     }
@@ -73,17 +83,13 @@ final class SystemMonitor {
     func setFast(_ isFast: Bool) {
         guard isFast != fast else { return }
         fast = isFast
-        if isFast {
-            // Restart the loop so the window shows fresh numbers right away.
-            loop?.cancel()
-            loop = nil
-            start()
-        }
+        if isFast { wakeNow = true }
     }
 
     /// Read free disk space again on the next tick (after cleaning).
     func refreshDisk() {
-        sampler.forceDisk = true
+        forceDisk = true
+        wakeNow = true
     }
 
     func stop() {
@@ -93,7 +99,9 @@ final class SystemMonitor {
 
     private func tick() async {
         let sampler = self.sampler
-        let next = await Task.detached(priority: .utility) { sampler.sample() }.value
+        let force = forceDisk
+        forceDisk = false
+        let next = await Task.detached(priority: .utility) { sampler.sample(forceDisk: force) }.value
         sample = next
         hasSample = true
         thermal = ProcessInfo.processInfo.thermalState
@@ -134,23 +142,19 @@ final class SystemMonitor {
 
 // MARK: - Readers
 
-/// Keeps the previous CPU and network counters to compute rates. Only used from one task at a time.
+/// Keeps the previous CPU and network counters to compute rates.
+/// Only SystemMonitor's single loop calls it, one sample at a time.
 final class Sampler: @unchecked Sendable {
     private var lastTicks: [UInt64]?
     private var lastNet: (rx: UInt64, tx: UInt64, time: Date)?
     private var smc = SMC()
-    private var tick = 0
     private var lastDisk: (name: String, total: Int64, free: Int64, time: Date)?
-    /// Set after cleaning so the disk tile shows the new free space right away.
-    var forceDisk = false
-
-    func sample() -> SystemSample {
+    /// `forceDisk` after cleaning, so the disk tile shows the new free space right away.
+    func sample(forceDisk: Bool) -> SystemSample {
         var s = SystemSample()
-        tick += 1
 
         // Free space is comparatively expensive for macOS to work out: refresh it every ~30 s.
         if lastDisk == nil || Date().timeIntervalSince(lastDisk!.time) > 28 || forceDisk {
-            forceDisk = false
             let root = URL(fileURLWithPath: "/")
             if let v = try? root.resourceValues(forKeys: [.volumeNameKey, .volumeTotalCapacityKey,
                                                           .volumeAvailableCapacityForImportantUsageKey]) {

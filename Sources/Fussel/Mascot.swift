@@ -22,7 +22,8 @@ enum MascotMood: Equatable {
 }
 
 /// The fluff body and its face, drawn in a square frame.
-struct FusselBody: View {
+/// Equatable, so SwiftUI only redraws it when the face changes, not on every bobbing frame.
+struct FusselBody: View, Equatable {
     var mood: MascotMood
     var color: Color = .white
     var blink = false
@@ -31,6 +32,8 @@ struct FusselBody: View {
     var surprised = false
     var cheeks = false
     var costume: Costume = .none
+    /// 0…1, how close the pointer is; the pupils widen a little.
+    var curious: CGFloat = 0
 
     var body: some View {
         Canvas { ctx, size in
@@ -94,7 +97,7 @@ struct FusselBody: View {
                 return
             }
 
-            let r = surprised ? 3.3 : (mood == .stuffed ? 2.9 : FusselGeometry.eyeRadius)
+            let r = surprised ? 3.3 : (mood == .stuffed ? 2.9 : FusselGeometry.eyeRadius) + 0.45 * curious
             for (ex, ey) in FusselGeometry.eyes {
                 let x = ex + look.width
                 let y = ey + look.height
@@ -123,8 +126,8 @@ struct FusselMascot: View {
     var size: CGFloat = 140
     var showShadow = true
     var color: Color = .white
-    /// Unit vector towards the pointer, or nil to look ahead.
-    var lookAt: CGVector? = nil
+    /// Eyes (and a little lean of the whole body) follow the pointer, anywhere on screen.
+    var followsPointer = false
     var interactive = false
     var onPoke: (() -> Void)? = nil
 
@@ -135,11 +138,13 @@ struct FusselMascot: View {
     @State private var blink = false
     @State private var pokeDate = Date.distantPast
     @State private var pokeCount = 0
+    @State private var gaze = Gaze()
 
     var body: some View {
         TimelineView(.animation(minimumInterval: AnimationBudget.interval(busy: mood == .busy, active: activeState),
                                 paused: reduceMotion || paused || AnimationBudget.still)) { timeline in
             let m = motion(at: timeline.date)
+            let g = followsPointer ? gaze.update(at: timeline.date.timeIntervalSinceReferenceDate, size: size) : Gaze.Look()
             ZStack {
                 if showShadow {
                     Ellipse()
@@ -151,15 +156,17 @@ struct FusselMascot: View {
                     mood: mood,
                     color: color,
                     blink: blink && !m.surprised,
-                    look: look,
+                    look: g.eyes,
                     surprised: m.surprised,
-                    cheeks: m.surprised,
-                    costume: costume
+                    cheeks: m.surprised || g.curious > 0.85,
+                    costume: costume,
+                    curious: g.curious
                 )
+                .equatable()
                 .frame(width: size, height: size)
                 .scaleEffect(x: m.scaleX, y: m.scaleY, anchor: .bottom)
-                .rotationEffect(.degrees(m.tilt + m.spin))
-                .offset(x: size * 0.04, y: -size * 0.06 - m.height * size)
+                .rotationEffect(.degrees(m.tilt + m.spin + g.lean))
+                .offset(x: size * (0.04 + g.lean * 0.004), y: -size * 0.06 - m.height * size)
 
                 if mood == .sleepy && !reduceMotion {
                     let t = timeline.date.timeIntervalSinceReferenceDate
@@ -175,6 +182,7 @@ struct FusselMascot: View {
             .frame(width: size, height: size)
         }
         .frame(width: size, height: size)
+        .background { if followsPointer { PointerAnchor(gaze: gaze) } }
         .contentShape(Circle().scale(0.6))
         .onTapGesture {
             guard interactive else { return }
@@ -193,11 +201,6 @@ struct FusselMascot: View {
             }
         }
         .accessibilityHidden(true)
-    }
-
-    private var look: CGSize {
-        guard let v = lookAt else { return .zero }
-        return CGSize(width: v.dx * 1.4, height: v.dy * 1.1)
     }
 
     private struct Motion {
@@ -268,6 +271,94 @@ struct FusselMascot: View {
             m.surprised = p < 0.8
         }
         return m
+    }
+}
+
+/// Where Fussel looks. Reads the pointer straight from the window server on every animation frame
+/// (no hover events, so nothing else on screen re-renders) and eases the eyes towards it.
+@MainActor
+final class Gaze {
+    struct Look {
+        /// Eye offset in design units.
+        var eyes: CGSize = .zero
+        /// Degrees the body leans towards the pointer.
+        var lean: Double = 0
+        /// 0…1, pointer close to Fussel.
+        var curious: CGFloat = 0
+    }
+
+    weak var anchor: NSView?
+    private var current = Look()
+    private var lastTime: Double?
+    private var lastMouse = CGPoint.zero
+    private var lastMove = 0.0
+
+    func update(at t: Double, size: CGFloat) -> Look {
+        let target = targetLook(at: t, size: size)
+        let dt = min(0.1, max(0, t - (lastTime ?? t)))
+        if lastTime == nil {
+            current = target
+        } else {
+            // Exponential easing: eyes are quick, the body lean lags behind a bit.
+            let eyeK = 1 - exp(-dt * 16)
+            let bodyK = 1 - exp(-dt * 5)
+            current.eyes.width += (target.eyes.width - current.eyes.width) * eyeK
+            current.eyes.height += (target.eyes.height - current.eyes.height) * eyeK
+            current.curious += (target.curious - current.curious) * CGFloat(bodyK)
+            current.lean += (target.lean - current.lean) * bodyK
+        }
+        lastTime = t
+        return current
+    }
+
+    private func targetLook(at t: Double, size: CGFloat) -> Look {
+        guard let view = anchor, let window = view.window, window.isVisible else { return Look() }
+        let mouse = NSEvent.mouseLocation
+        if mouse != lastMouse {
+            lastMouse = mouse
+            lastMove = t
+        }
+        // Pointer resting for a while: glance around on its own.
+        if t - lastMove > 5 {
+            let slot = floor(t / 2.2)
+            let a = sin(slot * 12.9898) * 43758.5453
+            let angle = (a - floor(a)) * 2 * .pi
+            let wander = (slot.truncatingRemainder(dividingBy: 3) == 0) ? 0 : 0.8
+            return Look(eyes: CGSize(width: cos(angle) * 1.4 * wander, height: sin(angle) * 0.8 * wander))
+        }
+        let local = view.convert(window.convertPoint(fromScreen: mouse), from: nil)
+        let b = view.bounds
+        let dx = local.x - b.midX
+        let dy = view.isFlipped ? local.y - b.midY : b.midY - local.y
+        let distance = max(1, hypot(dx, dy))
+        // Full reach from about one Fussel away; closer in, the eyes converge on the pointer.
+        let reach = min(1, distance / (size * 0.9))
+        let ux = dx / distance, uy = dy / distance
+        return Look(
+            eyes: CGSize(width: ux * 1.7 * reach, height: uy * 1.3 * reach),
+            lean: Double(max(-1, min(1, dx / (size * 3)))) * 6,
+            curious: max(0, 1 - distance / (size * 0.75))
+        )
+    }
+}
+
+/// An invisible view in Fussel's frame, so `Gaze` knows where Fussel is on screen.
+private struct PointerAnchor: NSViewRepresentable {
+    let gaze: Gaze
+
+    /// Never takes clicks, so poking Fussel still works.
+    final class Anchor: NSView {
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+    }
+
+    func makeNSView(context: Context) -> NSView {
+        let view = Anchor()
+        gaze.anchor = view
+        return view
+    }
+
+    func updateNSView(_ view: NSView, context: Context) {
+        gaze.anchor = view
     }
 }
 

@@ -195,7 +195,7 @@ private struct WelcomeScene: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        FusselMascot(mood: .idle, size: 150, color: color, interactive: true)
+        FusselMascot(mood: .idle, size: 150, color: color, followsPointer: true, interactive: true)
             .offset(y: landed ? 0 : -300)
             .overlay(alignment: .topTrailing) {
                 if greeting {
@@ -265,7 +265,7 @@ private struct StatsScene: View {
 
     var body: some View {
         ZStack {
-            FusselMascot(mood: .idle, size: 110, color: color)
+            FusselMascot(mood: .idle, size: 110, color: color, followsPointer: true)
                 .offset(y: 30)
             TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduceMotion)) { timeline in
                 let t = timeline.date.timeIntervalSinceReferenceDate
@@ -299,7 +299,7 @@ private struct KeyScene: View {
 
     var body: some View {
         ZStack {
-            FusselMascot(mood: .idle, size: 130, color: color)
+            FusselMascot(mood: .idle, size: 130, color: color, followsPointer: true)
                 .offset(x: -40)
             TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduceMotion)) { timeline in
                 let t = timeline.date.timeIntervalSinceReferenceDate

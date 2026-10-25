@@ -86,37 +86,17 @@ enum AppUpdateChecker {
     }
 
     static func candidates() -> [Candidate] {
-        let fm = FileManager.default
-        let dirs = [URL(fileURLWithPath: "/Applications"), fm.homeDirectoryForCurrentUser.appendingPathComponent("Applications")]
-        var list: [Candidate] = []
-        var seen = Set<String>()
-        func consider(_ url: URL) {
-            guard url.pathExtension == "app", let bundle = Bundle(url: url),
-                  let id = bundle.bundleIdentifier, !seen.contains(id), id != "app.fussel.Fussel" else { return }
+        Scanner.appBundles().compactMap { url, bundle, id in
             let info = bundle.infoDictionary ?? [:]
-            let version = info["CFBundleShortVersionString"] as? String ?? ""
-            let build = info["CFBundleVersion"] as? String ?? ""
             let feed = (info["SUFeedURL"] as? String).flatMap(URL.init(string:))
-            let fromAppStore = fm.fileExists(atPath: url.appendingPathComponent("Contents/_MASReceipt/receipt").path)
+            let fromAppStore = FileManager.default.fileExists(atPath: url.appendingPathComponent("Contents/_MASReceipt/receipt").path)
             // Apple's own apps update through Software Update.
-            guard fromAppStore || (feed != nil && !id.hasPrefix("com.apple.")) else { return }
-            seen.insert(id)
-            let name = fm.displayName(atPath: url.path).replacingOccurrences(of: ".app", with: "")
-            list.append(Candidate(url: url, name: name, bundleID: id, version: version, build: build,
-                                  feed: feed, fromAppStore: fromAppStore))
+            guard fromAppStore || (feed != nil && !id.hasPrefix("com.apple.")) else { return nil }
+            return Candidate(url: url, name: Scanner.appName(url), bundleID: id,
+                             version: info["CFBundleShortVersionString"] as? String ?? "",
+                             build: info["CFBundleVersion"] as? String ?? "",
+                             feed: feed, fromAppStore: fromAppStore)
         }
-        for dir in dirs {
-            for child in (try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? [] {
-                if child.pathExtension == "app" {
-                    consider(child)
-                } else if (try? child.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory == true {
-                    for grandchild in (try? fm.contentsOfDirectory(at: child, includingPropertiesForKeys: nil)) ?? [] {
-                        consider(grandchild)
-                    }
-                }
-            }
-        }
-        return list
     }
 
     private static let session: URLSession = {

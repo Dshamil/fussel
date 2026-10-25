@@ -5,7 +5,6 @@ enum SettingsKey {
     static let largeFileMB = "largeFileMB"
     static let oldFileDays = "oldFileDays"
     static let downloadDays = "downloadDays"
-    static let showMenuBarIcon = "showMenuBarIcon"
     static let appStyle = "appStyle"
     static let sounds = "playSounds"
 }
@@ -22,6 +21,8 @@ extension ScanOptions {
 }
 
 struct SettingsView: View {
+    /// Shown as a sheet in the main window: fixed height, the form scrolls.
+    var inSheet = false
     @AppStorage(SettingsKey.largeFileMB) private var largeFileMB = 500
     @AppStorage(SettingsKey.oldFileDays) private var oldFileDays = 365
     @AppStorage(SettingsKey.downloadDays) private var downloadDays = 30
@@ -111,6 +112,50 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .frame(width: 440)
-        .fixedSize(horizontal: false, vertical: true)
+        .frame(height: inSheet ? 520 : nil)
+        .fixedSize(horizontal: false, vertical: !inSheet)
+    }
+}
+
+/// Gear in the main window's footer; spins a little on hover and opens the settings right there.
+struct SettingsButton: View {
+    @Environment(\.palette) private var palette
+    @State private var showing = false
+    @State private var hovering = false
+
+    var body: some View {
+        Button {
+            showing = true
+        } label: {
+            Image(systemName: "gearshape.fill")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(palette.text)
+                .rotationEffect(.degrees(hovering ? 60 : 0))
+                .frame(width: 30, height: 30)
+                .background(Circle().fill(palette.card))
+                .overlay(Circle().strokeBorder(palette.cardStroke, lineWidth: 1))
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .onHover { inside in
+            withAnimation(.spring(duration: 0.45, bounce: 0.5)) { hovering = inside }
+        }
+        .help("Settings")
+        .accessibilityLabel("Settings")
+        .sheet(isPresented: $showing) {
+            VStack(spacing: 0) {
+                HStack {
+                    Text("Settings")
+                        .font(.rounded(17, .bold))
+                    Spacer()
+                    Button("Done") { showing = false }
+                        .keyboardShortcut(.defaultAction)
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 16)
+                .padding(.bottom, 4)
+                SettingsView(inSheet: true)
+            }
+        }
     }
 }

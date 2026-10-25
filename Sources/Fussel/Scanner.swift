@@ -165,34 +165,38 @@ enum Scanner {
 
     // MARK: Uninstaller
 
-    static func installedApps() -> [InstalledApp] {
+    /// Every app in /Applications and ~/Applications (one folder level deep), once per bundle ID, without Fussel.
+    static func appBundles() -> [(url: URL, bundle: Bundle, id: String)] {
         let dirs = [URL(fileURLWithPath: "/Applications"), home.appendingPathComponent("Applications")]
-        var apps: [InstalledApp] = []
+        var list: [(url: URL, bundle: Bundle, id: String)] = []
         var seen = Set<String>()
-
         func consider(_ url: URL) {
-            guard url.pathExtension == "app",
-                  let bundle = Bundle(url: url),
-                  let id = bundle.bundleIdentifier,
-                  !id.hasPrefix("com.apple."),
-                  id != ownBundleID,
-                  !seen.contains(id) else { return }
-            seen.insert(id)
-            let name = fm.displayName(atPath: url.path).replacingOccurrences(of: ".app", with: "")
-            apps.append(InstalledApp(url: url, name: name, bundleID: id))
+            guard url.pathExtension == "app", let bundle = Bundle(url: url), let id = bundle.bundleIdentifier,
+                  id != ownBundleID, seen.insert(id).inserted else { return }
+            list.append((url, bundle, id))
         }
-
         for dir in dirs {
             for child in children(of: dir) {
                 if child.pathExtension == "app" {
                     consider(child)
                 } else if (try? child.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory == true {
-                    // One level of folders, e.g. "/Applications/Adobe Something/"
+                    // e.g. "/Applications/Adobe Something/"
                     for grandchild in children(of: child) { consider(grandchild) }
                 }
             }
         }
-        return apps.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        return list
+    }
+
+    static func appName(_ url: URL) -> String {
+        fm.displayName(atPath: url.path).replacingOccurrences(of: ".app", with: "")
+    }
+
+    static func installedApps() -> [InstalledApp] {
+        appBundles()
+            .filter { !$0.id.hasPrefix("com.apple.") }
+            .map { InstalledApp(url: $0.url, name: appName($0.url), bundleID: $0.id) }
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 
     /// The app bundle itself plus every support file Fussel can attribute to it.
@@ -269,19 +273,17 @@ final class ScanProgress: @unchecked Sendable {
 
     private let lock = NSLock()
     private var bytes: Int64 = 0
-    private var items = 0
     private var path = ""
     private var visits = 0
 
     func reset() {
         lock.lock(); defer { lock.unlock() }
-        bytes = 0; items = 0; path = ""; visits = 0
+        bytes = 0; path = ""; visits = 0
     }
 
     func add(_ item: CleanupItem) {
         lock.lock(); defer { lock.unlock() }
         bytes += item.size
-        items += 1
         path = item.displayPath
     }
 
@@ -296,8 +298,8 @@ final class ScanProgress: @unchecked Sendable {
         }
     }
 
-    var snapshot: (bytes: Int64, items: Int, path: String) {
+    var snapshot: (bytes: Int64, path: String) {
         lock.lock(); defer { lock.unlock() }
-        return (bytes, items, path)
+        return (bytes, path)
     }
 }

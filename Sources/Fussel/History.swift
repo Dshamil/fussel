@@ -83,24 +83,18 @@ final class CleanHistory {
             }
             return (restored, failed)
         }.value
-        if let i = records.firstIndex(where: { $0.id == record.id }) {
+        // Only count it as undone when something actually came back; otherwise it can be tried again.
+        if outcome.0 > 0, let i = records.firstIndex(where: { $0.id == record.id }) {
             records[i].undone = true
             save()
         }
         return outcome
     }
 
-    var latestUndoable: CleanRecord? {
-        records.first.flatMap { $0.canUndo ? $0 : nil }
-    }
-
+    /// Written right away on the main thread: at most 50 small records, and writes can never overtake each other.
     private func save() {
-        let records = self.records
-        let file = self.file
-        Task.detached(priority: .utility) {
-            if let data = try? JSONEncoder().encode(records) {
-                try? data.write(to: file, options: .atomic)
-            }
+        if let data = try? JSONEncoder().encode(records) {
+            try? data.write(to: file, options: .atomic)
         }
     }
 }
