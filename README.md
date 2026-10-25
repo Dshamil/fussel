@@ -38,8 +38,9 @@ open dist/Fussel.app
 
 Needs Xcode 15 or later (or the Swift toolchain that comes with it).
 
-Every push to `main` is built by GitHub Actions. Pushing a tag such as `v0.1.0`
-publishes a release with `Fussel.zip` attached.
+Every push to `main` is built by GitHub Actions. To publish a new release, bump the
+number in `VERSION` (for example to `0.2.0`) and push: a release `v0.2.0` with
+`Fussel.zip` attached is created automatically.
 
 ## Project layout
 
