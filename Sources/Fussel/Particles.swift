@@ -24,12 +24,21 @@ struct ParticleField: View {
         Color(hex: 0xFFD3C4), Theme.ink, Theme.coralDeep,
     ]
 
+    /// Confetti and the scan vortex get the full frame rate; gentle drifting gets a light one.
+    private var frameInterval: Double {
+        let bursting = burstDate.map { Date().timeIntervalSince($0) < 2.2 } ?? false
+        if mode == .vacuum || bursting {
+            return AnimationBudget.interval(busy: true, active: activeState)
+        }
+        return AnimationBudget.driftInterval(active: activeState)
+    }
+
     private static let fileSymbols = [
         "doc.fill", "photo.fill", "music.note", "gearshape.fill", "film.fill", "archivebox.fill", "sparkle",
     ]
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: AnimationBudget.interval(busy: mode == .vacuum || burstDate != nil, active: activeState),
+        TimelineView(.animation(minimumInterval: frameInterval,
                                 paused: reduceMotion || paused || AnimationBudget.still || (mode == .off && burstDate == nil))) { timeline in
             Canvas { ctx, size in
                 guard !reduceMotion else { return }

@@ -107,6 +107,7 @@ final class AppModel {
         }
         lastRecord = CleanHistory.shared.record(total, source: "Smart Clean", itemCount: count)
         if total.freed > 0 { Achievements.shared.record(.cleaned) }
+        monitor.refreshDisk()
         stage = .done(freed: total.freed, failures: total.failures)
     }
 

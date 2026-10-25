@@ -52,9 +52,9 @@ measure_main() {
   wait "$pid" 2>/dev/null
   sleep 2
 }
-measure_main "main window, animated" FUSSEL_PROBE=1
-measure_main "main window, still" FUSSEL_STILL=1
-measure_main "main window, animated again" FUSSEL_PROBE=1
+measure_main "main window animated" FUSSEL_PROBE=1
+measure_main "main window still" FUSSEL_STILL=1
+measure_main "main window animated (2)" FUSSEL_PROBE=1
 
 defaults delete "$DOMAIN" >/dev/null 2>&1 || true
 exit 0

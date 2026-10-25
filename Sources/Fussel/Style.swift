@@ -269,6 +269,11 @@ enum AnimationBudget {
     static let still = ProcessInfo.processInfo.environment["FUSSEL_STILL"] != nil
 
     /// Seconds between frames.
+    /// Slow drifting specks move a few pixels a second; 12 frames are plenty.
+    static func driftInterval(active: ControlActiveState) -> Double {
+        active == .inactive ? 1.0 / 6 : 1.0 / 12
+    }
+
     static func interval(busy: Bool, active: ControlActiveState) -> Double {
         if active == .inactive { return 1.0 / 10 }  // window in the background: barely move
         return busy ? 1.0 / 60 : 1.0 / 24           // scanning: buttery; idle: relaxed

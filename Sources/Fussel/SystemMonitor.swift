@@ -81,6 +81,11 @@ final class SystemMonitor {
         }
     }
 
+    /// Read free disk space again on the next tick (after cleaning).
+    func refreshDisk() {
+        sampler.forceDisk = true
+    }
+
     func stop() {
         loop?.cancel()
         loop = nil
@@ -135,17 +140,28 @@ final class Sampler: @unchecked Sendable {
     private var lastNet: (rx: UInt64, tx: UInt64, time: Date)?
     private var smc = SMC()
     private var tick = 0
+    private var lastDisk: (name: String, total: Int64, free: Int64, time: Date)?
+    /// Set after cleaning so the disk tile shows the new free space right away.
+    var forceDisk = false
 
     func sample() -> SystemSample {
         var s = SystemSample()
         tick += 1
 
-        let root = URL(fileURLWithPath: "/")
-        if let v = try? root.resourceValues(forKeys: [.volumeNameKey, .volumeTotalCapacityKey,
-                                                      .volumeAvailableCapacityForImportantUsageKey]) {
-            s.diskName = v.volumeName ?? "Macintosh HD"
-            s.diskTotal = Int64(v.volumeTotalCapacity ?? 0)
-            s.diskFree = v.volumeAvailableCapacityForImportantUsage ?? 0
+        // Free space is comparatively expensive for macOS to work out: refresh it every ~30 s.
+        if lastDisk == nil || Date().timeIntervalSince(lastDisk!.time) > 28 || forceDisk {
+            forceDisk = false
+            let root = URL(fileURLWithPath: "/")
+            if let v = try? root.resourceValues(forKeys: [.volumeNameKey, .volumeTotalCapacityKey,
+                                                          .volumeAvailableCapacityForImportantUsageKey]) {
+                lastDisk = (v.volumeName ?? "Macintosh HD", Int64(v.volumeTotalCapacity ?? 0),
+                            v.volumeAvailableCapacityForImportantUsage ?? 0, Date())
+            }
+        }
+        if let disk = lastDisk {
+            s.diskName = disk.name
+            s.diskTotal = disk.total
+            s.diskFree = disk.free
         }
 
         let mem = Self.memory()
