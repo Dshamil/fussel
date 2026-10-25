@@ -22,7 +22,7 @@ enum PreviewRenderer {
                 }
                 .environment(model)
                 .environment(\.colorScheme, style == .dark ? .dark : .light)
-                .frame(width: 760, height: 720)
+                .frame(width: 760, height: 790)
 
                 let renderer = ImageRenderer(content: view)
                 renderer.scale = 2

@@ -41,7 +41,7 @@ struct ContentView: View {
         .padding(.bottom, 22)
         .padding(.top, 8)
         .frame(minWidth: 700, idealWidth: 760, maxWidth: .infinity,
-               minHeight: 700, maxHeight: .infinity, alignment: .top)
+               minHeight: 770, maxHeight: .infinity, alignment: .top)
         .background { palette.canvas.ignoresSafeArea() }
         .overlay {
             if app.showTutorial {

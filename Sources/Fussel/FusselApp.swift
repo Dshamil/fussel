@@ -239,7 +239,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             window.titleVisibility = .hidden
             window.isMovableByWindowBackground = true
             window.isReleasedWhenClosed = false
-            window.setContentSize(NSSize(width: 760, height: 720))
+            window.setContentSize(NSSize(width: 760, height: 790))
             window.setFrameAutosaveName("FusselMainWindow")
             window.delegate = self
             if !window.setFrameUsingName("FusselMainWindow") { window.center() }
