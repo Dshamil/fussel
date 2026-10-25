@@ -44,7 +44,7 @@ enum PreviewRenderer {
         model.hasFullDiskAccess = scenario != "idle"
         let home = FileManager.default.homeDirectoryForCurrentUser
         model.monitor.sample = SystemSample(
-            diskName: "Macintosh HD", diskFree: 35_870_000_000, diskTotal: 494_000_000_000,
+            diskName: "Macintosh HD", diskFree: 135_870_000_000, diskTotal: 494_000_000_000,
             memUsed: 14_200_000_000, memTotal: 16_000_000_000,
             battery: BatteryInfo(percent: 64, isCharging: false, isPluggedIn: false, minutesLeft: 214),
             cpu: 0.12, temperature: 36, downBytesPerSecond: 3_200, upBytesPerSecond: 0
