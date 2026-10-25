@@ -24,7 +24,7 @@ struct FusselApp: App {
         }
         .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentMinSize)
-        .defaultSize(width: 760, height: 600)
+        .defaultSize(width: 760, height: 550)
         .commands {
             FusselCommands(model: model)
         }

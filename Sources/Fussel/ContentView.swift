@@ -34,7 +34,7 @@ struct ContentView: View {
         .padding(.bottom, 22)
         .padding(.top, 8)
         .frame(minWidth: 700, idealWidth: 760, maxWidth: .infinity,
-               minHeight: 560, maxHeight: .infinity, alignment: .top)
+               minHeight: 520, maxHeight: .infinity, alignment: .top)
         .background { palette.canvas.ignoresSafeArea() }
         .sheet(item: $openModule) { module in
             DetailSheet(module: module)
@@ -85,6 +85,7 @@ private struct HeroCard: View {
                     }
                 }
                 .padding(.leading, 8)
+                .offset(y: 8)
 
                 VStack(alignment: .leading, spacing: 8) {
                     headline
