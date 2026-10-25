@@ -274,6 +274,8 @@ struct ClosetView: View {
     enum Tab: String, CaseIterable { case costumes = "Costumes", icon = "App Icon", badges = "Badges" }
 
     @State var tab: Tab = .costumes
+    /// Screenshots can't render scroll views, so previews turn scrolling off.
+    var scrolls = true
 
     var body: some View {
         VStack(spacing: 0) {
@@ -285,13 +287,23 @@ struct ClosetView: View {
             .frame(width: 320)
             .padding(.vertical, 14)
 
-            ScrollView {
-                switch tab {
-                case .costumes: CostumePicker()
-                case .icon: IconPicker()
-                case .badges: BadgeGrid()
-                }
+            if scrolls {
+                ScrollView { content }
+            } else {
+                content
+                Spacer(minLength: 0)
             }
+        }
+    }
+}
+
+extension ClosetView {
+    @ViewBuilder
+    fileprivate var content: some View {
+        switch tab {
+        case .costumes: CostumePicker()
+        case .icon: IconPicker()
+        case .badges: BadgeGrid()
         }
     }
 }

@@ -44,7 +44,7 @@ enum PreviewRenderer {
     static func renderCloset(to dir: URL) {
         for (name, tab) in [("closet-costumes", ClosetView.Tab.costumes), ("closet-icons", .icon), ("closet-badges", .badges)] {
             let view = StyledRoot(override: .light, costumeOverride: Costume.none) {
-                ClosetView(tab: tab)
+                ClosetView(tab: tab, scrolls: false)
             }
             .environment(\.colorScheme, .light)
             .frame(width: 720, height: 460)

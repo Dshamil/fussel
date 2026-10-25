@@ -530,38 +530,42 @@ private struct ModuleCard: View {
 
     var body: some View {
         Button(action: open) {
-            HStack(alignment: .center, spacing: 14) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .fill(palette.tint(module))
-                    Image(systemName: module.symbol)
-                        .font(.system(size: 19, weight: .semibold))
-                        .foregroundStyle(palette.icon(module))
-                        .symbolEffect(.bounce, value: bounces)
-                        .symbolEffect(.pulse, isActive: isBusy)
-                }
-                .frame(width: 44, height: 44)
-                .rotationEffect(.degrees(hovering ? -6 : 0))
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .top) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(palette.tint(module))
+                        Image(systemName: module.symbol)
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundStyle(palette.icon(module))
+                            .symbolEffect(.bounce, value: bounces)
+                            .symbolEffect(.pulse, isActive: isBusy)
+                    }
+                    .frame(width: 40, height: 40)
+                    .rotationEffect(.degrees(hovering ? -6 : 0))
 
-                VStack(alignment: .leading, spacing: 4) {
+                    Spacer(minLength: 0)
+
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(palette.secondary)
+                        .opacity(hovering ? 1 : 0)
+                        .offset(x: hovering ? 0 : -4)
+                }
+
+                VStack(alignment: .leading, spacing: 3) {
                     Text(module.title)
                         .font(.rounded(15, .bold))
                         .foregroundStyle(palette.text)
                         .lineLimit(1)
-                        .minimumScaleFactor(0.85)
+                        .minimumScaleFactor(0.8)
                     status
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
                 }
-
-                Spacer(minLength: 0)
-
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(palette.secondary)
-                    .opacity(hovering ? 1 : 0)
-                    .offset(x: hovering ? 2 : -2)
             }
-            .padding(16)
-            .frame(maxWidth: .infinity, minHeight: 92, alignment: .leading)
+            .padding(14)
+            .frame(maxWidth: .infinity, minHeight: 104, alignment: .topLeading)
             .background(
                 RoundedRectangle(cornerRadius: 22, style: .continuous)
                     .fill(palette.card)
