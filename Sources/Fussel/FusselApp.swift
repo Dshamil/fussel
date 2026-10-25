@@ -10,7 +10,8 @@ struct FusselApp: App {
             ContentView()
                 .environment(model)
         }
-        .defaultSize(width: 940, height: 620)
+        .windowStyle(.hiddenTitleBar)
+        .windowResizability(.contentSize)
 
         MenuBarExtra(isInserted: $showMenuBarIcon) {
             MenuBarView()

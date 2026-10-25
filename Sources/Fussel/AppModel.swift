@@ -21,6 +21,53 @@ final class AppModel {
     func refreshAccess() {
         hasFullDiskAccess = Permissions.hasFullDiskAccess
     }
+
+    // MARK: One-screen flow
+
+    enum Stage: Equatable {
+        case idle, scanning, ready, cleaning
+        case done(freed: Int64, failures: [String])
+    }
+
+    var stage: Stage = .idle
+
+    var scannable: [ModuleModel] { [junk, large, tidy] }
+    private var withResults: [ModuleModel] { scannable.filter { $0.phase == .results } }
+
+    var foundTotal: Int64 { withResults.reduce(0) { $0 + $1.totalSize } }
+    var selectedTotal: Int64 { withResults.reduce(0) { $0 + $1.selectedSize } }
+    var selectionIncludesPermanent: Bool { withResults.contains { $0.selectionIncludesPermanent } }
+
+    var mood: MascotMood {
+        switch stage {
+        case .scanning, .cleaning: return .busy
+        case .done: return .happy
+        default: return .idle
+        }
+    }
+
+    /// Scans System Junk, Large & Old Files and Trash & Downloads at the same time.
+    func smartScan() async {
+        stage = .scanning
+        let options = ScanOptions.current
+        async let a: Void = junk.scan(options: options)
+        async let b: Void = large.scan(options: options)
+        async let c: Void = tidy.scan(options: options)
+        _ = await (a, b, c)
+        stage = .ready
+    }
+
+    /// Cleans whatever is selected across all modules.
+    func cleanAll() async {
+        stage = .cleaning
+        var total = CleanResult()
+        for module in withResults where !module.selected.isEmpty {
+            let result = await module.clean()
+            total.freed += result.freed
+            total.failures += result.failures
+        }
+        stage = .done(freed: total.freed, failures: total.failures)
+    }
 }
 
 /// Scan → review → clean flow shared by System Junk, Large & Old Files and Trash & Downloads.
@@ -87,9 +134,10 @@ final class ModuleModel {
         phase = .results
     }
 
-    func clean() async {
+    @discardableResult
+    func clean() async -> CleanResult {
         let toClean = selectedItems
-        guard !toClean.isEmpty else { return }
+        guard !toClean.isEmpty else { return CleanResult() }
         phase = .cleaning
         let result = await Task.detached(priority: .userInitiated) {
             Cleaner.clean(toClean)
@@ -97,6 +145,7 @@ final class ModuleModel {
         items = []
         selected = []
         phase = .done(freed: result.freed, failures: result.failures)
+        return result
     }
 
     func reset() {
