@@ -75,8 +75,15 @@ extension Font {
 }
 
 extension Int64 {
+    private static let byteFormatter: ByteCountFormatter = {
+        let f = ByteCountFormatter()
+        f.countStyle = .file
+        f.allowsNonnumericFormatting = false // "0 KB", not "Zero KB"
+        return f
+    }()
+
     var byteString: String {
-        ByteCountFormatter.string(fromByteCount: self, countStyle: .file)
+        Self.byteFormatter.string(fromByteCount: self)
     }
 }
 
