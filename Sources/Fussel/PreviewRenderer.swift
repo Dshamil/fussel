@@ -11,7 +11,7 @@ enum PreviewRenderer {
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
 
         let styles: [AppStyle] = [.light, .dark, .coral]
-        let scenarios = ["idle", "ready", "done"]
+        let scenarios = ["idle", "scanning", "ready", "done", "tutorial"]
         for style in styles {
             for scenario in scenarios {
                 let model = sampleModel(scenario)
@@ -20,7 +20,7 @@ enum PreviewRenderer {
                 }
                 .environment(model)
                 .environment(\.colorScheme, style == .dark ? .dark : .light)
-                .frame(width: 760, height: 600)
+                .frame(width: 760, height: 720)
 
                 let renderer = ImageRenderer(content: view)
                 renderer.scale = 2
@@ -42,7 +42,22 @@ enum PreviewRenderer {
         let model = AppModel()
         model.hasFullDiskAccess = scenario != "idle"
         let home = FileManager.default.homeDirectoryForCurrentUser
+        model.monitor.sample = SystemSample(
+            diskName: "Macintosh HD", diskFree: 35_870_000_000, diskTotal: 494_000_000_000,
+            memUsed: 14_200_000_000, memTotal: 16_000_000_000,
+            battery: BatteryInfo(percent: 11, isCharging: false, isPluggedIn: false, minutesLeft: 34),
+            cpu: 0.12, temperature: 36, downBytesPerSecond: 3_200, upBytesPerSecond: 0
+        )
+        model.monitor.downHistory = (0..<30).map { Double(($0 * 37) % 11) * 900 }
+        model.monitor.hasSample = true
         switch scenario {
+        case "scanning":
+            model.junk.phase = .results
+            model.large.phase = .scanning
+            model.tidy.phase = .scanning
+            model.stage = .scanning
+        case "tutorial":
+            model.showTutorial = true
         case "ready":
             model.junk.items = [
                 CleanupItem(url: home.appendingPathComponent("Library/Caches/com.example.browser"), name: "Browser",

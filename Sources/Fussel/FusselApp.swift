@@ -24,7 +24,7 @@ struct FusselApp: App {
         }
         .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentMinSize)
-        .defaultSize(width: 760, height: 550)
+        .defaultSize(width: 760, height: 720)
         .commands {
             FusselCommands(model: model)
         }
@@ -74,6 +74,11 @@ struct FusselCommands: Commands {
 
             Button("Open Full Disk Access Settings…") {
                 Permissions.openFullDiskAccessSettings()
+            }
+        }
+        CommandGroup(replacing: .help) {
+            Button("Show Tutorial") {
+                model.showTutorial = true
             }
         }
     }

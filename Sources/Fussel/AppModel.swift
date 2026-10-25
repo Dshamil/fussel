@@ -9,6 +9,9 @@ final class AppModel {
     let large = ModuleModel(module: .large)
     let tidy = ModuleModel(module: .tidy)
     let uninstaller = UninstallerModel()
+    let monitor = SystemMonitor()
+    /// Shows the onboarding tutorial over the main window.
+    var showTutorial = false
 
     func model(for module: Module) -> ModuleModel {
         switch module {
@@ -50,13 +53,26 @@ final class AppModel {
 
     /// Scans System Junk, Large & Old Files and Trash & Downloads at the same time.
     func smartScan() async {
+        ScanProgress.shared.reset()
         stage = .scanning
+        let started = Date()
         let options = ScanOptions.current
         async let a: Void = junk.scan(options: options)
         async let b: Void = large.scan(options: options)
         async let c: Void = tidy.scan(options: options)
         _ = await (a, b, c)
+        // Give the scan show a moment even on a very fast Mac.
+        let elapsed = Date().timeIntervalSince(started)
+        if elapsed < 3.2 {
+            try? await Task.sleep(for: .seconds(3.2 - elapsed))
+        }
         stage = .ready
+    }
+
+    /// How many of the three scans have finished, for the progress chips.
+    func isFinished(_ module: Module) -> Bool {
+        let phase = model(for: module).phase
+        return phase != .scanning && phase != .idle
     }
 
     /// Cleans whatever is selected across all modules.

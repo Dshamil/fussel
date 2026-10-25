@@ -34,6 +34,7 @@ enum Scanner {
         guard let enumerator = fm.enumerator(at: url, includingPropertiesForKeys: fileKeys, options: [],
                                              errorHandler: { _, _ in true }) else { return 0 }
         while let file = enumerator.nextObject() as? URL {
+            ScanProgress.shared.visit(file)
             if let v = try? file.resourceValues(forKeys: Set(fileKeys)), v.isRegularFile == true {
                 total += Int64(v.totalFileAllocatedSize ?? v.fileSize ?? 0)
             }
@@ -77,8 +78,8 @@ enum Scanner {
                 if name.hasPrefix(".") || protectedCaches.contains(name) { continue }
                 let bytes = size(of: child)
                 guard bytes > 0 else { continue }
-                items.append(CleanupItem(url: child, name: friendlyName(for: child), group: group,
-                                         size: bytes, preselected: true))
+                items.append(found(CleanupItem(url: child, name: friendlyName(for: child), group: group,
+                                         size: bytes, preselected: true)))
             }
         }
 
@@ -92,7 +93,7 @@ enum Scanner {
             guard fm.fileExists(atPath: url.path) else { continue }
             let bytes = size(of: url)
             guard bytes > 0 else { continue }
-            items.append(CleanupItem(url: url, name: name, group: "Developer", size: bytes, preselected: name == "Xcode Derived Data"))
+            items.append(found(CleanupItem(url: url, name: name, group: "Developer", size: bytes, preselected: name == "Xcode Derived Data")))
         }
 
         return sortedByGroup(items)
@@ -115,6 +116,7 @@ enum Scanner {
                                              errorHandler: { _, _ in true }) else { return [] }
         var items: [CleanupItem] = []
         while let url = enumerator.nextObject() as? URL {
+            ScanProgress.shared.visit(url)
             if enumerator.level == 1 && skipTopLevel.contains(url.lastPathComponent) {
                 enumerator.skipDescendants()
                 continue
@@ -126,11 +128,11 @@ enum Scanner {
             let bytes = Int64(v.totalFileAllocatedSize ?? v.fileSize ?? 0)
             let date = v.contentAccessDate ?? v.contentModificationDate
             if bytes >= minLarge {
-                items.append(CleanupItem(url: url, name: url.lastPathComponent, group: "Large Files",
-                                         size: bytes, date: date))
+                items.append(found(CleanupItem(url: url, name: url.lastPathComponent, group: "Large Files",
+                                         size: bytes, date: date)))
             } else if bytes >= minOld, let date, date < cutoff {
-                items.append(CleanupItem(url: url, name: url.lastPathComponent, group: "Not Opened in a While",
-                                         size: bytes, date: date))
+                items.append(found(CleanupItem(url: url, name: url.lastPathComponent, group: "Not Opened in a While",
+                                         size: bytes, date: date)))
             }
             if items.count >= 2000 { break }
         }
@@ -144,8 +146,8 @@ enum Scanner {
 
         for child in children(of: home.appendingPathComponent(".Trash")) where child.lastPathComponent != ".DS_Store" {
             let bytes = size(of: child)
-            items.append(CleanupItem(url: child, name: child.lastPathComponent, group: "Trash",
-                                     size: bytes, permanent: true))
+            items.append(found(CleanupItem(url: child, name: child.lastPathComponent, group: "Trash",
+                                     size: bytes, permanent: true)))
         }
 
         let cutoff = Calendar.current.date(byAdding: .day, value: -options.downloadDays, to: Date()) ?? Date()
@@ -155,8 +157,8 @@ enum Scanner {
             if name.hasPrefix(".") { continue }
             let v = try? child.resourceValues(forKeys: Set(keys))
             guard let added = v?.addedToDirectoryDate ?? v?.contentModificationDate, added < cutoff else { continue }
-            items.append(CleanupItem(url: child, name: name, group: "Old Downloads",
-                                     size: size(of: child), date: added))
+            items.append(found(CleanupItem(url: child, name: name, group: "Old Downloads",
+                                     size: size(of: child), date: added)))
         }
         return sortedByGroup(items)
     }
@@ -244,6 +246,12 @@ enum Scanner {
 
     // MARK: Helpers
 
+    /// Reports a find to the live scan counter and passes it through.
+    static func found(_ item: CleanupItem) -> CleanupItem {
+        ScanProgress.shared.add(item)
+        return item
+    }
+
     /// Keeps groups in first-seen order, biggest items first inside each group.
     static func sortedByGroup(_ items: [CleanupItem]) -> [CleanupItem] {
         var order: [String] = []
@@ -251,5 +259,45 @@ enum Scanner {
         return order.flatMap { group in
             items.filter { $0.group == group }.sorted { $0.size > $1.size }
         }
+    }
+}
+
+/// Live numbers for the scan animation. Written from scanner threads, read by the UI a few
+/// times per second.
+final class ScanProgress: @unchecked Sendable {
+    static let shared = ScanProgress()
+
+    private let lock = NSLock()
+    private var bytes: Int64 = 0
+    private var items = 0
+    private var path = ""
+    private var visits = 0
+
+    func reset() {
+        lock.lock(); defer { lock.unlock() }
+        bytes = 0; items = 0; path = ""; visits = 0
+    }
+
+    func add(_ item: CleanupItem) {
+        lock.lock(); defer { lock.unlock() }
+        bytes += item.size
+        items += 1
+        path = item.displayPath
+    }
+
+    /// Called for every file the scanners look at; only every 40th updates the shown path.
+    func visit(_ url: URL) {
+        lock.lock(); defer { lock.unlock() }
+        visits += 1
+        if visits % 40 == 0 {
+            let home = FileManager.default.homeDirectoryForCurrentUser.path
+            let p = url.path
+            path = p.hasPrefix(home) ? "~" + p.dropFirst(home.count) : p
+        }
+    }
+
+    var snapshot: (bytes: Int64, items: Int, path: String) {
+        lock.lock(); defer { lock.unlock() }
+        return (bytes, items, path)
     }
 }

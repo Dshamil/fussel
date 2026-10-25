@@ -13,8 +13,10 @@ struct ContentView: View {
     ]
 
     var body: some View {
-        VStack(spacing: 18) {
+        VStack(spacing: 16) {
             HeroCard()
+
+            StatsRow()
 
             LazyVGrid(columns: columns, spacing: 16) {
                 ForEach(Array(Module.allCases.enumerated()), id: \.element) { index, module in
@@ -34,8 +36,20 @@ struct ContentView: View {
         .padding(.bottom, 22)
         .padding(.top, 8)
         .frame(minWidth: 700, idealWidth: 760, maxWidth: .infinity,
-               minHeight: 520, maxHeight: .infinity, alignment: .top)
+               minHeight: 700, maxHeight: .infinity, alignment: .top)
         .background { palette.canvas.ignoresSafeArea() }
+        .overlay {
+            if app.showTutorial {
+                TutorialOverlay()
+                    .transition(.opacity.combined(with: .scale(scale: 1.04)))
+            }
+        }
+        .animation(.spring(duration: 0.4), value: app.showTutorial)
+        .onAppear {
+            if !UserDefaults.standard.bool(forKey: TutorialKey.seen) {
+                app.showTutorial = true
+            }
+        }
         .sheet(item: $openModule) { module in
             DetailSheet(module: module)
                 .environment(app)
@@ -57,6 +71,9 @@ private struct HeroCard: View {
     @State private var bubble: String?
     @State private var bubbleID = 0
     @State private var burstDate: Date?
+    @State private var liveBytes: Int64 = 0
+    @State private var livePath = ""
+    @State private var puff: CGFloat = 1
 
     private let mascotSize: CGFloat = 168
     private let mascotCenter = CGPoint(x: 22 + 8 + 84, y: 115)
@@ -84,6 +101,7 @@ private struct HeroCard: View {
                             .transition(.scale(scale: 0.4, anchor: .bottomLeading).combined(with: .opacity))
                     }
                 }
+                .scaleEffect(puff)
                 .padding(.leading, 8)
                 .offset(y: 8)
 
@@ -132,6 +150,23 @@ private struct HeroCard: View {
             }
         }
         .animation(.spring(duration: 0.4), value: app.stage)
+        .task(id: app.stage) {
+            // While scanning, read the live counter a few times a second and puff Fussel up.
+            guard app.stage == .scanning else {
+                withAnimation(.spring(duration: 0.6, bounce: 0.6)) { puff = 1 }
+                return
+            }
+            while !Task.isCancelled && app.stage == .scanning {
+                let snap = ScanProgress.shared.snapshot
+                let gigabytes = Double(snap.bytes) / 1_000_000_000
+                withAnimation(.spring(duration: 0.35, bounce: 0.4)) {
+                    liveBytes = snap.bytes
+                    puff = 1 + min(0.3, log2(1 + gigabytes) * 0.08)
+                }
+                livePath = snap.path
+                try? await Task.sleep(for: .milliseconds(120))
+            }
+        }
         .onChange(of: app.stage) { _, stage in
             switch stage {
             case .done(let freed, _):
@@ -139,7 +174,8 @@ private struct HeroCard: View {
                 Sounds.play("Glass")
                 say(freed > 0 ? "Ahh, so fresh!" : "Squeaky clean!")
             case .ready:
-                say(app.foundTotal > 0 ? "Found you, fluff!" : "Spotless already!")
+                Sounds.play(app.foundTotal > 0 ? "Bottle" : "Tink")
+                say(app.foundTotal > 0 ? "*burp* Found you, fluff!" : "Spotless already!")
             default:
                 break
             }
@@ -169,6 +205,14 @@ private struct HeroCard: View {
         }
     }
 
+    private func chipTitle(_ module: Module) -> String {
+        switch module {
+        case .junk: return "Junk"
+        case .large: return "Big Files"
+        default: return "Trash"
+        }
+    }
+
     private func say(_ text: String) {
         bubbleID += 1
         let id = bubbleID
@@ -187,7 +231,12 @@ private struct HeroCard: View {
         case .idle:
             Text("Hi, I'm Fussel!")
         case .scanning:
-            Text("On the hunt…")
+            HStack(spacing: 0) {
+                Text("Found ")
+                Text(liveBytes.byteString)
+                    .contentTransition(.numericText(value: Double(liveBytes)))
+                Text("…")
+            }
         case .ready:
             if app.foundTotal > 0 {
                 HStack(spacing: 0) {
@@ -219,13 +268,21 @@ private struct HeroCard: View {
         switch app.stage {
         case .idle:
             Text("Let's find the fluff hiding on your Mac. Psst: you can poke me.")
-        case .scanning, .cleaning:
-            TimelineView(.periodic(from: .now, by: 1.6)) { context in
-                let index = Int(context.date.timeIntervalSinceReferenceDate / 1.6) % Self.scanLines.count
-                Text(app.stage == .cleaning ? "Carrying everything to the Trash…" : Self.scanLines[index])
-                    .id(index)
-                    .transition(.opacity)
+        case .scanning:
+            VStack(alignment: .leading, spacing: 4) {
+                TimelineView(.periodic(from: .now, by: 1.6)) { context in
+                    let index = Int(context.date.timeIntervalSinceReferenceDate / 1.6) % Self.scanLines.count
+                    Text(Self.scanLines[index])
+                }
+                Text(livePath.isEmpty ? " " : livePath)
+                    .font(.system(size: 11, design: .monospaced))
+                    .opacity(0.7)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .frame(maxWidth: 380, alignment: .leading)
             }
+        case .cleaning:
+            Text("Carrying everything to the Trash…")
         case .ready:
             if app.foundTotal == 0 {
                 Text("Nothing to clean right now. Your Mac is in great shape.")
@@ -249,7 +306,14 @@ private struct HeroCard: View {
             Button("Start Scan") { Task { await app.smartScan() } }
                 .buttonStyle(style)
                 .keyboardShortcut(.defaultAction)
-        case .scanning, .cleaning:
+        case .scanning:
+            HStack(spacing: 8) {
+                ForEach([Module.junk, .large, .tidy], id: \.self) { module in
+                    ScanChip(title: chipTitle(module), done: app.isFinished(module), tint: palette.heroText)
+                }
+            }
+            .frame(height: 42)
+        case .cleaning:
             ProgressView()
                 .controlSize(.small)
                 .tint(palette.heroText)
@@ -306,6 +370,36 @@ struct HeroButtonStyle: ButtonStyle {
                 .animation(.spring(duration: 0.3, bounce: 0.4), value: hovering)
                 .onHover { hovering = $0 }
         }
+    }
+}
+
+/// One of the three progress chips during a scan: spinner, then a bouncy checkmark.
+private struct ScanChip: View {
+    let title: String
+    let done: Bool
+    let tint: Color
+
+    var body: some View {
+        HStack(spacing: 6) {
+            ZStack {
+                if done {
+                    Image(systemName: "checkmark.circle.fill")
+                        .transition(.scale(scale: 0.2).combined(with: .opacity))
+                } else {
+                    ProgressView()
+                        .controlSize(.mini)
+                        .tint(tint)
+                }
+            }
+            .frame(width: 14, height: 14)
+            Text(title)
+        }
+        .font(.rounded(12, .bold))
+        .foregroundStyle(tint)
+        .padding(.horizontal, 11)
+        .padding(.vertical, 6)
+        .background(Capsule().fill(tint.opacity(done ? 0.16 : 0.08)))
+        .animation(.spring(duration: 0.45, bounce: 0.6), value: done)
     }
 }
 

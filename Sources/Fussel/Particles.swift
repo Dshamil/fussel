@@ -22,6 +22,10 @@ struct ParticleField: View {
         Color(hex: 0xFFD3C4), Theme.ink, Theme.coralDeep,
     ]
 
+    private static let fileSymbols = [
+        "doc.fill", "photo.fill", "music.note", "gearshape.fill", "film.fill", "archivebox.fill", "sparkle",
+    ]
+
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 60, paused: reduceMotion)) { timeline in
             Canvas { ctx, size in
@@ -29,8 +33,12 @@ struct ParticleField: View {
                 let t = timeline.date.timeIntervalSinceReferenceDate
                 let c = CGPoint(x: center.x * size.width, y: center.y * size.height)
 
+                if mode == .vacuum {
+                    drawGlowAndRings(t: t, center: c, ctx: &ctx)
+                }
                 if mode != .off {
-                    for i in 0..<Self.count {
+                    let count = mode == .vacuum ? 40 : Self.count
+                    for i in 0..<count {
                         drawSpeck(i, t: t, in: size, center: c, ctx: &ctx)
                     }
                 }
@@ -40,10 +48,34 @@ struct ParticleField: View {
                         drawConfetti(dt: dt, center: c, ctx: &ctx)
                     }
                 }
+            } symbols: {
+                ForEach(Array(Self.fileSymbols.enumerated()), id: \.offset) { index, name in
+                    Image(systemName: name)
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(tint)
+                        .tag(index)
+                }
             }
         }
         .allowsHitTesting(false)
         .accessibilityHidden(true)
+    }
+
+    /// A pulsing glow behind Fussel and rings that ripple outwards while it scans.
+    private func drawGlowAndRings(t: Double, center c: CGPoint, ctx: inout GraphicsContext) {
+        let pulse = 0.5 + 0.5 * sin(t * 4)
+        let glow = 90 + 14 * pulse
+        ctx.fill(
+            Path(ellipseIn: CGRect(x: c.x - glow, y: c.y - glow, width: glow * 2, height: glow * 2)),
+            with: .radialGradient(Gradient(colors: [tint.opacity(0.22 + 0.12 * pulse), tint.opacity(0)]),
+                                  center: c, startRadius: 0, endRadius: glow)
+        )
+        for k in 0..<3 {
+            let life = (t / 1.5 + Double(k) / 3).truncatingRemainder(dividingBy: 1)
+            let r = 60 + 190 * life
+            let ring = Path(ellipseIn: CGRect(x: c.x - r, y: c.y - r, width: r * 2, height: r * 2))
+            ctx.stroke(ring, with: .color(tint.opacity(0.35 * (1 - life))), lineWidth: 2)
+        }
     }
 
     /// Cheap deterministic noise so every speck keeps its own personality.
@@ -60,7 +92,7 @@ struct ParticleField: View {
 
         switch mode {
         case .vacuum:
-            let life = (t * (0.45 + 0.35 * r(i, 2)) + r(i, 3)).truncatingRemainder(dividingBy: 1)
+            let life = (t * (0.6 + 0.45 * r(i, 2)) + r(i, 3)).truncatingRemainder(dividingBy: 1)
             let maxR = max(size.width, size.height) * (0.35 + 0.25 * r(i, 4))
             let dist = maxR * (1 - life)
             let angle = r(i, 5) * 2 * .pi + life * 5.5
@@ -75,6 +107,19 @@ struct ParticleField: View {
             alpha = 0.18 + 0.32 * r(i, 11)
             // Fade near the top and bottom edges.
             alpha *= min(1, yy * 6) * min(1, (1 - yy) * 6)
+        }
+
+        // While vacuuming, every third particle is a little file icon tumbling into Fussel.
+        if mode == .vacuum, i % 3 == 0,
+           let symbol = ctx.resolveSymbol(id: (i / 3) % Self.fileSymbols.count) {
+            var piece = ctx
+            piece.opacity = alpha
+            piece.translateBy(x: point.x, y: point.y)
+            piece.rotate(by: .radians(t * (1.5 + 2 * r(i, 12))))
+            let scale = 0.7 + 0.5 * r(i, 13)
+            piece.scaleBy(x: scale, y: scale)
+            piece.draw(symbol, at: .zero)
+            return
         }
 
         var speck = Path()
