@@ -25,22 +25,26 @@ a playful tutorial, and a menu bar helper for a quick clean of caches and logs.
 
 ## Install
 
-1. Download `Fussel.zip` from the latest [release](../../releases) and unzip it.
-2. Move `Fussel.app` into your Applications folder.
-3. Fussel isn't signed with an Apple Developer ID, so macOS warns on first launch.
-   Right-click the app, choose **Open**, then confirm with **Open**.
-   (Or go to **System Settings → Privacy & Security** and click **Open Anyway**.)
+1. Download **Fussel-Installer.pkg** from the latest [release](../../releases) and open it.
+2. Fussel isn't signed with an Apple Developer ID yet, so macOS blocks the installer at first:
+   open **System Settings › Privacy & Security** and click **Open Anyway**.
+3. Click through the installer. Fussel lands in Applications and appears in the menu bar.
 4. Optional but recommended: give Fussel **Full Disk Access** in
-   **System Settings → Privacy & Security → Full Disk Access**, so it can see the Trash
-   and every hidden cache.
+   **System Settings › Privacy & Security › Full Disk Access**.
+
+Prefer drag and drop? Use **Fussel.dmg**, then run
+`xattr -dr com.apple.quarantine /Applications/Fussel.app` once before the first launch.
+
+Fussel lives in the menu bar: click the fluff to open or close it, right-click for more.
+It starts with your Mac; turn that off in Settings.
 
 Requires macOS 14 Sonoma or later. Runs natively on Apple Silicon and Intel.
 
 ## Build it yourself
 
 ```sh
-scripts/build.sh 0.1.0
-open dist/Fussel.app
+scripts/build.sh 0.6.0      # builds dist/Fussel.app
+scripts/package.sh 0.6.0    # builds dist/Fussel-Installer.pkg and dist/Fussel.dmg
 ```
 
 Needs Xcode 15 or later (or the Swift toolchain that comes with it).
