@@ -1,0 +1,40 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain
+        run: swift --version
+
+      - name: Build Fussel.app
+        run: |
+          chmod +x scripts/*.sh
+          scripts/build.sh "${GITHUB_REF_NAME}"
+
+      - name: Upload build
+        uses: actions/upload-artifact@v4
+        with:
+          name: Fussel
+          path: dist/Fussel.zip
+
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/Fussel.zip \
+            --title "Fussel $GITHUB_REF_NAME" \
+            --generate-notes

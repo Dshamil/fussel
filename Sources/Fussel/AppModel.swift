@@ -1,0 +1,173 @@
+import SwiftUI
+import Observation
+
+@Observable
+@MainActor
+final class AppModel {
+    var hasFullDiskAccess = Permissions.hasFullDiskAccess
+    let junk = ModuleModel(module: .junk)
+    let large = ModuleModel(module: .large)
+    let tidy = ModuleModel(module: .tidy)
+    let uninstaller = UninstallerModel()
+
+    func model(for module: Module) -> ModuleModel {
+        switch module {
+        case .junk, .uninstaller: return junk
+        case .large: return large
+        case .tidy: return tidy
+        }
+    }
+
+    func refreshAccess() {
+        hasFullDiskAccess = Permissions.hasFullDiskAccess
+    }
+}
+
+/// Scan → review → clean flow shared by System Junk, Large & Old Files and Trash & Downloads.
+@Observable
+@MainActor
+final class ModuleModel {
+    enum Phase: Equatable {
+        case idle, scanning, results, cleaning
+        case done(freed: Int64, failures: [String])
+    }
+
+    let module: Module
+    var phase: Phase = .idle
+    var items: [CleanupItem] = []
+    var selected: Set<URL> = []
+
+    init(module: Module) {
+        self.module = module
+    }
+
+    var totalSize: Int64 { items.reduce(0) { $0 + $1.size } }
+    var selectedItems: [CleanupItem] { items.filter { selected.contains($0.url) } }
+    var selectedSize: Int64 { selectedItems.reduce(0) { $0 + $1.size } }
+    var selectionIncludesPermanent: Bool { selectedItems.contains { $0.permanent } }
+
+    var groups: [String] {
+        var order: [String] = []
+        for item in items where !order.contains(item.group) { order.append(item.group) }
+        return order
+    }
+
+    func items(in group: String) -> [CleanupItem] { items.filter { $0.group == group } }
+
+    var mood: MascotMood {
+        switch phase {
+        case .scanning, .cleaning: return .busy
+        case .done: return .happy
+        default: return .idle
+        }
+    }
+
+    func isSelected(_ item: CleanupItem) -> Bool { selected.contains(item.url) }
+
+    func setSelected(_ item: CleanupItem, _ on: Bool) {
+        if on { selected.insert(item.url) } else { selected.remove(item.url) }
+    }
+
+    func setGroup(_ group: String, selected on: Bool) {
+        for item in items(in: group) { setSelected(item, on) }
+    }
+
+    func isGroupFullySelected(_ group: String) -> Bool {
+        items(in: group).allSatisfy { selected.contains($0.url) }
+    }
+
+    func scan(options: ScanOptions) async {
+        phase = .scanning
+        let module = self.module
+        let found = await Task.detached(priority: .userInitiated) {
+            Scanner.scan(module, options: options)
+        }.value
+        items = found
+        selected = Set(found.filter(\.preselected).map(\.url))
+        phase = .results
+    }
+
+    func clean() async {
+        let toClean = selectedItems
+        guard !toClean.isEmpty else { return }
+        phase = .cleaning
+        let result = await Task.detached(priority: .userInitiated) {
+            Cleaner.clean(toClean)
+        }.value
+        items = []
+        selected = []
+        phase = .done(freed: result.freed, failures: result.failures)
+    }
+
+    func reset() {
+        items = []
+        selected = []
+        phase = .idle
+    }
+}
+
+@Observable
+@MainActor
+final class UninstallerModel {
+    var apps: [InstalledApp] = []
+    var loadingApps = false
+    var selectedApp: InstalledApp?
+    var leftovers: [CleanupItem] = []
+    var selected: Set<URL> = []
+    var loadingLeftovers = false
+    var working = false
+    var lastResult: (name: String, freed: Int64, failures: [String])?
+
+    var selectedSize: Int64 {
+        leftovers.filter { selected.contains($0.url) }.reduce(0) { $0 + $1.size }
+    }
+
+    func loadApps() async {
+        loadingApps = true
+        apps = await Task.detached(priority: .userInitiated) { Scanner.installedApps() }.value
+        loadingApps = false
+    }
+
+    func select(_ app: InstalledApp?) async {
+        selectedApp = app
+        leftovers = []
+        selected = []
+        lastResult = nil
+        guard let app else { return }
+        loadingLeftovers = true
+        let found = await Task.detached(priority: .userInitiated) { Scanner.leftovers(for: app) }.value
+        guard selectedApp == app else { return }
+        leftovers = found
+        selected = Set(found.filter(\.preselected).map(\.url))
+        loadingLeftovers = false
+    }
+
+    func isRunning(_ app: InstalledApp) -> Bool {
+        !NSRunningApplication.runningApplications(withBundleIdentifier: app.bundleID).isEmpty
+    }
+
+    func quit(_ app: InstalledApp) {
+        for running in NSRunningApplication.runningApplications(withBundleIdentifier: app.bundleID) {
+            running.terminate()
+        }
+    }
+
+    func setSelected(_ item: CleanupItem, _ on: Bool) {
+        if on { selected.insert(item.url) } else { selected.remove(item.url) }
+    }
+
+    func uninstall() async {
+        guard let app = selectedApp else { return }
+        let toClean = leftovers.filter { selected.contains($0.url) }
+        working = true
+        let result = await Task.detached(priority: .userInitiated) { Cleaner.clean(toClean) }.value
+        working = false
+        lastResult = (app.name, result.freed, result.failures)
+        if !FileManager.default.fileExists(atPath: app.url.path) {
+            apps.removeAll { $0 == app }
+        }
+        selectedApp = nil
+        leftovers = []
+        selected = []
+    }
+}
