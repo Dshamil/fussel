@@ -211,13 +211,14 @@ struct ItemRow: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            Toggle("", isOn: $isOn)
+            Toggle("Select \(item.name)", isOn: $isOn)
                 .toggleStyle(.checkbox)
                 .labelsHidden()
                 .disabled(locked)
             Image(nsImage: NSWorkspace.shared.icon(forFile: item.url.path))
                 .resizable()
                 .frame(width: 22, height: 22)
+                .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 1) {
                 Text(item.name)
                     .lineLimit(1)
@@ -240,7 +241,8 @@ struct ItemRow: View {
             Button {
                 NSWorkspace.shared.activateFileViewerSelecting([item.url])
             } label: {
-                Image(systemName: "magnifyingglass")
+                Label("Show in Finder", systemImage: "magnifyingglass")
+                    .labelStyle(.iconOnly)
             }
             .buttonStyle(.borderless)
             .help("Show in Finder")

@@ -63,6 +63,7 @@ struct FusselMascot: View {
     var body: some View {
         AnimatedMascot(mood: mood, size: size, showShadow: showShadow)
             .id(mood)
+            .accessibilityHidden(true)
     }
 }
 
@@ -71,6 +72,7 @@ private struct AnimatedMascot: View {
     let size: CGFloat
     let showShadow: Bool
     @State private var up = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var duration: Double { mood == .busy ? 0.42 : 1.8 }
     private var lift: CGFloat {
@@ -102,6 +104,8 @@ private struct AnimatedMascot: View {
         }
         .frame(width: size, height: size)
         .onAppear {
+            // Respect Reduce Motion: Fussel still changes its face, but stops bobbing.
+            guard !reduceMotion else { return }
             withAnimation(.easeInOut(duration: duration).repeatForever(autoreverses: true)) {
                 up = true
             }
@@ -122,6 +126,7 @@ struct FusselBadge: View {
             FusselMascot(mood: mood, size: size)
         }
         .frame(width: size, height: size)
+        .accessibilityHidden(true)
     }
 }
 

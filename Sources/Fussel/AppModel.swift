@@ -30,6 +30,8 @@ final class AppModel {
     }
 
     var stage: Stage = .idle
+    /// Set by the Clean menu command; the hero shows the same confirmation as its button.
+    var confirmCleanRequested = false
 
     var scannable: [ModuleModel] { [junk, large, tidy] }
     private var withResults: [ModuleModel] { scannable.filter { $0.phase == .results } }

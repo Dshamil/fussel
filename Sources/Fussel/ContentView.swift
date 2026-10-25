@@ -28,8 +28,8 @@ struct ContentView: View {
         .padding(.horizontal, 26)
         .padding(.bottom, 26)
         .padding(.top, 8)
-        .frame(width: 760)
-        .fixedSize(horizontal: false, vertical: true)
+        .frame(minWidth: 700, idealWidth: 760, maxWidth: .infinity,
+               minHeight: 540, maxHeight: .infinity, alignment: .top)
         .background(Theme.canvas)
         .sheet(item: $openModule) { module in
             DetailSheet(module: module)
@@ -55,11 +55,11 @@ private struct HeroCard: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text(headline)
                     .font(.rounded(30, .bold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.ink)
                     .contentTransition(.numericText())
                 Text(subline)
                     .font(.rounded(14, .medium))
-                    .foregroundStyle(.white.opacity(0.88))
+                    .foregroundStyle(Theme.ink)
                     .fixedSize(horizontal: false, vertical: true)
                 action
                     .padding(.top, 10)
@@ -74,17 +74,12 @@ private struct HeroCard: View {
                 .fill(Theme.coralGradient)
                 .shadow(color: Theme.coralDeep.opacity(0.28), radius: 18, y: 10)
         )
-        .overlay(alignment: .topTrailing) {
-            SettingsLink {
-                Image(systemName: "gearshape.fill")
-                    .font(.system(size: 14))
-                    .foregroundStyle(.white.opacity(0.85))
-                    .padding(14)
-            }
-            .buttonStyle(.plain)
-            .help("Settings")
-        }
         .animation(.spring(duration: 0.4), value: app.stage)
+        .onChange(of: app.confirmCleanRequested) { _, requested in
+            guard requested else { return }
+            app.confirmCleanRequested = false
+            if app.selectedTotal > 0 { confirming = true }
+        }
         .confirmationDialog("Clean \(app.selectedTotal.byteString)?", isPresented: $confirming) {
             Button(app.selectionIncludesPermanent ? "Clean and Delete Permanently" : "Move to Trash",
                    role: app.selectionIncludesPermanent ? .destructive : nil) {
@@ -133,31 +128,31 @@ private struct HeroCard: View {
         switch app.stage {
         case .idle:
             Button("Start Scan") { Task { await app.smartScan() } }
-                .buttonStyle(WhiteButtonStyle())
+                .buttonStyle(InkButtonStyle())
                 .keyboardShortcut(.defaultAction)
         case .scanning, .cleaning:
             ProgressView()
                 .controlSize(.small)
-                .tint(.white)
+                .tint(Theme.ink)
                 .frame(height: 40)
         case .ready:
             if app.selectedTotal > 0 {
                 HStack(spacing: 12) {
                     Button("Clean \(app.selectedTotal.byteString)") { confirming = true }
-                        .buttonStyle(WhiteButtonStyle())
+                        .buttonStyle(InkButtonStyle())
                         .keyboardShortcut(.defaultAction)
                     Button("Scan Again") { Task { await app.smartScan() } }
                         .buttonStyle(.plain)
                         .font(.rounded(13, .semibold))
-                        .foregroundStyle(.white.opacity(0.9))
+                        .foregroundStyle(Theme.ink)
                 }
             } else {
                 Button("Scan Again") { Task { await app.smartScan() } }
-                    .buttonStyle(WhiteButtonStyle())
+                    .buttonStyle(InkButtonStyle())
             }
         case .done:
             Button("Scan Again") { Task { await app.smartScan() } }
-                .buttonStyle(WhiteButtonStyle())
+                .buttonStyle(InkButtonStyle())
         }
     }
 }
@@ -178,7 +173,7 @@ private struct ModuleCard: View {
                         .fill(Theme.coral.opacity(0.14))
                     Image(systemName: module.symbol)
                         .font(.system(size: 17, weight: .semibold))
-                        .foregroundStyle(Theme.coral)
+                        .foregroundStyle(Theme.accentText)
                 }
                 .frame(width: 42, height: 42)
 
@@ -244,7 +239,7 @@ private struct ModuleCard: View {
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
                         Text(model.totalSize.byteString)
                             .font(.rounded(18, .bold))
-                            .foregroundStyle(Theme.coral)
+                            .foregroundStyle(.primary)
                         Text(model.selected.isEmpty ? "nothing selected" : "\(model.selectedSize.byteString) selected")
                             .font(.system(size: 11))
                             .foregroundStyle(.secondary)
@@ -279,11 +274,11 @@ private struct DetailSheet: View {
         VStack(spacing: 0) {
             HStack(spacing: 10) {
                 Image(systemName: module.symbol)
-                    .foregroundStyle(Theme.coral)
+                    .foregroundStyle(Theme.accentText)
                 Text(module.title)
                     .font(.rounded(17, .semibold))
                 Spacer()
-                Button("Done") { dismiss() }
+                Button("Close") { dismiss() }
                     .keyboardShortcut(.cancelAction)
             }
             .padding(.horizontal, 20)
@@ -311,7 +306,7 @@ struct FullDiskAccessHint: View {
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: "lock.fill")
-                .foregroundStyle(Theme.coral)
+                .foregroundStyle(Theme.accentText)
             Text("Give Fussel Full Disk Access so it can reach the Trash and every hidden speck.")
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)

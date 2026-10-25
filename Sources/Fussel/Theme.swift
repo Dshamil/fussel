@@ -11,10 +11,18 @@ enum Theme {
         LinearGradient(colors: [coralLight, coralDeep], startPoint: .top, endPoint: .bottom)
     }
 
-    /// Warm off-white in light mode, deep ink in dark mode.
-    static let canvas = Color.dynamic(light: 0xF6F3EE, dark: 0x1B1C22)
-    static let card = Color.dynamic(light: 0xFFFFFF, dark: 0x262730)
-    static let cardStroke = Color.dynamic(light: 0xEAE5DE, dark: 0x33343E)
+    /// Solid deep coral for white-text buttons: white on #C94A33 is 4.7:1, on #B83D27 5.6:1.
+    static var actionGradient: LinearGradient {
+        LinearGradient(colors: [Color(hex: 0xC94A33), Color(hex: 0xB83D27)], startPoint: .top, endPoint: .bottom)
+    }
+
+    /// Coral for text and icons on cards: #C2412A on white is 5.1:1, #F2836B on the dark card 5.8:1.
+    static let accentText = Color.dynamic(light: 0xC2412A, dark: 0xF2836B)
+
+    /// System backgrounds, so Fussel follows light, dark and increased-contrast appearances.
+    static let canvas = Color(nsColor: .windowBackgroundColor)
+    static let card = Color(nsColor: .controlBackgroundColor)
+    static let cardStroke = Color(nsColor: .separatorColor)
 }
 
 extension Color {
@@ -32,17 +40,17 @@ extension Color {
     }
 }
 
-/// White pill with coral text, for use on top of the coral hero.
-struct WhiteButtonStyle: ButtonStyle {
+/// Ink pill with white text, for the main action on top of the coral hero (14:1).
+struct InkButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var isEnabled
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.rounded(15, .semibold))
-            .foregroundStyle(Theme.coralDeep)
+            .foregroundStyle(.white)
             .padding(.horizontal, 24)
             .padding(.vertical, 11)
-            .background(Capsule().fill(.white))
+            .background(Capsule().fill(Theme.ink))
             .shadow(color: .black.opacity(0.12), radius: 6, y: 3)
             .opacity(isEnabled ? (configuration.isPressed ? 0.85 : 1) : 0.6)
             .scaleEffect(configuration.isPressed ? 0.97 : 1)
@@ -83,7 +91,7 @@ struct CoralButtonStyle: ButtonStyle {
             .padding(.horizontal, 22)
             .padding(.vertical, 10)
             .background(
-                Capsule().fill(Theme.coralGradient)
+                Capsule().fill(Theme.actionGradient)
             )
             .opacity(isEnabled ? (configuration.isPressed ? 0.85 : 1) : 0.45)
             .scaleEffect(configuration.isPressed ? 0.97 : 1)
