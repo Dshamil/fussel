@@ -138,7 +138,7 @@ struct FusselMascot: View {
 
     var body: some View {
         TimelineView(.animation(minimumInterval: AnimationBudget.interval(busy: mood == .busy, active: activeState),
-                                paused: reduceMotion || paused)) { timeline in
+                                paused: reduceMotion || paused || AnimationBudget.still)) { timeline in
             let m = motion(at: timeline.date)
             ZStack {
                 if showShadow {

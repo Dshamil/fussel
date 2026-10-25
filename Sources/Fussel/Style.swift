@@ -265,6 +265,9 @@ enum Sounds {
 
 /// Frame rate budget for Fussel's animations: smooth when it matters, calm otherwise.
 enum AnimationBudget {
+    /// FUSSEL_STILL=1 freezes all animations (used to measure what they cost).
+    static let still = ProcessInfo.processInfo.environment["FUSSEL_STILL"] != nil
+
     /// Seconds between frames.
     static func interval(busy: Bool, active: ControlActiveState) -> Double {
         if active == .inactive { return 1.0 / 10 }  // window in the background: barely move

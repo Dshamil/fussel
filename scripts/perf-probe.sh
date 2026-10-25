@@ -35,7 +35,9 @@ measure "menu bar only"
 
 # Main window without the tutorial: launch, then "open" again, which shows the window.
 measure_main() {
-  "$BIN" >/dev/null 2>&1 &
+  local label="$1"
+  shift
+  env "$@" "$BIN" >/dev/null 2>&1 &
   local pid=$!
   sleep 6
   open -a "$PWD/$APP"
@@ -45,11 +47,14 @@ measure_main() {
   local cpu mem
   cpu=$(echo "$stats" | awk '{s+=$1; n++} END { if (n) printf "%.1f", s/n; else print "?" }')
   mem=$(echo "$stats" | tail -n 1 | awk '{print $2}')
-  echo "::notice title=Performance (main window)::average CPU ${cpu}% · memory ${mem}"
+  echo "::notice title=Performance ($label)::average CPU ${cpu}% · memory ${mem}"
   kill "$pid" 2>/dev/null
   wait "$pid" 2>/dev/null
+  sleep 2
 }
-measure_main
+measure_main "main window, animated" FUSSEL_PROBE=1
+measure_main "main window, still" FUSSEL_STILL=1
+measure_main "main window, animated again" FUSSEL_PROBE=1
 
 defaults delete "$DOMAIN" >/dev/null 2>&1 || true
 exit 0

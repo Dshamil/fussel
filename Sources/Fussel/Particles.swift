@@ -30,7 +30,7 @@ struct ParticleField: View {
 
     var body: some View {
         TimelineView(.animation(minimumInterval: AnimationBudget.interval(busy: mode == .vacuum || burstDate != nil, active: activeState),
-                                paused: reduceMotion || paused || (mode == .off && burstDate == nil))) { timeline in
+                                paused: reduceMotion || paused || AnimationBudget.still || (mode == .off && burstDate == nil))) { timeline in
             Canvas { ctx, size in
                 guard !reduceMotion else { return }
                 let t = timeline.date.timeIntervalSinceReferenceDate
