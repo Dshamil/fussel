@@ -64,8 +64,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         // but only at a slow background pace until the window opens.
         model.monitor.setFast(false)
         model.monitor.start()
-        // First launch: open the window right away.
+        // First launch after installing: open the window right away with the welcome tour. The window
+        // marks the tour as seen as soon as it appears, so it never comes back, even if skipped.
         if !UserDefaults.standard.bool(forKey: FirstLaunch.seen) {
+            model.showTutorial = true
             showMainWindow()
         }
     }

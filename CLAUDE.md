@@ -43,6 +43,7 @@ Fussel ist eine Menüleisten-App (keine Dock-Icon, `LSUIElement`). Läuft schon 
 - `Style.swift`, `Theme.swift` – Farben für Light/Dark und den Glass-Stil (unscharfer Schreibtisch dahinter, Karten aus Glas ab macOS 26), Wahl `AppearanceChoice` (Match Mac/Light/Dark/Glass, in den Einstellungen), je Werkzeug eine Akzentfarbe, Knopf-Stile.
 - `ModuleView.swift` – Listen der Werkzeuge mit Filter (Safe to Clean / Check First), Sortierung, Erklärung je Eintrag.
 - `StatsView.swift` (Werte-Zeile + Popovers), `SettingsView.swift`, `UninstallerView.swift`.
+- `Tutorial.swift` – kurze Willkommens-Tour (5 Karten, Skip/Esc), nur beim allerersten Start nach der Installation (`FirstLaunch.seen`).
 - `Updater.swift` – Selbst-Updater über GitHub Releases, prüft die Ed25519-Signatur (`UpdateSignature`) vor dem Installieren.
 - `AppUpdates.swift` – Updates anderer Apps (App Store + Sparkle-Feeds).
 - `FluffWatcher.swift` – wöchentliche Erinnerung.
