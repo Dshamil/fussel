@@ -149,3 +149,54 @@ jobs:
               --title "$TITLE" \
               "${NOTES_ARG[@]}"
           fi
+
+  # The same build on older and Intel Macs: the tests, then the finished app itself (screenshots of every
+  # style and a short run in the background), so problems there show up before users meet them.
+  compat:
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-14, macos-15-intel]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Mac and toolchain
+        run: |
+          sw_vers
+          echo "Chip: $(uname -m)"
+          swift --version
+
+      - name: Run tests
+        run: swift test
+
+      - name: Get the built app
+        uses: actions/download-artifact@v4
+        with:
+          name: Fussel
+          path: dist
+
+      - name: Start the app
+        run: |
+          ditto -x -k dist/Fussel.zip dist
+          APP=dist/Fussel.app/Contents/MacOS/Fussel
+          lipo -archs "$APP"
+          "$APP" --render-previews "$PWD/previews"
+          echo "Screenshots: $(ls previews | wc -l)"
+          "$APP" > run.log 2>&1 &
+          pid=$!
+          sleep 20
+          if kill -0 "$pid" 2>/dev/null; then
+            echo "Fussel is still running after 20 s, using $(ps -o %cpu= -p "$pid")% CPU"
+            kill "$pid"
+          else
+            echo "::error::Fussel quit on its own"; cat run.log; exit 1
+          fi
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: previews-${{ matrix.os }}
+          path: previews
