@@ -21,7 +21,7 @@ enum PreviewRenderer {
             for scenario in scenarios {
                 render(scenario, scheme: scheme, page: .overview, to: dir, name: "\(name(scheme))-\(scenario)")
             }
-            for (scenario, module) in [("ready", Module.junk), ("ready", .large), ("idle", .tidy)] {
+            for (scenario, module) in [("ready", Module.junk), ("ready", .large), ("idle", .tidy), ("ready", .uninstaller)] {
                 render(scenario, scheme: scheme, page: .tool(module), to: dir,
                        name: "\(name(scheme))-\(module.rawValue)-\(scenario)")
             }
@@ -36,6 +36,9 @@ enum PreviewRenderer {
         UserDefaults.standard.set(AppearanceChoice.oreo.rawValue, forKey: SettingsKey.appearance)
         render("ready", scheme: .dark, page: .overview, to: dir, name: "oreo-ready")
         render("ready", scheme: .dark, page: .tool(.junk), to: dir, name: "oreo-junk-ready")
+        render("ready", scheme: .dark, page: .tool(.uninstaller), to: dir, name: "oreo-uninstaller-ready")
+        UserDefaults.standard.set(AppearanceChoice.glass.rawValue, forKey: SettingsKey.appearance)
+        render("ready", scheme: .light, page: .tool(.uninstaller), to: dir, name: "glass-light-uninstaller-ready")
         UserDefaults.standard.set(saved, forKey: SettingsKey.appearance)
     }
 
@@ -126,6 +129,10 @@ enum PreviewRenderer {
             ]
             model.large.phase = .results
             model.tidy.phase = .results
+            model.uninstaller.apps = ["Calculator", "Calendar", "Chess", "Clock", "Maps", "Notes", "Photo Booth", "Stocks"].map {
+                InstalledApp(url: URL(fileURLWithPath: "/System/Applications/\($0).app"), name: $0, bundleID: "")
+            }
+            model.uninstaller.selectedApp = model.uninstaller.apps[3]
             model.stage = .ready
         case "done":
             model.junk.phase = .done(freed: 2_160_000_000, failures: [])

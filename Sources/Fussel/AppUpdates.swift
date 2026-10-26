@@ -292,6 +292,8 @@ struct AppUpdatesView: View {
                 .padding(.vertical, 3)
             }
             .listStyle(.inset)
+            // Let the style's own background show instead of the list's.
+            .scrollContentBackground(.hidden)
         }
     }
 }

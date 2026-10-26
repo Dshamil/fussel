@@ -3,6 +3,7 @@ import AppKit
 
 struct UninstallerView: View {
     let model: UninstallerModel
+    @Environment(\.palette) private var palette
     @State private var search = ""
     @State private var confirming = false
     @State private var askToQuit = false
@@ -16,7 +17,7 @@ struct UninstallerView: View {
         HStack(spacing: 0) {
             appList
                 .frame(width: 260)
-            Divider()
+            Rectangle().fill(palette.cardStroke).frame(width: 1)
             detail
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
@@ -35,20 +36,18 @@ struct UninstallerView: View {
                 ProgressView().controlSize(.small)
                 Spacer()
             } else {
-                List(filteredApps, selection: Binding(
-                    get: { model.selectedApp },
-                    set: { app in Task { await model.select(app) } }
-                )) { app in
-                    HStack(spacing: 8) {
-                        Image(nsImage: NSWorkspace.shared.icon(forFile: app.url.path))
-                            .resizable()
-                            .frame(width: 24, height: 24)
-                        Text(app.name)
-                            .lineLimit(1)
+                // A plain list in the style's own colors, picked like a row in the sidebar.
+                PreviewSafeScroll {
+                    LazyVStack(spacing: 2) {
+                        ForEach(filteredApps) { app in
+                            AppRow(app: app, selected: model.selectedApp == app) {
+                                Task { await model.select(app) }
+                            }
+                        }
                     }
-                    .tag(app)
+                    .padding(.horizontal, 8)
+                    .padding(.bottom, 8)
                 }
-                .listStyle(.sidebar)
             }
         }
     }
@@ -122,6 +121,8 @@ struct UninstallerView: View {
                     }
                 }
                 .listStyle(.inset)
+                // Let the style's own background show instead of the list's.
+                .scrollContentBackground(.hidden)
             }
 
             Divider()
@@ -152,5 +153,34 @@ struct UninstallerView: View {
         } message: {
             Text("Quit the app first, then uninstall it.")
         }
+    }
+}
+
+/// One app in the Uninstaller's list: icon and name, highlighted like a sidebar row.
+private struct AppRow: View {
+    let app: InstalledApp
+    let selected: Bool
+    let action: () -> Void
+    @Environment(\.palette) private var palette
+    @State private var hovering = false
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(nsImage: NSWorkspace.shared.icon(forFile: app.url.path))
+                .resizable()
+                .frame(width: 24, height: 24)
+            Text(app.name)
+                .font(.system(size: 13, weight: selected ? .semibold : .regular))
+                .foregroundStyle(palette.text)
+                .lineLimit(1)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .background(RoundedRectangle(cornerRadius: 7, style: .continuous)
+            .fill(selected ? palette.selection : (hovering ? palette.selection.opacity(0.5) : .clear)))
+        .contentShape(Rectangle())
+        .onHover { hovering = $0 }
+        .onTapGesture(perform: action)
     }
 }
