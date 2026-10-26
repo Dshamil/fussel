@@ -37,55 +37,62 @@ extension Int64 {
     }
 }
 
-/// A light action without a pill: bold tinted text and a small round badge with a symbol.
-/// On hover the badge grows and nudges forward; pressing squishes it.
-struct NudgeButtonStyle: ButtonStyle {
-    var tint: Color
-    /// Color of the symbol inside the badge.
-    var badgeText: Color
-    var symbol = "arrow.right"
-    var size: CGFloat = 12
+/// The main action: a solid rounded button, dark on light and light on dark.
+struct ActionButtonStyle: ButtonStyle {
+    @Environment(\.palette) private var palette
+    @Environment(\.isEnabled) private var isEnabled
 
     func makeBody(configuration: Configuration) -> some View {
-        NudgeButton(configuration: configuration, style: self)
-    }
-
-    private struct NudgeButton: View {
-        let configuration: ButtonStyleConfiguration
-        let style: NudgeButtonStyle
-        @Environment(\.isEnabled) private var isEnabled
-        @State private var hovering = false
-
-        var body: some View {
-            HStack(spacing: style.size * 0.5) {
-                configuration.label
-                    .font(.rounded(style.size, .bold))
-                    .foregroundStyle(style.tint)
-                Image(systemName: style.symbol)
-                    .font(.system(size: style.size * 0.7, weight: .heavy))
-                    .foregroundStyle(style.badgeText)
-                    .frame(width: style.size * 1.45, height: style.size * 1.45)
-                    .background(Circle().fill(style.tint))
-                    .scaleEffect(hovering ? 1.18 : 1)
-                    .offset(x: hovering ? 2 : 0)
-            }
-            .padding(.vertical, 4)
-            .contentShape(Rectangle())
-            .scaleEffect(configuration.isPressed ? 0.93 : 1)
-            .opacity(isEnabled ? 1 : 0.4)
-            .animation(.spring(duration: 0.22, bounce: 0.5), value: configuration.isPressed)
-            .animation(.spring(duration: 0.3, bounce: 0.55), value: hovering)
-            .onHover { hovering = $0 }
-        }
+        configuration.label
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(palette.buttonText)
+            .padding(.horizontal, 14)
+            .frame(height: 30)
+            .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(palette.buttonFill))
+            .opacity(isEnabled ? (configuration.isPressed ? 0.8 : 1) : 0.4)
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .animation(.spring(duration: 0.2, bounce: 0.4), value: configuration.isPressed)
     }
 }
 
-/// The main action on each detail screen: the same pill as on the hero, in the style's colors.
-struct ActionButtonStyle: ButtonStyle {
+/// A quieter action next to the main one.
+struct SecondaryButtonStyle: ButtonStyle {
     @Environment(\.palette) private var palette
+    @Environment(\.isEnabled) private var isEnabled
 
     func makeBody(configuration: Configuration) -> some View {
-        HeroButtonStyle(fill: palette.heroButtonFill, text: palette.heroButtonText)
-            .makeBody(configuration: configuration)
+        configuration.label
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(palette.text)
+            .padding(.horizontal, 14)
+            .frame(height: 30)
+            .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(palette.card))
+            .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(palette.cardStroke, lineWidth: 1))
+            .opacity(isEnabled ? (configuration.isPressed ? 0.7 : 1) : 0.4)
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .animation(.spring(duration: 0.2, bounce: 0.4), value: configuration.isPressed)
+    }
+}
+
+/// Text that counts up to a byte size instead of jumping.
+struct CountingBytes: View, Animatable {
+    var value: Double
+
+    var animatableData: Double {
+        get { value }
+        set { value = newValue }
+    }
+
+    var body: some View {
+        Text(Int64(value).byteString)
+    }
+}
+
+/// Presses squish a little and spring back.
+struct CardPressStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.96 : 1)
+            .animation(.spring(duration: 0.25, bounce: 0.55), value: configuration.isPressed)
     }
 }

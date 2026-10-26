@@ -5,79 +5,50 @@ import AppKit
 /// without running the app by hand. Invoked with `Fussel --render-previews <folder>`.
 @MainActor
 enum PreviewRenderer {
+    /// True while screenshots are drawn: some AppKit-backed views are swapped for plain ones.
+    static var isRendering = false
+
     static func renderAll(to folder: String) {
         _ = NSApplication.shared
         Gaze.enabled = false
-        UserDefaults.standard.set(true, forKey: TutorialKey.seen)
+        isRendering = true
+        UserDefaults.standard.set(true, forKey: FirstLaunch.seen)
         let dir = URL(fileURLWithPath: folder)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
 
-        renderCloset(to: dir)
-        renderSheets(to: dir)
-        let styles: [AppStyle] = [.light, .dark, .coral, .graphite]
-        let scenarios = ["idle", "scanning", "ready", "done", "tutorial", "stuffed", "hot", "sleepy", "pending", "santa"]
-        for style in styles {
+        let scenarios = ["idle", "scanning", "ready", "done", "stuffed", "pending"]
+        for scheme in [ColorScheme.light, .dark] {
             for scenario in scenarios {
-                let model = sampleModel(scenario)
-                let view = StyledRoot(override: style, costumeOverride: scenario == "santa" ? .santa : Costume.none) {
-                    ContentView()
-                }
-                .environment(model)
-                .environment(\.colorScheme, style == .dark || style == .graphite ? .dark : .light)
-                .frame(width: 760, height: 830)
-
-                let renderer = ImageRenderer(content: view)
-                renderer.scale = 2
-                guard let image = renderer.nsImage,
-                      let tiff = image.tiffRepresentation,
-                      let bitmap = NSBitmapImageRep(data: tiff),
-                      let png = bitmap.representation(using: .png, properties: [:]) else {
-                    print("Could not render \(style.rawValue)-\(scenario)")
-                    continue
-                }
-                let file = dir.appendingPathComponent("\(style.rawValue)-\(scenario).png")
-                try? png.write(to: file)
-                print("Rendered \(file.lastPathComponent)")
+                render(scenario, scheme: scheme, page: .overview, to: dir, name: "\(name(scheme))-\(scenario)")
+            }
+            for (scenario, module) in [("ready", Module.junk), ("ready", .large), ("idle", .tidy)] {
+                render(scenario, scheme: scheme, page: .tool(module), to: dir,
+                       name: "\(name(scheme))-\(module.rawValue)-\(scenario)")
             }
         }
     }
 
-    /// A detail sheet before and after cleaning (lists are AppKit views, so the results state can't be drawn).
-    static func renderSheets(to dir: URL) {
-        for style in [AppStyle.light, .dark, .graphite] {
-            for scenario in ["idle", "done"] {
-                let model = sampleModel(scenario)
-                let view = StyledRoot(override: style, costumeOverride: Costume.none) {
-                    DetailSheet(module: .junk)
-                }
-                .environment(model)
-                .environment(\.colorScheme, style == .light ? .light : .dark)
-                let renderer = ImageRenderer(content: view)
-                renderer.scale = 2
-                if let tiff = renderer.nsImage?.tiffRepresentation, let bitmap = NSBitmapImageRep(data: tiff),
-                   let png = bitmap.representation(using: .png, properties: [:]) {
-                    try? png.write(to: dir.appendingPathComponent("sheet-\(style.rawValue)-\(scenario).png"))
-                }
-            }
-        }
-    }
+    private static func name(_ scheme: ColorScheme) -> String { scheme == .dark ? "dark" : "light" }
 
-    /// The closet tabs, rendered on their own (sheets don't show up in ImageRenderer).
-    static func renderCloset(to dir: URL) {
-        for (name, tab) in [("closet-costumes", ClosetView.Tab.costumes), ("closet-icons", .icon), ("closet-badges", .badges)] {
-            let view = StyledRoot(override: .light, costumeOverride: Costume.none) {
-                ClosetView(tab: tab, scrolls: false)
-            }
-            .environment(\.colorScheme, .light)
-            .frame(width: 720, height: 460)
-            .background(Color.white)
-            let renderer = ImageRenderer(content: view)
-            renderer.scale = 2
-            if let tiff = renderer.nsImage?.tiffRepresentation, let bitmap = NSBitmapImageRep(data: tiff),
-               let png = bitmap.representation(using: .png, properties: [:]) {
-                try? png.write(to: dir.appendingPathComponent("\(name).png"))
-            }
+    private static func render(_ scenario: String, scheme: ColorScheme, page: Page, to dir: URL, name: String) {
+        let model = sampleModel(scenario)
+        let view = StyledRoot(costumeOverride: Costume.none) {
+            ContentView(page: page)
         }
+        .environment(model)
+        .environment(\.colorScheme, scheme)
+        .frame(width: 960, height: 640)
+
+        let renderer = ImageRenderer(content: view)
+        renderer.scale = 2
+        guard let image = renderer.nsImage, let tiff = image.tiffRepresentation,
+              let bitmap = NSBitmapImageRep(data: tiff),
+              let png = bitmap.representation(using: .png, properties: [:]) else {
+            print("Could not render \(name)")
+            return
+        }
+        try? png.write(to: dir.appendingPathComponent("\(name).png"))
+        print("Rendered \(name).png")
     }
 
     private static func sampleModel(_ scenario: String) -> AppModel {

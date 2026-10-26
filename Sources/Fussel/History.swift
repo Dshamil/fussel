@@ -99,44 +99,7 @@ final class CleanHistory {
     }
 }
 
-/// "✨ 24 GB cleared" pill in the footer; opens the history.
-struct HistoryPill: View {
-    @Environment(\.palette) private var palette
-    @Environment(AppModel.self) private var app
-    @State private var showing = false
-    private var history: CleanHistory { CleanHistory.shared }
-
-    var body: some View {
-        Button {
-            showing = true
-        } label: {
-            HStack(spacing: 6) {
-                Image(systemName: "sparkles")
-                    .foregroundStyle(palette.text)
-                if history.totalFreed > 0 {
-                    Text("\(history.totalFreed.byteString) cleared")
-                } else {
-                    Text("History")
-                }
-            }
-            .font(.rounded(12, .bold))
-            .foregroundStyle(palette.text)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 7)
-            .background(Capsule().fill(palette.card))
-            .overlay(Capsule().strokeBorder(palette.cardStroke, lineWidth: 1))
-            .contentShape(Capsule())
-        }
-        .buttonStyle(.plain)
-        .help("Clean-up history")
-        .popover(isPresented: $showing, arrowEdge: .top) {
-            HistoryList()
-                .environment(app)
-        }
-    }
-}
-
-private struct HistoryList: View {
+struct HistoryList: View {
     @Environment(AppModel.self) private var app
     @State private var message: String?
     @State private var working: UUID?

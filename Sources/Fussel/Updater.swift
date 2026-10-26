@@ -186,13 +186,12 @@ struct UpdateBanner: View {
                         .font(.rounded(12, .semibold))
                         .foregroundStyle(palette.secondary)
                     Button("Update Now") { Task { await updater.install() } }
-                        .buttonStyle(HeroButtonStyle(fill: Theme.ink, text: .white))
-                        .controlSize(.small)
+                        .buttonStyle(ActionButtonStyle())
                 }
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
-            .background(Capsule().fill(palette.card))
+            .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(palette.card))
             .overlay(Capsule().strokeBorder(palette.cardStroke, lineWidth: 1))
             .transition(.move(edge: .top).combined(with: .opacity))
         }

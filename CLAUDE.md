@@ -32,20 +32,19 @@ Fussel ist eine Menüleisten-App (keine Dock-Icon, `LSUIElement`). Läuft schon 
 
 ## Aufbau (`Sources/Fussel`)
 
-- `FusselApp.swift` – App-Start, Menüleisten-Icon (Links-Klick: Fenster, Rechts-Klick: Menü), Hauptfenster (fest oben rechts, gleitet herein, nicht verschiebbar), Tastenkürzel, Login-Item.
+- `FusselApp.swift` – App-Start, Menüleisten-Icon (Links-Klick: Fenster, Rechts-Klick: Menü), Hauptfenster (normales Mac-Fenster, 960×640, verschieb- und vergrößerbar), Tastenkürzel, Login-Item.
 - `AppModel.swift` – Zustand: Smart Scan → Ergebnisse → Aufräumen → fertig, Undo, Stimmungen (hot/sleepy/stuffed).
 - `Scanner.swift`, `Cleaner.swift` – Suchen und in den Papierkorb legen. **`Cleaner.isSafeToRemove` ist die letzte Schutzlinie** – nur mit Tests ändern.
 - `History.swift` – Verlauf + Undo (JSON in Application Support).
 - `SystemMonitor.swift` – Speicher, RAM, CPU, Temperatur (SMC), Akku, Netzwerk. Eine einzige Messschleife: 2 s bei offenem Fenster, 30 s im Hintergrund.
-- `ContentView.swift` – der eine Hauptbildschirm (Hero-Banner, Statistik-Kacheln, 6 Karten, Fußzeile mit Verlauf, Stil-Wahl, Zahnrad für Einstellungen).
-- `Mascot.swift` – Fussel als Figur (Canvas, 100×100 Design-Raum), Augen folgen dem Zeiger (`Gaze`), Menüleisten-Icons.
-- `Particles.swift` – Fusseln, Scan-Strudel, Konfetti.
-- `FusselWorld.swift` – Fussels kleine Welt im Banner: Dielenboden, Lichtstrahl, verlorene Sachen, Fusselhaufen je nach Scan.
-- `Style.swift`, `Theme.swift` – Stile White/Dark/Coral/Graphite, Farben, `AnimationBudget` (60/30 fps; pausiert bei verstecktem Fenster).
-- `Tutorial.swift`, `StatsView.swift`, `SettingsView.swift`, `ModuleView.swift`, `UninstallerView.swift`.
+- `ContentView.swift` – Seitenleiste (Fussel-Icon, Overview, Clean: System Junk/Trash, Review: Large Files/Uninstaller/App Updates, Settings, History, Speicher + „Clean Safe Items“) und die Übersicht (Speicher-Balken, Kategorien-Liste, Werte-Zeile). Ernster Stil im Sinne von Purge, mit dezenten Animationen.
+- `Mascot.swift` – Fussel als Figur (Canvas, 100×100 Design-Raum), heute nur noch als Icon (Seitenleiste, Leerzustände, Menüleiste); Augen folgen dem Zeiger (`Gaze`).
+- `Style.swift`, `Theme.swift` – ruhige Grautöne für Hell/Dunkel (folgt der Mac-Einstellung), je Werkzeug eine Akzentfarbe, Knopf-Stile, `AnimationBudget`.
+- `ModuleView.swift` – Listen der Werkzeuge mit Filter (Safe to Clean / Check First), Sortierung, Erklärung je Eintrag.
+- `StatsView.swift` (Werte-Zeile + Popovers), `SettingsView.swift` (inkl. App-Symbol-Wahl), `UninstallerView.swift`.
 - `Updater.swift` – Selbst-Updater über GitHub Releases (geht erst, wenn das Repo öffentlich ist).
 - `AppUpdates.swift` – Updates anderer Apps (App Store + Sparkle-Feeds).
-- `Closet.swift` – Kostüme, App-Icon-Wechsel, 13 Abzeichen.
+- `Closet.swift` – Kostüm-/Abzeichen-Daten und App-Icon-Wechsel (`IconPicker` in den Einstellungen).
 - `FluffWatcher.swift` – wöchentliche Erinnerung.
 
 Weitere Ordner: `Resources` (Info.plist, Icons), `installer` (pkg-Installer), `scripts`, `release-notes`, `docs` (Logo, Screenshots), `design`, `Tests`.

@@ -1,78 +1,56 @@
 import SwiftUI
 import AppKit
 
-/// Fussel's single main screen: a hero with Fussel and one big action, four cards below.
+enum FirstLaunch {
+    static let seen = "tutorialSeen"
+}
+
+/// What the main area shows: the overview, one tool, or the settings.
+enum Page: Hashable {
+    case overview
+    case tool(Module)
+    case settings
+}
+
+/// Fussel's window: a sidebar with the tools on the left, the selected page on the right.
 struct ContentView: View {
     @Environment(AppModel.self) private var app
     @Environment(\.palette) private var palette
-    @State private var openModule: Module?
+    @State private var page: Page
+    @State private var didAutoScan = false
 
-    private let columns = [
-        GridItem(.flexible(), spacing: 14),
-        GridItem(.flexible(), spacing: 14),
-        GridItem(.flexible(), spacing: 14),
-    ]
-
-    /// A small heading over a row of cards, so cleaning and tools read as two groups.
-    private func cardGroup(_ title: String, _ modules: [Module], startIndex: Int) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(title)
-                .font(.rounded(13, .bold))
-                .foregroundStyle(palette.text)
-                .padding(.leading, 4)
-            LazyVGrid(columns: columns, spacing: 14) {
-                ForEach(Array(modules.enumerated()), id: \.element) { index, module in
-                    ModuleCard(module: module, index: startIndex + index) { openModule = module }
-                }
-            }
-        }
+    init(page: Page = .overview) {
+        _page = State(initialValue: page)
     }
 
     var body: some View {
-        VStack(spacing: 16) {
-            UpdateBanner(updater: app.updater)
-                .animation(.spring(duration: 0.4), value: app.updater.state)
-
-            HeroCard()
-
-            StatsRow()
-
-            cardGroup("Clean up", [.junk, .large, .tidy], startIndex: 0)
-            cardGroup("Tools", [.uninstaller, .updates, .closet], startIndex: 3)
-
-            HStack(alignment: .center, spacing: 12) {
-                if !app.hasFullDiskAccess {
-                    FullDiskAccessHint()
+        HStack(spacing: 0) {
+            Sidebar(page: $page)
+                .frame(width: 236)
+            Rectangle().fill(palette.cardStroke).frame(width: 1)
+            Group {
+                switch page {
+                case .overview: OverviewPage(page: $page)
+                case .tool(let module): ToolPage(module: module)
+                case .settings: SettingsPage()
                 }
-                Spacer(minLength: 0)
-                HistoryPill()
-                StyleSwitcher()
-                SettingsButton()
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .background(palette.content)
+            .id(page)
+            .transition(.opacity.combined(with: .offset(y: 6)))
         }
-        .padding(.horizontal, 26)
-        .padding(.bottom, 22)
-        .padding(.top, 8)
-        .frame(minWidth: 700, idealWidth: 760, maxWidth: .infinity,
-               minHeight: 820, maxHeight: .infinity, alignment: .top)
-        .background { Backdrop().ignoresSafeArea() }
+        .animation(.easeOut(duration: 0.2), value: page)
+        .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
+        .background(palette.content)
         .environment(\.animationsPaused, !app.windowVisible)
-        .overlay {
-            if app.showTutorial {
-                TutorialOverlay()
-                    .transition(.opacity.combined(with: .scale(scale: 1.04)))
-            }
-        }
-        .animation(.spring(duration: 0.4), value: app.showTutorial)
         .onAppear {
-            if !UserDefaults.standard.bool(forKey: TutorialKey.seen) {
-                app.showTutorial = true
+            UserDefaults.standard.set(true, forKey: FirstLaunch.seen)
+            // Like opening the app should: Fussel takes a look right away.
+            if !didAutoScan, app.stage == .idle, Gaze.enabled {
+                didAutoScan = true
+                Task { await app.smartScan() }
             }
-        }
-        .sheet(item: $openModule) { module in
-            DetailSheet(module: module)
-                .environment(app)
-                .environment(\.palette, palette)
         }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             app.refreshAccess()
@@ -80,157 +58,278 @@ struct ContentView: View {
     }
 }
 
-/// The canvas with two soft color clouds, so the window isn't a flat sheet. Static, so it costs nothing.
-private struct Backdrop: View {
+// MARK: - Sidebar
+
+private struct Sidebar: View {
+    @Environment(AppModel.self) private var app
     @Environment(\.palette) private var palette
+    @Binding var page: Page
 
     var body: some View {
-        GeometryReader { geo in
-            let reach = max(geo.size.width, geo.size.height) * 0.6
-            ZStack {
-                Rectangle().fill(palette.canvas)
-                RadialGradient(colors: [palette.blobs.0, .clear], center: UnitPoint(x: 0.95, y: 0.3),
-                               startRadius: 0, endRadius: reach)
-                RadialGradient(colors: [palette.blobs.1, .clear], center: UnitPoint(x: 0.02, y: 0.98),
-                               startRadius: 0, endRadius: reach)
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 9) {
+                SidebarFussel(busy: app.stage == .scanning || app.stage == .cleaning)
+                Text("Fussel")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(palette.text)
             }
+            .padding(.leading, 18)
+            .padding(.top, 40)
+            .padding(.bottom, 18)
+
+            row(.overview, title: "Overview", symbol: "square.grid.2x2", trailing: nil)
+            section("Clean")
+            toolRow(.junk)
+            toolRow(.tidy)
+            section("Review")
+            toolRow(.large)
+            toolRow(.uninstaller)
+            toolRow(.updates)
+
+            Spacer(minLength: 12)
+
+            row(.settings, title: "Settings", symbol: "gearshape", trailing: nil)
+            HistoryRow()
+            DiskSummary()
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+                .padding(.bottom, 16)
+        }
+        .frame(maxHeight: .infinity, alignment: .top)
+        .background(palette.sidebar)
+    }
+
+    private func section(_ title: String) -> some View {
+        Text(title)
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundStyle(palette.secondary)
+            .padding(.leading, 20)
+            .padding(.top, 16)
+            .padding(.bottom, 4)
+    }
+
+    private func toolRow(_ module: Module) -> some View {
+        row(.tool(module), title: module.sidebarTitle, symbol: module.symbol, trailing: summary(for: module))
+    }
+
+    private func row(_ target: Page, title: String, symbol: String, trailing: String?) -> some View {
+        SidebarRow(title: title, symbol: symbol, trailing: trailing, selected: page == target) {
+            page = target
+        }
+    }
+
+    /// The size (or count) shown next to a tool, once there is something to show.
+    private func summary(for module: Module) -> String? {
+        switch module {
+        case .junk, .large, .tidy:
+            let model = app.model(for: module)
+            guard model.phase == .results else { return nil }
+            return model.items.isEmpty ? "0 KB" : model.totalSize.byteString
+        case .uninstaller:
+            return app.uninstaller.apps.isEmpty ? nil : "\(app.uninstaller.apps.count) apps"
+        case .updates:
+            return app.appUpdates.updates.isEmpty ? nil : "\(app.appUpdates.updates.count)"
+        case .closet:
+            return nil
         }
     }
 }
 
-// MARK: - Hero
+private struct SidebarRow: View {
+    @Environment(\.palette) private var palette
+    let title: String
+    let symbol: String
+    let trailing: String?
+    let selected: Bool
+    let action: () -> Void
+    @State private var hovering = false
 
-private struct HeroCard: View {
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 9) {
+                Image(systemName: symbol)
+                    .font(.system(size: 13, weight: .medium))
+                    .frame(width: 18)
+                    .foregroundStyle(selected ? palette.text : palette.secondary)
+                Text(title)
+                    .font(.system(size: 13, weight: selected ? .semibold : .regular))
+                    .foregroundStyle(palette.text)
+                    .lineLimit(1)
+                Spacer(minLength: 4)
+                if let trailing {
+                    Text(trailing)
+                        .font(.system(size: 11, weight: .medium))
+                        .monospacedDigit()
+                        .foregroundStyle(palette.secondary)
+                        .contentTransition(.numericText())
+                        .transition(.opacity)
+                }
+            }
+            .padding(.horizontal, 10)
+            .frame(height: 28)
+            .background(
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .fill(selected ? palette.selection : (hovering ? palette.selection.opacity(0.5) : .clear))
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 10)
+        .onHover { hovering = $0 }
+        .animation(.easeOut(duration: 0.15), value: hovering)
+        .animation(.spring(duration: 0.4), value: trailing)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+}
+
+/// The Fussel icon at the top of the sidebar. Blinks now and then, looks over when you point at him,
+/// does a flip when clicked, wiggles while he scans and hops with joy after cleaning.
+private struct SidebarFussel: View {
+    let busy: Bool
+    @Environment(AppModel.self) private var app
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var blink = false
+    @State private var wiggle = false
+    @State private var hovering = false
+    @State private var flips = 0
+    @State private var cheering = false
+
+    private var mood: MascotMood {
+        if busy { return .busy }
+        return cheering ? .happy : .idle
+    }
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .fill(Palette.coralGradient)
+            FusselBody(mood: mood, color: .white, blink: blink && !cheering,
+                       look: hovering ? CGSize(width: 1.3, height: 0.4) : .zero, cheeks: hovering)
+                .frame(width: 30, height: 30)
+                .rotationEffect(.degrees(busy && !reduceMotion ? (wiggle ? 9 : -9) : 0))
+                .animation(busy ? .easeInOut(duration: 0.16).repeatForever(autoreverses: true) : .spring(duration: 0.3),
+                           value: wiggle)
+                // A repeating animation only stops when the view is replaced, so swap it once the scan ends.
+                .id(busy)
+                .rotationEffect(.degrees(Double(flips) * 360))
+                .offset(y: cheering && !reduceMotion ? -3 : 0)
+        }
+        .frame(width: 26, height: 26)
+        .scaleEffect(hovering ? 1.1 : 1)
+        .contentShape(Rectangle())
+        .onHover { inside in withAnimation(.spring(duration: 0.3, bounce: 0.5)) { hovering = inside } }
+        .onTapGesture {
+            Sounds.play("Pop")
+            Achievements.shared.record(.poked)
+            withAnimation(.spring(duration: 0.7, bounce: 0.35)) { flips += 1 }
+            cheer(for: 1.2)
+        }
+        .onChange(of: busy) { _, busy in wiggle = busy }
+        .onChange(of: app.stage) { _, stage in
+            if case .done(let freed, _) = stage, freed > 0 { cheer(for: 2.4) }
+        }
+        .task {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(Double.random(in: 3...6)))
+                blink = true
+                try? await Task.sleep(for: .milliseconds(140))
+                blink = false
+            }
+        }
+        .help("Hi, I'm Fussel!")
+        .accessibilityHidden(true)
+    }
+
+    private func cheer(for seconds: Double) {
+        withAnimation(.spring(duration: 0.35, bounce: 0.6)) { cheering = true }
+        Task {
+            try? await Task.sleep(for: .seconds(seconds))
+            withAnimation(.spring(duration: 0.4)) { cheering = false }
+        }
+    }
+}
+
+/// Free space and the one-click clean at the bottom of the sidebar.
+private struct DiskSummary: View {
     @Environment(AppModel.self) private var app
     @Environment(\.palette) private var palette
     @State private var confirming = false
-    @State private var bubble: String?
-    @State private var bubbleID = 0
-    @State private var burstDate: Date?
-    @State private var liveBytes: Int64 = 0
-    @State private var livePath = ""
-    @State private var puff: CGFloat = 1
-
-    private let mascotSize: CGFloat = 168
-
-    private static let pokeLines = [
-        "Hehe, that tickles!", "Boop!", "Wheee!", "I'm 100% fluff.",
-        "Careful, I'm delicate!", "Again! Again!", "Need a scan?", "*happy fluff noises*",
-    ]
-    private static let scanLines = [
-        "Peeking into caches…", "Checking under the sofa…", "Counting dust bunnies…",
-        "Sniffing out big files…", "Shaking out the logs…", "Looking behind the Trash…",
-    ]
 
     var body: some View {
-        HStack(spacing: 24) {
-                FusselMascot(mood: app.mood, size: mascotSize, color: palette.mascot,
-                             followsPointer: true, interactive: true) {
-                    Sounds.play("Pop")
-                    Achievements.shared.record(.poked)
-                    say(Self.pokeLines.randomElement() ?? "Boop!")
+        let s = app.monitor.sample
+        let used = s.diskTotal > 0 ? 1 - Double(s.diskFree) / Double(s.diskTotal) : 0
+        VStack(alignment: .leading, spacing: 8) {
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(palette.text.opacity(0.1))
+                    Capsule().fill(palette.secondary)
+                        .frame(width: geo.size.width * used)
+                        .animation(.spring(duration: 0.9), value: used)
                 }
-                .overlay(alignment: .top) {
-                    if let bubble {
-                        SpeechBubble(text: bubble)
-                            .offset(x: 58, y: -18)
-                            .transition(.scale(scale: 0.4, anchor: .bottomLeading).combined(with: .opacity))
-                    }
+            }
+            .frame(height: 5)
+            HStack {
+                Text("\(Int64(Double(s.diskTotal) * used).byteString) used")
+                Spacer()
+                Text("\(s.diskFree.byteString) free")
+            }
+            .font(.system(size: 11))
+            .foregroundStyle(palette.secondary)
+            .monospacedDigit()
+            if app.selectedTotal > 0 {
+                HStack {
+                    Label("Safe to clean", systemImage: "checkmark.circle.fill")
+                        .foregroundStyle(Palette.safe)
+                    Spacer()
+                    CountingBytes(value: Double(app.selectedTotal))
+                        .animation(.easeOut(duration: 0.8), value: app.selectedTotal)
+                        .foregroundStyle(palette.text)
                 }
-                .scaleEffect(puff)
-                .padding(.leading, 8)
-                .offset(y: 8)
+                .font(.system(size: 12, weight: .semibold))
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
+            }
+            Button {
+                confirming = true
+            } label: {
+                Label("Clean Safe Items", systemImage: "sparkles")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(SecondaryButtonStyle())
+            .disabled(app.selectedTotal == 0 || app.stage == .cleaning)
+        }
+        .animation(.spring(duration: 0.4), value: app.selectedTotal > 0)
+        .cleanConfirmation(isPresented: $confirming)
+    }
+}
 
-                VStack(alignment: .leading, spacing: 8) {
-                    headline
-                        .font(.rounded(31, .heavy))
-                        .foregroundStyle(palette.heroText)
-                    subline
-                        .font(.rounded(14, .medium))
-                        .foregroundStyle(palette.heroText)
-                        .fixedSize(horizontal: false, vertical: true)
-                    action
-                        .padding(.top, 10)
-                }
-                Spacer(minLength: 0)
+/// The clean-up history, from a row at the bottom of the sidebar.
+private struct HistoryRow: View {
+    @Environment(AppModel.self) private var app
+    @State private var showing = false
+
+    var body: some View {
+        SidebarRow(title: "History", symbol: "clock.arrow.circlepath", trailing: nil, selected: false) {
+            showing = true
         }
-        .padding(.vertical, 24)
-        .padding(.horizontal, 22)
-        .frame(maxWidth: .infinity, minHeight: 230)
-        .background {
-            ZStack {
-                RoundedRectangle(cornerRadius: 28, style: .continuous)
-                    .fill(palette.heroFill)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 28, style: .continuous)
-                            .strokeBorder(palette.heroStroke, lineWidth: 1)
-                    )
-                    .shadow(color: palette.isDark ? .black.opacity(0.35) : Theme.coralDeep.opacity(0.25),
-                            radius: 18, y: 10)
-                FusselWorld(pile: pile, isDark: palette.isDark)
-                    .animation(.spring(duration: 1.2, bounce: 0.3), value: pile)
-                    .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-                ParticleField(mode: particleMode, tint: palette.speck,
-                              center: UnitPoint(x: 0.15, y: 0.5), burstDate: burstDate)
-                    .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-            }
+        .popover(isPresented: $showing, arrowEdge: .trailing) {
+            HistoryList().environment(app)
         }
-        .fixedSize(horizontal: false, vertical: true)
-        // Nothing to animate while the tutorial covers the hero or the window is hidden.
-        .environment(\.animationsPaused, app.showTutorial || !app.windowVisible)
-        .animation(.spring(duration: 0.4), value: app.stage)
-        .task(id: app.stage) {
-            // While scanning, read the live counter a few times a second and puff Fussel up.
-            guard app.stage == .scanning else {
-                withAnimation(.spring(duration: 0.6, bounce: 0.6)) { puff = 1 }
-                return
-            }
-            while !Task.isCancelled && app.stage == .scanning {
-                let snap = ScanProgress.shared.snapshot
-                let gigabytes = Double(snap.bytes) / 1_000_000_000
-                withAnimation(.spring(duration: 0.35, bounce: 0.4)) {
-                    liveBytes = snap.bytes
-                    puff = 1 + min(0.3, log2(1 + gigabytes) * 0.08)
-                }
-                livePath = snap.path
-                try? await Task.sleep(for: .milliseconds(120))
-            }
-        }
-        .onChange(of: Achievements.shared.justEarned) { _, badge in
-            guard let badge else { return }
-            Achievements.shared.justEarned = nil
-            burstDate = Date()
-            Sounds.play("Hero")
-            say("Badge unlocked: \(badge.title)!")
-        }
-        .onChange(of: app.undoMessage) { _, message in
-            guard let message else { return }
-            say(message)
-            app.undoMessage = nil
-        }
-        .onChange(of: app.healthMood) { _, mood in
-            guard app.stage == .idle else { return }
-            switch mood {
-            case .stuffed: say("Oof, I'm so full!")
-            case .hot: say("Is it warm in here?")
-            case .sleepy: say("*yawn*")
-            default: break
-            }
-        }
-        .onChange(of: app.stage) { _, stage in
-            switch stage {
-            case .done(let freed, _):
-                burstDate = Date()
-                Sounds.play("Glass")
-                say(freed > 0 ? "Ahh, so fresh!" : "Squeaky clean!")
-            case .ready:
-                Sounds.play(app.foundTotal > 0 ? "Bottle" : "Tink")
-                say(app.foundTotal > 0 ? "*burp* Found you, fluff!" : "Spotless already!")
-            default:
-                break
-            }
-        }
-        .confirmationDialog("Clean \(app.selectedTotal.byteString)?", isPresented: $confirming) {
+    }
+}
+
+extension View {
+    /// Asks before cleaning everything that's selected, and says what happens to it.
+    func cleanConfirmation(isPresented: Binding<Bool>) -> some View {
+        modifier(CleanConfirmation(isPresented: isPresented))
+    }
+}
+
+private struct CleanConfirmation: ViewModifier {
+    @Environment(AppModel.self) private var app
+    @Binding var isPresented: Bool
+
+    func body(content: Content) -> some View {
+        content.confirmationDialog("Clean \(app.selectedTotal.byteString)?", isPresented: $isPresented) {
             Button(app.selectionIncludesPermanent ? "Clean and Delete Permanently" : "Move to Trash",
                    role: app.selectionIncludesPermanent ? .destructive : nil) {
                 Task { await app.cleanAll() }
@@ -242,682 +341,494 @@ private struct HeroCard: View {
                  : "Everything selected goes to the Trash, so you can still change your mind.")
         }
     }
-
-    /// How much fluff lies on the floor: a little always, more the more a scan finds, none after cleaning.
-    private var pile: Double {
-        let bytes: Int64
-        switch app.stage {
-        case .idle: bytes = max(app.pendingFluff, 1_500_000_000)
-        case .scanning: bytes = liveBytes
-        case .ready: bytes = app.foundTotal
-        case .cleaning, .done: bytes = 0
-        }
-        return min(1, log10(1 + Double(bytes) / 1_000_000_000) / 1.1)
-    }
-
-    private var particleMode: ParticleField.Mode {
-        switch app.stage {
-        case .scanning, .cleaning: return .vacuum
-        default: return .drift
-        }
-    }
-
-    private func chipTitle(_ module: Module) -> String {
-        switch module {
-        case .junk: return "Junk"
-        case .large: return "Big Files"
-        default: return "Trash"
-        }
-    }
-
-    private func say(_ text: String) {
-        bubbleID += 1
-        let id = bubbleID
-        withAnimation(.spring(duration: 0.35, bounce: 0.45)) { bubble = text }
-        Task {
-            try? await Task.sleep(for: .seconds(2.6))
-            if bubbleID == id {
-                withAnimation(.easeOut(duration: 0.2)) { bubble = nil }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var headline: some View {
-        switch app.stage {
-        case .idle:
-            if app.pendingFluff > 0 {
-                Text("Psst, \(app.pendingFluff.byteString) of fluff!")
-            } else {
-                healthHeadline
-            }
-        case .scanning:
-            scanningHeadline
-        case .ready:
-            readyHeadline
-        case .cleaning:
-            Text("Tidying up…")
-        case .done(let freed, _):
-            doneHeadline(freed)
-        }
-    }
-
-    @ViewBuilder
-    private var healthHeadline: some View {
-            switch app.healthMood {
-            case .stuffed: Text("I'm stuffed!")
-            case .hot: Text("Phew, it's hot!")
-            case .sleepy: Text("So sleepy…")
-            default: Text("Hi, I'm Fussel!")
-            }
-    }
-
-    private var scanningHeadline: some View {
-        HStack(spacing: 0) {
-            Text("Found ")
-            Text(liveBytes.byteString)
-                .contentTransition(.numericText(value: Double(liveBytes)))
-            Text("…")
-        }
-    }
-
-    @ViewBuilder
-    private var readyHeadline: some View {
-        if app.foundTotal > 0 {
-            HStack(spacing: 0) {
-                Text("Found ")
-                CountingBytes(value: Double(app.foundTotal))
-                    .animation(.easeOut(duration: 1.2), value: app.foundTotal)
-            }
-        } else {
-            Text("Already fluff-free!")
-        }
-    }
-
-    @ViewBuilder
-    private func doneHeadline(_ freed: Int64) -> some View {
-        if freed > 0 {
-            HStack(spacing: 0) {
-                Text("Cleared ")
-                CountingBytes(value: Double(freed))
-                    .animation(.easeOut(duration: 1.2), value: freed)
-                Text("!")
-            }
-        } else {
-            Text("All tidy!")
-        }
-    }
-
-    @ViewBuilder
-    private var subline: some View {
-        switch app.stage {
-        case .idle where app.pendingFluff > 0:
-            Text("I found it during my weekly check while you were away. Start a scan to see everything.")
-        case .idle:
-            switch app.healthMood {
-            case .stuffed:
-                Text("Your disk is almost full, only \(app.monitor.sample.diskFree.byteString) left. Let's make some room.")
-            case .hot:
-                Text("Your Mac is running hot. Quitting a hungry app in the memory tile might help.")
-            case .sleepy:
-                Text("Your battery is almost empty. Plug me in before I nod off completely.")
-            default:
-                Text("Let's find the fluff hiding on your Mac. Psst: you can poke me.")
-            }
-        case .scanning:
-            VStack(alignment: .leading, spacing: 4) {
-                TimelineView(.periodic(from: .now, by: 1.6)) { context in
-                    let index = Int(context.date.timeIntervalSinceReferenceDate / 1.6) % Self.scanLines.count
-                    Text(Self.scanLines[index])
-                }
-                Text(livePath.isEmpty ? " " : livePath)
-                    .font(.system(size: 11, design: .monospaced))
-                    .opacity(0.7)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .frame(maxWidth: 380, alignment: .leading)
-            }
-        case .cleaning:
-            Text("Carrying everything to the Trash…")
-        case .ready:
-            if app.foundTotal == 0 {
-                Text("Nothing to clean right now. Your Mac is in great shape.")
-            } else if app.selectedTotal > 0 {
-                Text("\(app.selectedTotal.byteString) is ready to go. Open a card to fine-tune.")
-            } else {
-                Text("Open a card below to choose what to clean.")
-            }
-        case .done(_, let failures):
-            Text(failures.isEmpty
-                 ? "Your Mac feels lighter already."
-                 : "\(failures.count) item(s) couldn't be removed. Everything else is in the Trash.")
-        }
-    }
-
-    /// The quieter action next to the big button.
-    private func secondary(_ symbol: String) -> NudgeButtonStyle {
-        NudgeButtonStyle(tint: palette.heroText, badgeText: palette.isDark ? Theme.ink : .white,
-                         symbol: symbol, size: 13)
-    }
-
-    @ViewBuilder
-    private var action: some View {
-        let style = HeroButtonStyle(fill: palette.heroButtonFill, text: palette.heroButtonText)
-        switch app.stage {
-        case .idle:
-            Button("Start Scan") { Task { await app.smartScan() } }
-                .buttonStyle(style)
-                .keyboardShortcut(.defaultAction)
-        case .scanning:
-            HStack(spacing: 8) {
-                ForEach([Module.junk, .large, .tidy], id: \.self) { module in
-                    ScanChip(title: chipTitle(module), done: app.isFinished(module), tint: palette.heroText)
-                }
-            }
-            .frame(height: 42)
-        case .cleaning:
-            ProgressView()
-                .controlSize(.small)
-                .tint(palette.heroText)
-                .frame(height: 42)
-        case .ready:
-            if app.selectedTotal > 0 {
-                HStack(spacing: 14) {
-                    Button("Clean \(app.selectedTotal.byteString)") { confirming = true }
-                        .buttonStyle(style)
-                        .keyboardShortcut(.defaultAction)
-                    Button("Scan Again") { Task { await app.smartScan() } }
-                        .buttonStyle(secondary("arrow.clockwise"))
-                }
-            } else {
-                Button("Scan Again") { Task { await app.smartScan() } }
-                    .buttonStyle(style)
-            }
-        case .done:
-            HStack(spacing: 14) {
-                Button("Scan Again") { Task { await app.smartScan() } }
-                    .buttonStyle(style)
-                if let record = app.lastRecord, record.canUndo {
-                    Button("Undo") { Task { _ = await app.undo(record) } }
-                    .buttonStyle(secondary("arrow.uturn.backward"))
-                    .help("Put everything back from the Trash")
-                }
-            }
-        }
-    }
 }
 
-/// The main pill on the hero. Lifts on hover, squishes when pressed.
-struct HeroButtonStyle: ButtonStyle {
-    var fill: Color
-    var text: Color
+// MARK: - Page header
 
-    func makeBody(configuration: Configuration) -> some View {
-        HeroButton(configuration: configuration, fill: fill, text: text)
-    }
-
-    private struct HeroButton: View {
-        let configuration: ButtonStyleConfiguration
-        let fill: Color
-        let text: Color
-        @Environment(\.isEnabled) private var isEnabled
-        @State private var hovering = false
-
-        var body: some View {
-            configuration.label
-                .font(.rounded(15, .bold))
-                .foregroundStyle(text)
-                .padding(.horizontal, 26)
-                .padding(.vertical, 12)
-                .background(Capsule().fill(fill))
-                .shadow(color: .black.opacity(hovering ? 0.22 : 0.12), radius: hovering ? 10 : 6, y: hovering ? 5 : 3)
-                .scaleEffect(configuration.isPressed ? 0.94 : (hovering ? 1.04 : 1))
-                .opacity(isEnabled ? 1 : 0.5)
-                .animation(.spring(duration: 0.25, bounce: 0.5), value: configuration.isPressed)
-                .animation(.spring(duration: 0.3, bounce: 0.4), value: hovering)
-                .onHover { hovering = $0 }
-        }
-    }
-}
-
-/// Cards squish a little when pressed and spring back.
-struct CardPressStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.96 : 1)
-            .animation(.spring(duration: 0.25, bounce: 0.55), value: configuration.isPressed)
-    }
-}
-
-/// One of the three progress chips during a scan: spinner, then a bouncy checkmark.
-private struct ScanChip: View {
+/// Title, a line of detail and the page's actions, at the top of every page.
+struct PageHeader<Actions: View>: View {
+    @Environment(\.palette) private var palette
     let title: String
-    let done: Bool
-    let tint: Color
-    @State private var spinning = false
+    let subtitle: String
+    @ViewBuilder var actions: Actions
 
     var body: some View {
-        HStack(spacing: 6) {
-            ZStack {
-                if done {
-                    Image(systemName: "checkmark.circle.fill")
-                        .transition(.scale(scale: 0.2).combined(with: .opacity))
-                } else {
-                    // Drawn in SwiftUI (not ProgressView), so it matches the tint and shows up in previews.
-                    Circle()
-                        .trim(from: 0.2, to: 1)
-                        .stroke(tint, style: StrokeStyle(lineWidth: 2, lineCap: .round))
-                        .padding(1.5)
-                        .rotationEffect(.degrees(spinning ? 360 : 0))
-                        .animation(.linear(duration: 0.8).repeatForever(autoreverses: false), value: spinning)
-                        .onAppear { spinning = true }
-                }
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.system(size: 22, weight: .bold))
+                    .foregroundStyle(palette.text)
+                Text(subtitle)
+                    .font(.system(size: 12))
+                    .foregroundStyle(palette.secondary)
+                    .contentTransition(.opacity)
             }
-            .frame(width: 14, height: 14)
-            Text(title)
+            Spacer(minLength: 16)
+            HStack(spacing: 8) { actions }
         }
-        .font(.rounded(12, .bold))
-        .foregroundStyle(tint)
-        .padding(.horizontal, 11)
-        .padding(.vertical, 6)
-        .background(Capsule().fill(tint.opacity(done ? 0.16 : 0.08)))
-        .animation(.spring(duration: 0.45, bounce: 0.6), value: done)
+        .padding(.horizontal, 28)
+        .padding(.top, 30)
+        .padding(.bottom, 18)
     }
 }
 
-/// A little speech bubble next to Fussel.
-private struct SpeechBubble: View {
-    let text: String
-    /// Tail on the right side, pointing at a Fussel next to the bubble.
-    var tailRight = false
+// MARK: - Overview
 
-    var body: some View {
-        Text(text)
-            .font(.rounded(13, .bold))
-            .foregroundStyle(Theme.ink)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 7)
-            .background(
-                BubbleShape(tailRight: tailRight)
-                    .fill(.white)
-                    .shadow(color: .black.opacity(0.15), radius: 6, y: 3)
-            )
-            .fixedSize()
-    }
-}
-
-private struct BubbleShape: Shape {
-    var tailRight = false
-
-    func path(in rect: CGRect) -> Path {
-        var path = Path(roundedRect: rect, cornerRadius: 12, style: .continuous)
-        if tailRight {
-            path.move(to: CGPoint(x: rect.maxX - 1, y: rect.midY - 6))
-            path.addLine(to: CGPoint(x: rect.maxX + 8, y: rect.midY + 2))
-            path.addLine(to: CGPoint(x: rect.maxX - 1, y: rect.midY + 6))
-            path.closeSubpath()
-            return path
-        }
-        // Tail pointing down-left towards Fussel.
-        path.move(to: CGPoint(x: rect.minX + 14, y: rect.maxY - 1))
-        path.addLine(to: CGPoint(x: rect.minX + 6, y: rect.maxY + 9))
-        path.addLine(to: CGPoint(x: rect.minX + 26, y: rect.maxY - 1))
-        path.closeSubpath()
-        return path
-    }
-}
-
-// MARK: - Cards
-
-private struct ModuleCard: View {
+private struct OverviewPage: View {
     @Environment(AppModel.self) private var app
     @Environment(\.palette) private var palette
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    let module: Module
-    let index: Int
-    let open: () -> Void
-    @State private var hovering = false
-    @State private var bounces = 0
-    @State private var appeared = false
-    /// -0.5…0.5 on both axes: where the pointer is on the card, for the tilt.
-    @State private var tilt = CGSize.zero
-    @State private var cardSize = CGSize(width: 1, height: 1)
-
-    private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: 22, style: .continuous) }
+    @Binding var page: Page
+    @State private var confirming = false
+    /// Screenshots show the finished state right away; the app animates into it.
+    @State private var shown = PreviewRenderer.isRendering
+    @State private var celebrations = 0
 
     var body: some View {
-        Button(action: open) {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(alignment: .top) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(palette.isDark ? palette.tint(module) : .white.opacity(0.75))
-                        Image(systemName: module.symbol)
-                            .font(.system(size: 17, weight: .semibold))
-                            .foregroundStyle(palette.icon(module))
-                            .symbolEffect(.bounce, value: bounces)
-                            .symbolEffect(.pulse, isActive: isBusy)
+        let s = app.monitor.sample
+        let usedBytes = max(0, s.diskTotal - s.diskFree)
+        PreviewSafeScroll {
+            VStack(alignment: .leading, spacing: 0) {
+                PageHeader(title: "Overview", subtitle: status) {
+                    Button { Task { await app.smartScan() } } label: {
+                        Label("Scan", systemImage: "arrow.clockwise")
                     }
-                    .frame(width: 40, height: 40)
-                    .rotationEffect(.degrees(hovering ? -8 : 0))
-                    .scaleEffect(hovering ? 1.08 : 1)
-
-                    Spacer(minLength: 0)
-
-                    Image(systemName: "arrow.right")
-                        .font(.system(size: 11, weight: .heavy))
-                        .foregroundStyle(palette.icon(module))
-                        .frame(width: 24, height: 24)
-                        .background(Circle().fill(palette.isDark ? palette.tint(module) : .white.opacity(0.75)))
-                        .opacity(hovering ? 1 : 0)
-                        .scaleEffect(hovering ? 1 : 0.6)
-                        .offset(x: hovering ? 0 : -6)
+                    .buttonStyle(SecondaryButtonStyle())
+                    .disabled(app.stage == .scanning || app.stage == .cleaning)
+                    .keyboardShortcut("r", modifiers: [.command, .shift])
+                    Button { confirming = true } label: {
+                        Label(app.selectedTotal > 0 ? "Clean \(app.selectedTotal.byteString)" : "Clean", systemImage: "trash")
+                    }
+                    .buttonStyle(ActionButtonStyle())
+                    .disabled(app.selectedTotal == 0 || app.stage == .cleaning)
                 }
 
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(module.title)
-                        .font(.rounded(15, .bold))
-                        .foregroundStyle(palette.text)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
-                    status
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.85)
-                }
-            }
-            .padding(14)
-            .frame(maxWidth: .infinity, minHeight: 104, alignment: .topLeading)
-            .background {
-                ZStack {
-                    shape.fill(palette.card)
-                    shape.fill(!palette.colorful ? .clear : palette.isDark ? Palette.pastel(module).opacity(0.13) : Palette.pastel(module))
-                    // Light falls from the top, like on a soft plastic toy.
-                    shape.fill(LinearGradient(colors: [.white.opacity(palette.isDark ? 0.05 : 0.55), .clear],
-                                              startPoint: .top, endPoint: .center))
-                }
-                .shadow(color: shadowColor.opacity(hovering ? 0.28 : 0.1), radius: hovering ? 16 : 6, y: hovering ? 10 : 3)
-            }
-            .overlay(shape.strokeBorder(palette.isDark ? palette.tint(module) : .white.opacity(0.7), lineWidth: 1))
-            // Fussel peeks over the top edge while the pointer is on the card.
-            .background(alignment: .topTrailing) {
-                FusselBody(mood: .idle, color: palette.isDark ? palette.mascot : Palette.pastel(module),
-                           look: CGSize(width: -0.6, height: -1.1))
-                    .frame(width: 46, height: 46)
-                    .rotationEffect(.degrees(hovering ? 8 : 0))
-                    .offset(x: -54, y: hovering ? -28 : 2)
-                    .opacity(hovering ? 1 : 0)
-                    .animation(.spring(duration: 0.45, bounce: 0.5).delay(hovering ? 0.08 : 0), value: hovering)
-            }
-            .contentShape(shape)
-            .onGeometryChange(for: CGSize.self) { $0.size } action: { cardSize = $0 }
-        }
-        .buttonStyle(CardPressStyle())
-        .scaleEffect(hovering ? 1.02 : 1)
-        .rotation3DEffect(.degrees(Double(hypot(tilt.width, tilt.height)) * 10),
-                          axis: (x: -tilt.height, y: tilt.width, z: 0), perspective: 0.6)
-        .onContinuousHover { phase in
-            switch phase {
-            case .active(let point):
-                guard !reduceMotion else { return }
-                withAnimation(.interactiveSpring(duration: 0.3)) {
-                    tilt = CGSize(width: point.x / cardSize.width - 0.5, height: point.y / cardSize.height - 0.5)
-                }
-            case .ended:
-                withAnimation(.spring(duration: 0.5, bounce: 0.4)) { tilt = .zero }
-            }
-        }
-        .onHover { inside in
-            withAnimation(.spring(duration: 0.35, bounce: 0.45)) { hovering = inside }
-            if inside { bounces += 1 }
-        }
-        .opacity(appeared ? 1 : 0)
-        .scaleEffect(appeared ? 1 : 0.94)
-        .offset(y: appeared ? 0 : 22)
-        .onAppear {
-            if reduceMotion {
-                appeared = true
-            } else {
-                withAnimation(.spring(duration: 0.6, bounce: 0.35).delay(0.06 * Double(index) + 0.15)) {
-                    appeared = true
-                }
-            }
-        }
-    }
+                VStack(alignment: .leading, spacing: 18) {
+                    UpdateBanner(updater: app.updater)
+                        .animation(.spring(duration: 0.4), value: app.updater.state)
+                    if !app.hasFullDiskAccess {
+                        AccessBanner()
+                    }
 
-    private var shadowColor: Color {
-        palette.isDark ? .black : Palette.shadow(module)
-    }
-
-    private var isBusy: Bool {
-        if module == .updates, case .checking = app.appUpdates.phase { return true }
-        guard module != .uninstaller, module != .updates, module != .closet else { return false }
-        let phase = app.model(for: module).phase
-        return phase == .scanning || phase == .cleaning
-    }
-
-    @ViewBuilder
-    private var status: some View {
-        if module == .uninstaller {
-            Text("Remove apps and their leftovers")
-                .font(.system(size: 12))
-                .foregroundStyle(palette.secondary)
-        } else if module == .updates {
-            switch app.appUpdates.phase {
-            case .idle:
-                Text(shortBlurb)
-                    .font(.system(size: 12))
-                    .foregroundStyle(palette.secondary)
-            case .checking(let done, let total):
-                Text("Checking \(done) of \(total)…")
-                    .font(.system(size: 12))
-                    .foregroundStyle(palette.secondary)
-            case .done:
-                if app.appUpdates.updates.isEmpty {
-                    Label("All up to date", systemImage: "checkmark.circle.fill")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(palette.secondary)
-                } else {
-                    Text("\(app.appUpdates.updates.count) waiting")
-                        .font(.rounded(19, .heavy))
-                        .foregroundStyle(palette.text)
-                }
-            }
-        } else if module == .closet {
-            Text("\(Achievements.shared.earned.count) of \(Achievements.all.count) badges")
-                .font(.system(size: 12))
-                .foregroundStyle(palette.secondary)
-        } else {
-            let model = app.model(for: module)
-            switch model.phase {
-            case .idle:
-                Text(shortBlurb)
-                    .font(.system(size: 12))
-                    .foregroundStyle(palette.secondary)
-            case .scanning, .cleaning:
-                Text(model.phase == .scanning ? "Sniffing around…" : "Cleaning…")
-                    .font(.system(size: 12))
-                    .foregroundStyle(palette.secondary)
-            case .results:
-                if model.items.isEmpty {
-                    Label("All tidy", systemImage: "checkmark.circle.fill")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(palette.secondary)
-                } else {
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        CountingBytes(value: Double(model.totalSize))
-                            .animation(.easeOut(duration: 1.0), value: model.totalSize)
-                            .font(.rounded(19, .heavy))
+                    HStack(alignment: .firstTextBaseline) {
+                        CountingBytes(value: shown ? Double(usedBytes) : 0)
+                            .animation(.easeOut(duration: 1.0), value: shown)
+                            .animation(.easeOut(duration: 1.2), value: usedBytes)
+                            .font(.system(size: 30, weight: .bold))
                             .foregroundStyle(palette.text)
-                        Text(model.selected.isEmpty ? "nothing selected" : "\(model.selectedSize.byteString) selected")
-                            .font(.system(size: 11))
+                            .overlay { SparkleBurst(trigger: celebrations) }
+                        Text("used of \(s.diskTotal.byteString)")
+                            .font(.system(size: 13))
+                            .foregroundStyle(palette.secondary)
+                        Spacer()
+                        Text("\(s.diskFree.byteString) free")
+                            .font(.system(size: 13, weight: .semibold))
                             .foregroundStyle(palette.secondary)
                     }
+                    .monospacedDigit()
+
+                    StorageBar(grown: shown)
+
+                    CategoryList(page: $page, shown: shown)
+
+                    StatsLine()
+                        .padding(.top, 2)
                 }
-            case .done(let freed, _):
-                Label(freed > 0 ? "Cleared \(freed.byteString)" : "All tidy", systemImage: "checkmark.circle.fill")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(palette.secondary)
+                .padding(.horizontal, 28)
+                .padding(.bottom, 28)
             }
         }
+        .onAppear {
+            withAnimation(.spring(duration: 1.0, bounce: 0.2).delay(0.1)) { shown = true }
+        }
+        .onChange(of: app.stage) { _, stage in
+            if case .done(let freed, _) = stage, freed > 0 { celebrations += 1 }
+        }
+        .cleanConfirmation(isPresented: $confirming)
     }
 
-    private var shortBlurb: String {
-        switch module {
-        case .junk: return "Caches, logs and build crumbs"
-        case .large: return "Big files and forgotten ones"
-        case .tidy: return "Trash and old downloads"
-        case .uninstaller: return "Remove apps and their leftovers"
-        case .updates: return "Updates for your apps"
-        case .closet: return "Costumes, icons and badges"
+    private var status: String {
+        switch app.stage {
+        case .idle: return "Not scanned yet"
+        case .scanning: return "Scanning…"
+        case .cleaning: return "Cleaning…"
+        case .ready: return app.foundTotal > 0 ? "Scanned just now · \(app.foundTotal.byteString) found" : "Scanned just now · all clean"
+        case .done(let freed, _): return freed > 0 ? "Cleaned \(freed.byteString)" : "All tidy"
         }
     }
 }
 
-// MARK: - Detail sheet
+/// A handful of sparkles that fly out and fade, each time `trigger` goes up. One animation, no timer.
+private struct SparkleBurst: View {
+    let trigger: Int
+    @State private var flying = false
+    @State private var visible = false
+    private static let colors: [Color] = [Color(hex: 0x3FAE7C), Color(hex: 0xEC7357), Color(hex: 0x8B78EC),
+                                          Color(hex: 0xE5A33A), Color(hex: 0x3D8BE0)]
 
-struct DetailSheet: View {
+    var body: some View {
+        ZStack {
+            if visible {
+                ForEach(0..<12, id: \.self) { i in
+                    let angle = Double(i) / 12 * 2 * .pi + 0.3
+                    let reach = 46.0 + Double(i % 3) * 18
+                    Image(systemName: i % 2 == 0 ? "sparkle" : "circle.fill")
+                        .font(.system(size: i % 2 == 0 ? 13 : 5, weight: .bold))
+                        .foregroundStyle(Self.colors[i % Self.colors.count])
+                        .offset(x: flying ? cos(angle) * reach * 1.6 : 0, y: flying ? sin(angle) * reach : 0)
+                        .scaleEffect(flying ? 0.4 : 1.2)
+                        .opacity(flying ? 0 : 1)
+                }
+            }
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+        .onChange(of: trigger) {
+            flying = false
+            visible = true
+            // Let the sparkles appear at the start first, then send them flying.
+            Task {
+                try? await Task.sleep(for: .milliseconds(20))
+                withAnimation(.easeOut(duration: 1.0)) { flying = true }
+                try? await Task.sleep(for: .seconds(1.1))
+                visible = false
+            }
+        }
+    }
+}
+
+/// One bar for the whole disk, with a slice per tool and the rest of what's used.
+private struct StorageBar: View {
     @Environment(AppModel.self) private var app
     @Environment(\.palette) private var palette
-    @Environment(\.dismiss) private var dismiss
-    let module: Module
-    @State private var bubble: String?
+    let grown: Bool
+
+    var body: some View {
+        let s = app.monitor.sample
+        let total = max(1, Double(s.diskTotal))
+        let used = Double(max(0, s.diskTotal - s.diskFree))
+        let slices: [(Module, Double)] = [Module.junk, .tidy, .large].map { module in
+            let model = app.model(for: module)
+            return (module, model.phase == .results ? Double(model.totalSize) : 0)
+        }
+        let known = slices.reduce(0) { $0 + $1.1 }
+        GeometryReader { geo in
+            let w = geo.size.width
+            HStack(spacing: 1.5) {
+                ForEach(slices, id: \.0) { module, bytes in
+                    if bytes > 0 {
+                        Rectangle()
+                            .fill(palette.accent(module))
+                            .frame(width: max(3, w * bytes / total))
+                            .help("\(module.title): \(Int64(bytes).byteString)")
+                    }
+                }
+                Rectangle()
+                    .fill(palette.secondary.opacity(0.55))
+                    .frame(width: max(0, w * (used - known) / total))
+                    .help("Everything else: \(Int64(max(0, used - known)).byteString)")
+                Spacer(minLength: 0)
+            }
+            .frame(width: grown ? w : 0, alignment: .leading)
+            .clipped()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(palette.text.opacity(0.08))
+            .overlay { if app.stage == .scanning { Shimmer() } }
+            .clipShape(Capsule())
+        }
+        .frame(height: 10)
+        .animation(.spring(duration: 0.8), value: known)
+        .accessibilityElement()
+        .accessibilityLabel("Disk: \(Int64(used).byteString) used of \(s.diskTotal.byteString)")
+    }
+}
+
+/// A soft band of light sweeping across, while Fussel is still looking.
+private struct Shimmer: View {
+    @State private var phase: CGFloat = -1
+
+    var body: some View {
+        GeometryReader { geo in
+            LinearGradient(colors: [.clear, .white.opacity(0.45), .clear], startPoint: .leading, endPoint: .trailing)
+                .frame(width: geo.size.width * 0.3)
+                .offset(x: phase * geo.size.width)
+        }
+        .allowsHitTesting(false)
+        .onAppear {
+            withAnimation(.linear(duration: 1.3).repeatForever(autoreverses: false)) { phase = 1.1 }
+        }
+    }
+}
+
+/// A row per tool with what it found, its share of the disk and how safe it is to clean.
+private struct CategoryList: View {
+    @Environment(AppModel.self) private var app
+    @Environment(\.palette) private var palette
+    @Binding var page: Page
+    let shown: Bool
+
+    private let modules: [Module] = [.junk, .tidy, .large, .uninstaller, .updates]
 
     var body: some View {
         VStack(spacing: 0) {
-            header
-            Group {
-                if module == .uninstaller {
-                    UninstallerView(model: app.uninstaller)
-                } else if module == .updates {
-                    AppUpdatesView(model: app.appUpdates)
-                } else if module == .closet {
-                    ClosetView()
-                } else {
-                    ModuleView(model: app.model(for: module))
+            ForEach(Array(modules.enumerated()), id: \.element) { index, module in
+                if index > 0 {
+                    Rectangle().fill(palette.cardStroke).frame(height: 1).padding(.leading, 58)
                 }
+                CategoryRow(module: module) { page = .tool(module) }
+                    .opacity(shown ? 1 : 0)
+                    .offset(y: shown ? 0 : 10)
+                    .animation(.spring(duration: 0.5, bounce: 0.25).delay(0.05 * Double(index) + 0.15), value: shown)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(width: 760, height: 560)
-        .background(palette.sheet)
-        .onAppear { bubble = comment }
-        .onChange(of: comment) { _, text in
-            withAnimation(.spring(duration: 0.4, bounce: 0.45)) { bubble = text }
+        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(palette.card))
+        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(palette.cardStroke, lineWidth: 1))
+    }
+}
+
+private struct CategoryRow: View {
+    @Environment(AppModel.self) private var app
+    @Environment(\.palette) private var palette
+    let module: Module
+    let open: () -> Void
+    @State private var hovering = false
+    @State private var bounce = 0
+
+    var body: some View {
+        Button(action: open) {
+            HStack(spacing: 14) {
+                ToolIcon(module: module, size: 30, bounce: bounce)
+                    .scaleEffect(hovering ? 1.08 : 1)
+                    .rotationEffect(.degrees(hovering ? -6 : 0))
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 8) {
+                        Text(module.title)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(palette.text)
+                        if module == .large || module == .uninstaller {
+                            SafetyLabel(safe: false)
+                        }
+                    }
+                    Text(detail)
+                        .font(.system(size: 12))
+                        .foregroundStyle(palette.secondary)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 12)
+                if let share {
+                    Text(share)
+                        .font(.system(size: 12))
+                        .monospacedDigit()
+                        .foregroundStyle(palette.secondary)
+                }
+                Group {
+                    if isWorking {
+                        Spinner(tint: palette.accent(module))
+                            .transition(.scale.combined(with: .opacity))
+                    } else {
+                        Text(value)
+                            .font(.system(size: 15, weight: .bold))
+                            .monospacedDigit()
+                            .foregroundStyle(palette.text)
+                            .contentTransition(.numericText())
+                            .transition(.scale(scale: 0.6).combined(with: .opacity))
+                    }
+                }
+                .frame(minWidth: 70, alignment: .trailing)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(palette.secondary)
+                    .offset(x: hovering ? 3 : 0)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 11)
+            .background(hovering ? palette.text.opacity(0.04) : .clear)
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
+        .onHover { inside in withAnimation(.spring(duration: 0.3, bounce: 0.4)) { hovering = inside } }
+        .animation(.snappy, value: value)
+        .animation(.spring(duration: 0.4, bounce: 0.5), value: isWorking)
+        // A little hop when a scan for this tool comes back.
+        .onChange(of: isWorking) { _, working in if !working { bounce += 1 } }
     }
 
-    /// The card's color as a band across the top, with the title, a little Fussel and his comment.
-    private var header: some View {
-        HStack(spacing: 14) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(palette.isDark ? palette.tint(module) : .white.opacity(0.75))
-                Image(systemName: module.symbol)
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(palette.icon(module))
-            }
-            .frame(width: 40, height: 40)
-            Text(module.title)
-                .font(.rounded(21, .heavy))
-                .foregroundStyle(palette.text)
-            Spacer(minLength: 12)
-            if let bubble {
-                SpeechBubble(text: bubble, tailRight: true)
-                    .id(bubble)
-                    .transition(.scale(scale: 0.5, anchor: .trailing).combined(with: .opacity))
-            }
-            FusselMascot(mood: mascotMood, size: 92, showShadow: false, color: palette.mascot,
-                         followsPointer: true, interactive: true) {
-                Sounds.play("Pop")
-                withAnimation(.spring(duration: 0.35, bounce: 0.45)) { bubble = ["Hehe!", "Boop!", "Wheee!"].randomElement() }
-            }
-            .frame(width: 66, height: 52)
-            Button {
-                dismiss()
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 11, weight: .heavy))
-                    .foregroundStyle(palette.text)
-                    .frame(width: 28, height: 28)
-                    .background(Circle().fill(palette.text.opacity(0.08)))
-                    .contentShape(Circle())
-            }
-            .buttonStyle(CardPressStyle())
-            .keyboardShortcut(.cancelAction)
-            .help("Close")
-            .accessibilityLabel("Close")
-        }
-        .padding(.leading, 20)
-        .padding(.trailing, 16)
-        .padding(.vertical, 12)
-        .background {
-            ZStack {
-                Rectangle().fill(palette.card)
-                Rectangle().fill(!palette.colorful ? .clear : palette.isDark ? Palette.pastel(module).opacity(0.13) : Palette.pastel(module))
-                LinearGradient(colors: [.white.opacity(palette.isDark ? 0.04 : 0.45), .clear], startPoint: .top, endPoint: .bottom)
-            }
-        }
-        .overlay(alignment: .bottom) { Rectangle().fill(palette.cardStroke).frame(height: 1) }
+    private var isWorking: Bool {
+        if let model { return model.phase == .scanning || model.phase == .cleaning }
+        if module == .updates, case .checking = app.appUpdates.phase { return true }
+        return false
     }
 
-    private var phase: ModuleModel.Phase? {
+    private var model: ModuleModel? {
         switch module {
-        case .junk, .large, .tidy: return app.model(for: module).phase
+        case .junk, .large, .tidy: return app.model(for: module)
         default: return nil
         }
     }
 
-    private var mascotMood: MascotMood {
-        switch phase {
-        case .scanning, .cleaning: return .busy
-        case .done: return .happy
-        default: return .idle
+    private var value: String {
+        if let model {
+            switch model.phase {
+            case .results: return model.totalSize.byteString
+            case .scanning, .cleaning: return "…"
+            case .done(let freed, _): return freed > 0 ? "−\(freed.byteString)" : "0 KB"
+            case .idle: return "—"
+            }
         }
+        if module == .uninstaller { return app.uninstaller.apps.isEmpty ? "—" : "\(app.uninstaller.apps.count)" }
+        return "\(app.appUpdates.updates.count)"
     }
 
-    /// What Fussel says about what's on screen.
-    private var comment: String {
+    private var share: String? {
+        guard let model, model.phase == .results, app.monitor.sample.diskTotal > 0 else { return nil }
+        let percent = Double(model.totalSize) / Double(app.monitor.sample.diskTotal) * 100
+        return String(format: "%.1f %%", percent)
+    }
+
+    private var detail: String {
         switch module {
-        case .uninstaller: return "Which app can go?"
-        case .updates: return "Let's freshen up your apps."
-        case .closet: return "Dress me up!"
-        default: break
-        }
-        let model = app.model(for: module)
-        switch model.phase {
-        case .idle: return "Want me to sniff around?"
-        case .scanning: return "Sniff, sniff…"
-        case .cleaning: return "Off to the Trash!"
-        case .done(let freed, _): return freed > 0 ? "Ahh, so fresh!" : "Squeaky clean!"
-        case .results:
-            guard let biggest = model.items.max(by: { $0.size < $1.size }) else { return "Nothing here, yay!" }
-            let name = biggest.name.count > 22 ? String(biggest.name.prefix(20)) + "…" : biggest.name
-            return "Ooh, \(name) is \(biggest.size.byteString)!"
+        case .junk, .tidy:
+            guard let model else { return "" }
+            switch model.phase {
+            case .results: return model.items.isEmpty ? "Nothing to clean" : "\(model.selectedSize.byteString) safe to clean"
+            case .scanning: return "Looking…"
+            case .cleaning: return "Cleaning…"
+            case .done: return "Cleaned"
+            case .idle: return "Not scanned yet"
+            }
+        case .large:
+            guard let model else { return "" }
+            if model.phase == .results { return model.items.count == 1 ? "1 file to look at" : "\(model.items.count) files to look at" }
+            return model.phase == .scanning ? "Looking…" : "Big and forgotten files"
+        case .uninstaller:
+            return "Remove apps with their leftovers"
+        case .updates:
+            switch app.appUpdates.phase {
+            case .checking: return "Checking…"
+            case .done: return app.appUpdates.updates.isEmpty ? "All up to date" : "Updates waiting"
+            case .idle: return "Updates for your apps"
+            }
+        case .closet:
+            return ""
         }
     }
 }
 
-// MARK: - Full Disk Access
+extension Module {
+    /// A name short enough for the sidebar.
+    var sidebarTitle: String { self == .large ? "Large Files" : title }
+}
 
-struct FullDiskAccessHint: View {
+/// A small rounded square in the tool's color with its symbol, like an app icon.
+struct ToolIcon: View {
+    @Environment(\.palette) private var palette
+    let module: Module
+    var size: CGFloat = 28
+    var bounce = 0
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: size * 0.27, style: .continuous)
+            .fill(palette.accent(module).gradient)
+            .overlay(
+                Image(systemName: module.symbol)
+                    .font(.system(size: size * 0.48, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .symbolEffect(.bounce, value: bounce)
+            )
+            .frame(width: size, height: size)
+            .accessibilityHidden(true)
+    }
+}
+
+/// A small arc going round, drawn in SwiftUI so it takes the tool's color.
+struct Spinner: View {
+    let tint: Color
+    @State private var spinning = false
+
+    var body: some View {
+        Circle()
+            .trim(from: 0.15, to: 1)
+            .stroke(tint, style: StrokeStyle(lineWidth: 2.2, lineCap: .round))
+            .frame(width: 16, height: 16)
+            .rotationEffect(.degrees(spinning ? 360 : 0))
+            .animation(.linear(duration: 0.8).repeatForever(autoreverses: false), value: spinning)
+            .onAppear { spinning = true }
+            .accessibilityLabel("Working")
+    }
+}
+
+/// "Safe to Clean" or "Check First", so it's clear what can go without a second look.
+struct SafetyLabel: View {
+    let safe: Bool
+
+    var body: some View {
+        let color = safe ? Palette.safe : Palette.caution
+        Text(safe ? "Safe to Clean" : "Check First")
+            .font(.system(size: 10.5, weight: .semibold))
+            .foregroundStyle(color)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(RoundedRectangle(cornerRadius: 4, style: .continuous).fill(color.opacity(0.14)))
+    }
+}
+
+/// Without Full Disk Access some places stay hidden; say so plainly, with the way to fix it.
+private struct AccessBanner: View {
     @Environment(\.palette) private var palette
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 12) {
             Image(systemName: "lock.fill")
-                .foregroundStyle(palette.text)
-            Text("Give Fussel Full Disk Access to reach the Trash and every hidden speck.")
-                .font(.system(size: 12))
-                .foregroundStyle(palette.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: 8)
+                .foregroundStyle(Palette.caution)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Fussel can't see everything yet")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(palette.text)
+                Text("Allow Full Disk Access so the Trash and every cache can be scanned.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(palette.secondary)
+            }
+            Spacer()
             Button("Open Settings") { Permissions.openFullDiskAccessSettings() }
-                .buttonStyle(NudgeButtonStyle(tint: palette.text, badgeText: palette.isDark ? Theme.ink : .white,
-                                              symbol: "arrow.up.right"))
+                .buttonStyle(SecondaryButtonStyle())
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 9)
-        .background(Capsule().fill(palette.card))
-        .overlay(Capsule().strokeBorder(palette.cardStroke, lineWidth: 1))
+        .padding(14)
+        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Palette.caution.opacity(0.1)))
+        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Palette.caution.opacity(0.3), lineWidth: 1))
+    }
+}
+
+// MARK: - Tool and settings pages
+
+private struct ToolPage: View {
+    @Environment(AppModel.self) private var app
+    let module: Module
+
+    var body: some View {
+        switch module {
+        case .uninstaller:
+            VStack(spacing: 0) {
+                PageHeader(title: module.title, subtitle: "Remove apps together with their support files") { EmptyView() }
+                UninstallerView(model: app.uninstaller)
+            }
+        case .updates:
+            VStack(spacing: 0) {
+                PageHeader(title: module.title, subtitle: "Updates for apps from the App Store and the web") { EmptyView() }
+                AppUpdatesView(model: app.appUpdates)
+            }
+        default:
+            ModuleView(model: app.model(for: module))
+        }
+    }
+}
+
+private struct SettingsPage: View {
+    var body: some View {
+        VStack(spacing: 0) {
+            PageHeader(title: "Settings", subtitle: "How Fussel looks for fluff") { EmptyView() }
+            PreviewSafeScroll {
+                SettingsView()
+                    .frame(maxWidth: .infinity)
+            }
+        }
     }
 }

@@ -20,7 +20,6 @@ struct UninstallerView: View {
             detail
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .navigationTitle("Uninstaller")
         .task {
             if model.apps.isEmpty { await model.loadApps() }
         }

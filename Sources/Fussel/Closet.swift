@@ -267,120 +267,16 @@ final class Achievements {
     }
 }
 
-// MARK: - Closet view
+// MARK: - App icon picker (in Settings)
 
-/// Fussel's Closet: costumes, app icon and badges.
-struct ClosetView: View {
-    enum Tab: String, CaseIterable { case costumes = "Costumes", icon = "App Icon", badges = "Badges" }
-
-    @State var tab: Tab = .costumes
-    /// Screenshots can't render scroll views, so previews turn scrolling off.
-    var scrolls = true
-
-    var body: some View {
-        VStack(spacing: 0) {
-            Picker("", selection: $tab) {
-                ForEach(Tab.allCases, id: \.self) { Text($0.rawValue).tag($0) }
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .frame(width: 320)
-            .padding(.vertical, 14)
-
-            if scrolls {
-                ScrollView { content }
-            } else {
-                content
-                Spacer(minLength: 0)
-            }
-        }
-    }
-}
-
-extension ClosetView {
-    @ViewBuilder
-    fileprivate var content: some View {
-        switch tab {
-        case .costumes: CostumePicker()
-        case .icon: IconPicker()
-        case .badges: BadgeGrid()
-        }
-    }
-}
-
-private struct LockedOverlay: View {
-    var body: some View {
-        Image(systemName: "lock.fill")
-            .font(.system(size: 13, weight: .bold))
-            .foregroundStyle(.white)
-            .padding(6)
-            .background(Circle().fill(.black.opacity(0.55)))
-    }
-}
-
-private struct CostumePicker: View {
-    @AppStorage(Costume.storageKey) private var stored: String = Costume.auto.rawValue
-    @Environment(\.palette) private var palette
-    private var achievements: Achievements { Achievements.shared }
-
-    var body: some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 14), count: 4), spacing: 14) {
-            ForEach(Costume.allCases) { costume in
-                let locked = costume.requiredBadge.map { !achievements.has($0) } ?? false
-                let selected = stored == costume.rawValue
-                Button {
-                    stored = costume.rawValue
-                    Achievements.shared.record(.restyled)
-                    Sounds.play("Pop")
-                } label: {
-                    VStack(spacing: 8) {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                .fill(palette.badge)
-                            FusselBody(mood: .idle, color: palette.mascot, costume: costume.resolved())
-                                .padding(4)
-                            if locked { LockedOverlay() }
-                        }
-                        .frame(width: 96, height: 96)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                .strokeBorder(Theme.coral, lineWidth: selected ? 3 : 0)
-                        )
-                        Text(costume.title)
-                            .font(.rounded(12, .semibold))
-                        if costume == .auto {
-                            Text("Today: \(costume.resolved().title)")
-                                .font(.system(size: 10))
-                                .foregroundStyle(.secondary)
-                        } else if locked {
-                            Text("Earn “Fluff Royalty”")
-                                .font(.system(size: 10))
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .disabled(locked)
-                .accessibilityLabel(costume.title + (locked ? ", locked" : ""))
-                .accessibilityAddTraits(selected ? .isSelected : [])
-            }
-        }
-        .padding(.horizontal, 24)
-        .padding(.bottom, 20)
-    }
-}
-
-private struct IconPicker: View {
+struct IconPicker: View {
     @State private var selected = AppIconVariant.current
     @State private var message: String?
-    private var achievements: Achievements { Achievements.shared }
 
     var body: some View {
         VStack(spacing: 14) {
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 6), spacing: 14) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 5), spacing: 12) {
                 ForEach(AppIconVariant.allCases) { variant in
-                    let locked = variant.requiredBadge.map { !achievements.has($0) } ?? false
                     Button {
                         if IconChanger.apply(variant) {
                             selected = variant
@@ -391,28 +287,10 @@ private struct IconPicker: View {
                             message = "I couldn't change my icon. Reinstall Fussel with the latest installer and try again."
                         }
                     } label: {
-                        VStack(spacing: 6) {
-                            ZStack {
-                                if let image = variant.image {
-                                    Image(nsImage: image)
-                                        .resizable()
-                                        .frame(width: 76, height: 76)
-                                }
-                                if locked { LockedOverlay() }
-                            }
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                                    .strokeBorder(Theme.coral, lineWidth: selected == variant ? 3 : 0)
-                                    .padding(4)
-                            )
-                            Text(variant.title)
-                                .font(.rounded(11, .semibold))
-                        }
-                        .contentShape(Rectangle())
+                        IconChoice(variant: variant, selected: selected == variant)
                     }
-                    .buttonStyle(.plain)
-                    .disabled(locked)
-                    .accessibilityLabel(variant.title + " icon" + (locked ? ", locked" : ""))
+                    .buttonStyle(CardPressStyle())
+                    .accessibilityLabel(variant.title + " icon")
                 }
             }
             if let message {
@@ -430,41 +308,40 @@ private struct IconPicker: View {
     }
 }
 
-private struct BadgeGrid: View {
-    private var achievements: Achievements { Achievements.shared }
+/// One icon to pick: the chosen one sits on a soft tile with a checkmark, instead of a ring that
+/// fights the icon's own shape.
+private struct IconChoice: View {
+    @Environment(\.palette) private var palette
+    let variant: AppIconVariant
+    let selected: Bool
+    @State private var hovering = false
 
     var body: some View {
-        VStack(spacing: 12) {
-            Text("\(achievements.earned.count) of \(Achievements.all.count) badges")
-                .font(.rounded(13, .semibold))
-                .foregroundStyle(.secondary)
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 4), spacing: 16) {
-                ForEach(Achievements.all) { badge in
-                    let earned = achievements.has(badge.id)
-                    VStack(spacing: 6) {
-                        ZStack {
-                            Circle()
-                                .fill(earned ? badge.tint : Color.gray.opacity(0.15))
-                            Image(systemName: earned ? badge.symbol : "lock.fill")
-                                .font(.system(size: 22, weight: .semibold))
-                                .foregroundStyle(earned ? Theme.ink : .secondary)
+        VStack(spacing: 6) {
+            if let image = variant.image {
+                Image(nsImage: image)
+                    .resizable()
+                    .frame(width: 56, height: 56)
+                    .scaleEffect(hovering ? 1.06 : 1)
+                    .overlay(alignment: .bottomTrailing) {
+                        if selected {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 17))
+                                .foregroundStyle(.white, Palette.safe)
+                                .offset(x: 2, y: 2)
+                                .transition(.scale(scale: 0.3).combined(with: .opacity))
                         }
-                        .frame(width: 62, height: 62)
-                        Text(badge.title)
-                            .font(.rounded(12, .bold))
-                            .foregroundStyle(earned ? .primary : .secondary)
-                        Text(badge.detail)
-                            .font(.system(size: 10))
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-                            .fixedSize(horizontal: false, vertical: true)
                     }
-                    .accessibilityElement(children: .combine)
-                    .accessibilityLabel("\(badge.title), \(earned ? "earned" : "not yet earned"). \(badge.detail)")
-                }
             }
+            Text(variant.title)
+                .font(.system(size: 11, weight: selected ? .semibold : .medium))
+                .foregroundStyle(selected ? palette.text : palette.secondary)
         }
-        .padding(.horizontal, 24)
-        .padding(.bottom, 20)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity)
+        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(selected ? palette.selection : .clear))
+        .contentShape(Rectangle())
+        .onHover { inside in withAnimation(.spring(duration: 0.3, bounce: 0.5)) { hovering = inside } }
+        .animation(.spring(duration: 0.35, bounce: 0.5), value: selected)
     }
 }

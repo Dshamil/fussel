@@ -1,20 +1,38 @@
 import SwiftUI
 import AppKit
 
-/// "Your Mac at a glance": disk, memory, battery, CPU and network as live tiles.
-struct StatsRow: View {
+/// "Your Mac at a glance" as one quiet line: disk, memory, battery, CPU and network. Gray while all is
+/// well, red where it gets tight; each value opens its details.
+struct StatsLine: View {
     @Environment(AppModel.self) private var app
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            DiskTile()
-            MemoryTile()
-            BatteryTile()
-            CPUTile()
-            NetworkTile()
+        let s = app.monitor.sample
+        let ready = app.monitor.hasSample
+        let diskUsed = s.diskTotal > 0 ? 1 - Double(s.diskFree) / Double(s.diskTotal) : 0
+        let memFree = s.memTotal > s.memUsed ? Int64(s.memTotal - s.memUsed) : 0
+        let memUsed = s.memTotal > 0 ? Double(s.memUsed) / Double(s.memTotal) : 0
+        let battery = s.battery
+        let batteryLow = (battery?.percent ?? 100) <= 20 && !(battery?.isPluggedIn ?? false)
+        HStack(spacing: 12) {
+            StatChip(kind: .disk, value: ready ? s.diskFree.byteString : "…", tight: diskUsed > 0.9) {
+                DiskPopover(sample: s) { Task { await app.smartScan() } }
+            }
+            StatChip(kind: .memory, value: ready ? memFree.byteString : "…", tight: memUsed > 0.9) {
+                AppsPopover(monitor: app.monitor, title: "Hungriest apps", load: { await app.monitor.memoryHogs() })
+            }
+            if let battery {
+                StatChip(kind: .battery, symbol: BatteryPopover.symbol(battery), value: "\(battery.percent) %", tight: batteryLow) {
+                    BatteryPopover(battery: battery)
+                }
+            }
+            StatChip(kind: .cpu, value: s.cpu.map { "\(Int(($0 * 100).rounded())) %" } ?? "…", tight: (s.cpu ?? 0) > 0.9) {
+                AppsPopover(monitor: app.monitor, title: "Busiest apps", load: { await app.monitor.cpuHogs() })
+            }
+            StatChip(kind: .network, value: Int64(s.downBytesPerSecond).byteString + "/s", tight: false) {
+                SpeedTestPopover(monitor: app.monitor)
+            }
         }
-        // All tiles as tall as the tallest, so their buttons line up.
-        .fixedSize(horizontal: false, vertical: true)
         .onAppear { app.monitor.start() }
     }
 }
@@ -24,11 +42,11 @@ enum StatKind {
 
     var title: String {
         switch self {
-        case .disk: return "Disk"
-        case .memory: return "Memory"
+        case .disk: return "Free disk space"
+        case .memory: return "Free memory"
         case .battery: return "Battery"
-        case .cpu: return "CPU"
-        case .network: return "Network"
+        case .cpu: return "CPU load"
+        case .network: return "Download speed"
         }
     }
 
@@ -38,219 +56,95 @@ enum StatKind {
         case .memory: return "memorychip"
         case .battery: return "battery.75percent"
         case .cpu: return "cpu"
-        case .network: return "wifi"
-        }
-    }
-
-    var pastel: Color {
-        switch self {
-        case .disk: return Color(hex: 0xFFD3C4)    // peach
-        case .memory: return Color(hex: 0xDCD5F7)  // lavender
-        case .battery: return Color(hex: 0xCFE8DC) // mint
-        case .cpu: return Color(hex: 0xF9E3A0)     // butter
-        case .network: return Color(hex: 0xCDE4F7) // sky
-        }
-    }
-
-    /// A deep shade of the pastel for text on light tiles (about 4.8:1 or more).
-    var ink: Color {
-        switch self {
-        case .disk: return Color(hex: 0xB4472A)
-        case .memory: return Color(hex: 0x5B46B8)
-        case .battery: return Color(hex: 0x2E7D5B)
-        case .cpu: return Color(hex: 0x8A6408)
-        case .network: return Color(hex: 0x2F6FAE)
+        case .network: return "arrow.down.circle"
         }
     }
 }
 
-/// Shared tile frame: pastel icon, title, big value, detail, then an optional gauge and button.
-private struct StatTile<Gauge: View, Footer: View>: View {
+private let warningRed = Color(hex: 0xE5484D)
+
+/// One value in the line: a small symbol and a number. Lifts a little on hover, opens a popover.
+private struct StatChip<Details: View>: View {
     @Environment(\.palette) private var palette
     let kind: StatKind
     var symbol: String? = nil
     let value: String
-    var valueColor: Color? = nil
-    let detail: String
-    @ViewBuilder var gauge: Gauge
-    @ViewBuilder var footer: Footer
+    let tight: Bool
+    @ViewBuilder var details: Details
+    @State private var showing = false
     @State private var hovering = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .fill(!palette.colorful ? .white.opacity(0.07) : palette.isDark ? kind.pastel.opacity(0.18) : kind.pastel)
+        Button { showing = true } label: {
+            HStack(spacing: 4) {
                 Image(systemName: symbol ?? kind.symbol)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(!palette.colorful ? palette.text : palette.isDark ? kind.pastel : Theme.ink)
-                    .symbolEffect(.bounce, value: hovering)
-            }
-            .frame(width: 30, height: 30)
-            .rotationEffect(.degrees(hovering ? -10 : 0))
-
-            VStack(alignment: .leading, spacing: 1) {
-                Text(kind.title)
-                    .font(.rounded(12, .semibold))
-                    .foregroundStyle(palette.secondary)
+                    .font(.system(size: 11, weight: .semibold))
                 Text(value)
-                    .font(.rounded(19, .heavy))
-                    .foregroundStyle(valueColor ?? palette.text)
+                    .font(.rounded(12, .bold))
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .fixedSize()
                     .contentTransition(.numericText())
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-                Text(detail)
-                    .font(.system(size: 11))
-                    .foregroundStyle(palette.secondary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+                    .animation(.snappy, value: value)
             }
-            .animation(.snappy, value: value)
-
-            gauge
-            Spacer(minLength: 0)
-            footer
+            .foregroundStyle(tight ? warningRed : palette.secondary)
+            .padding(.vertical, 3)
+            .contentShape(Rectangle())
+            .offset(y: hovering ? -2 : 0)
         }
-        .padding(13)
-        .frame(maxWidth: .infinity, minHeight: 140, maxHeight: .infinity, alignment: .topLeading)
-        .background {
-            let shape = RoundedRectangle(cornerRadius: 20, style: .continuous)
-            ZStack {
-                shape.fill(palette.card)
-                // A whisper of the tile's pastel, fading out towards the bottom.
-                shape.fill(LinearGradient(colors: [kind.pastel.opacity(!palette.colorful ? 0 : palette.isDark ? 0.10 : 0.5), .clear],
-                                          startPoint: .top, endPoint: .bottom))
-            }
-            .shadow(color: .black.opacity(hovering ? (palette.isDark ? 0.3 : 0.08) : 0), radius: 12, y: 6)
-        }
-        .overlay(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .strokeBorder(palette.cardStroke, lineWidth: 1)
-        )
-        .offset(y: hovering ? -3 : 0)
-        .onHover { inside in
-            withAnimation(.spring(duration: 0.35, bounce: 0.45)) { hovering = inside }
-        }
-        .accessibilityElement(children: .contain)
+        .buttonStyle(CardPressStyle())
+        .onHover { inside in withAnimation(.spring(duration: 0.3, bounce: 0.5)) { hovering = inside } }
+        .help(kind.title)
+        .accessibilityLabel("\(kind.title): \(value)")
+        .popover(isPresented: $showing, arrowEdge: .bottom) { details }
     }
 }
 
-/// Small rounded bar used for disk and memory.
-private struct FillBar: View {
-    @Environment(\.palette) private var palette
-    let fraction: Double
-    let tint: Color
-    @State private var grown = false
+/// Free space with a button to go hunting.
+private struct DiskPopover: View {
+    let sample: SystemSample
+    let scan: () -> Void
 
     var body: some View {
-        GeometryReader { geo in
-            ZStack(alignment: .leading) {
-                Capsule().fill(palette.text.opacity(0.08))
-                // Graphite keeps its bars gray and only shows red when it gets tight.
-                Capsule()
-                    .fill(palette.colorful || tint == warningRed ? tint : Color(hex: 0xC7C7CC))
-                    .frame(width: max(9, geo.size.width * min(1, max(0, grown ? fraction : 0))))
-                    .animation(.spring(duration: 0.9, bounce: 0.3), value: fraction)
-            }
+        VStack(alignment: .leading, spacing: 8) {
+            Text("\(sample.diskFree.byteString) free")
+                .font(.rounded(20, .heavy))
+            Text("of \(sample.diskTotal.byteString) on \(sample.diskName)")
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+            Button("Scan for fluff", action: scan)
+                .controlSize(.small)
+                .padding(.top, 4)
         }
-        .frame(height: 9)
-        // Fills up once when the window first appears.
-        .onAppear { withAnimation(.spring(duration: 1.1, bounce: 0.35).delay(0.3)) { grown = true } }
-        .accessibilityHidden(true)
+        .padding(16)
+        .frame(width: 240, alignment: .leading)
     }
 }
 
-/// The tile actions: text and arrow badge in the tile's own color.
-private struct TileButtonStyle: ButtonStyle {
-    let kind: StatKind
-    @Environment(\.palette) private var palette
-
-    func makeBody(configuration: Configuration) -> some View {
-        NudgeButtonStyle(tint: !palette.colorful ? palette.text : palette.isDark ? kind.pastel : kind.ink,
-                         badgeText: palette.isDark ? Theme.ink : .white)
-            .makeBody(configuration: configuration)
-    }
-}
-
-/// Green while there's room, orange when it fills up, red once it gets tight.
-private let warningRed = Color(hex: 0xE5484D)
-
-private func barColor(_ fraction: Double) -> Color {
-    if fraction > 0.9 { return warningRed }
-    if fraction > 0.75 { return Color(hex: 0xF5A524) }
-    return Color(hex: 0x30A46C)
-}
-
-// MARK: - Tiles
-
-private struct DiskTile: View {
-    @Environment(AppModel.self) private var app
+/// Charge, time left and macOS's verdict on the battery's health.
+private struct BatteryPopover: View {
+    let battery: BatteryInfo
 
     var body: some View {
-        let s = app.monitor.sample
-        let used = s.diskTotal > 0 ? 1 - Double(s.diskFree) / Double(s.diskTotal) : 0
-        StatTile(kind: .disk,
-                 value: app.monitor.hasSample ? s.diskFree.byteString : "…",
-                 detail: "free on \(s.diskName)") {
-            FillBar(fraction: used, tint: barColor(used))
-        } footer: {
-            Button("Scan") { Task { await app.smartScan() } }
-                .buttonStyle(TileButtonStyle(kind: .disk))
-                .disabled(app.stage == .scanning || app.stage == .cleaning)
-        }
-    }
-}
-
-private struct MemoryTile: View {
-    @Environment(AppModel.self) private var app
-    @State private var showing = false
-
-    var body: some View {
-        let s = app.monitor.sample
-        let free = s.memTotal > s.memUsed ? Int64(s.memTotal - s.memUsed) : 0
-        let used = s.memTotal > 0 ? Double(s.memUsed) / Double(s.memTotal) : 0
-        StatTile(kind: .memory,
-                 value: app.monitor.hasSample ? free.byteString : "…",
-                 detail: "free of \(Int64(s.memTotal).byteString)") {
-            FillBar(fraction: used, tint: barColor(used))
-        } footer: {
-            Button("Quit Apps") { showing = true }
-                .buttonStyle(TileButtonStyle(kind: .memory))
-                .popover(isPresented: $showing, arrowEdge: .bottom) {
-                    AppsPopover(monitor: app.monitor, title: "Hungriest apps",
-                                load: { await app.monitor.memoryHogs() })
-                }
-        }
-    }
-}
-
-private struct BatteryTile: View {
-    @Environment(AppModel.self) private var app
-    @Environment(\.palette) private var palette
-
-    var body: some View {
-        let battery = app.monitor.sample.battery
-        let low = (battery?.percent ?? 100) <= 20 && !(battery?.isPluggedIn ?? false)
-        StatTile(kind: .battery,
-                 symbol: symbol(battery),
-                 value: battery.map { "\($0.percent) %" } ?? "—",
-                 valueColor: low ? Color(hex: palette.isDark ? 0xFF6B6B : 0xC9302C) : nil,
-                 detail: detail(battery)) {
-            if let battery {
-                FillBar(fraction: Double(battery.percent) / 100,
-                        tint: low ? warningRed : Color(hex: 0x30A46C))
+        VStack(alignment: .leading, spacing: 8) {
+            Text("\(battery.percent) %")
+                .font(.rounded(20, .heavy))
+            Text(detail)
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+            if let health = battery.health {
+                Text("Health: \(health)")
+                    .font(.system(size: 12, weight: .semibold))
             }
-        } footer: {
-            if let health = battery?.health {
-                Button("Health: \(health)") { Permissions.openBatterySettings() }
-                    .buttonStyle(TileButtonStyle(kind: .battery))
-                    .help("Open Battery settings")
-            }
+            Button("Battery Settings") { Permissions.openBatterySettings() }
+                .controlSize(.small)
+                .padding(.top, 4)
         }
+        .padding(16)
+        .frame(width: 220, alignment: .leading)
     }
 
-    private func symbol(_ b: BatteryInfo?) -> String {
-        guard let b else { return "powerplug" }
+    static func symbol(_ b: BatteryInfo) -> String {
         if b.isCharging { return "battery.100percent.bolt" }
         switch b.percent {
         case ..<13: return "battery.0percent"
@@ -261,14 +155,13 @@ private struct BatteryTile: View {
         }
     }
 
-    private func detail(_ b: BatteryInfo?) -> String {
-        guard let b else { return "No battery" }
-        if b.isCharging {
-            if let m = b.minutesLeft { return "Full in \(format(m))" }
+    private var detail: String {
+        if battery.isCharging {
+            if let m = battery.minutesLeft { return "Full in \(format(m))" }
             return "Charging"
         }
-        if b.isPluggedIn { return "On power" }
-        if let m = b.minutesLeft { return "\(format(m)) left" }
+        if battery.isPluggedIn { return "On power" }
+        if let m = battery.minutesLeft { return "\(format(m)) left" }
         return "Estimating…"
     }
 
@@ -277,92 +170,10 @@ private struct BatteryTile: View {
     }
 }
 
-private struct CPUTile: View {
-    @Environment(AppModel.self) private var app
-    @Environment(\.palette) private var palette
-    @State private var showing = false
-
-    var body: some View {
-        let s = app.monitor.sample
-        let load = s.cpu ?? 0
-        StatTile(kind: .cpu,
-                 value: s.cpu.map { "\(Int(($0 * 100).rounded())) %" } ?? "…",
-                 detail: s.temperature.map { "\(Int($0.rounded())) °C" } ?? app.monitor.thermal.label) {
-            FillBar(fraction: load, tint: barColor(load))
-        } footer: {
-            Button("Top Apps") { showing = true }
-                .buttonStyle(TileButtonStyle(kind: .cpu))
-                .popover(isPresented: $showing, arrowEdge: .bottom) {
-                    AppsPopover(monitor: app.monitor, title: "Busiest apps",
-                                load: { await app.monitor.cpuHogs() })
-                }
-        }
-    }
-}
-
-private struct NetworkTile: View {
-    @Environment(AppModel.self) private var app
-    @Environment(\.palette) private var palette
-    @State private var showing = false
-
-    var body: some View {
-        let s = app.monitor.sample
-        StatTile(kind: .network,
-                 value: "↓ \(rate(s.downBytesPerSecond))",
-                 detail: "↑ \(rate(s.upBytesPerSecond))") {
-            Sparkline(values: app.monitor.downHistory, tint: palette.colorful ? StatKind.network.pastel : palette.secondary,
-                      dark: palette.isDark)
-                .frame(height: 18)
-        } footer: {
-            Button("Speed Test") {
-                showing = true
-                if app.monitor.speedTest != .running {
-                    Task { await app.monitor.runSpeedTest() }
-                }
-            }
-            .buttonStyle(TileButtonStyle(kind: .network))
-            .popover(isPresented: $showing, arrowEdge: .bottom) {
-                SpeedTestPopover(monitor: app.monitor)
-            }
-        }
-    }
-
-    private func rate(_ bytesPerSecond: Double) -> String {
-        Int64(bytesPerSecond).byteString + "/s"
-    }
-}
-
-private struct Sparkline: View {
-    let values: [Double]
-    let tint: Color
-    let dark: Bool
-
-    var body: some View {
-        Canvas { ctx, size in
-            guard values.count > 1 else { return }
-            let peak = max(values.max() ?? 1, 1)
-            let step = size.width / CGFloat(values.count - 1)
-            var line = Path()
-            for (i, v) in values.enumerated() {
-                let p = CGPoint(x: CGFloat(i) * step, y: size.height - CGFloat(v / peak) * (size.height - 2) - 1)
-                if i == 0 { line.move(to: p) } else { line.addLine(to: p) }
-            }
-            var area = line
-            area.addLine(to: CGPoint(x: size.width, y: size.height))
-            area.addLine(to: CGPoint(x: 0, y: size.height))
-            area.closeSubpath()
-            let stroke = dark ? tint : Color(hex: 0x3B82C4)
-            ctx.fill(area, with: .color(stroke.opacity(0.18)))
-            ctx.stroke(line, with: .color(stroke), style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
-        }
-        .accessibilityHidden(true)
-    }
-}
-
 // MARK: - Popovers
 
 /// The apps using the most memory or CPU, each with a Quit button.
-private struct AppsPopover: View {
+struct AppsPopover: View {
     let monitor: SystemMonitor
     let title: String
     let load: () async -> [AppUsage]
@@ -413,7 +224,7 @@ private struct AppsPopover: View {
     }
 }
 
-private struct SpeedTestPopover: View {
+struct SpeedTestPopover: View {
     let monitor: SystemMonitor
 
     var body: some View {
