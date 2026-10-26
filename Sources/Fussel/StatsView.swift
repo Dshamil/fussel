@@ -84,8 +84,8 @@ private struct StatChip<Details: View>: View {
                     .monospacedDigit()
                     .lineLimit(1)
                     .fixedSize()
-                    .contentTransition(.numericText())
-                    .animation(.snappy, value: value)
+                    // No rolling digits here: these values change every two seconds, and each roll
+                    // renders and blurs the digits as images, which cost CPU and memory all the time.
             }
             .foregroundStyle(tight ? warningRed : palette.secondary)
             .padding(.vertical, 3)

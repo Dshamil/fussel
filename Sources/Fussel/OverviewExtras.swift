@@ -41,9 +41,15 @@ enum FolderSizes {
         guard let files = FileManager.default.enumerator(at: folder, includingPropertiesForKeys: keys, options: [],
                                                          errorHandler: { _, _ in true }) else { return 0 }
         var total: Int64 = 0
-        while let file = files.nextObject() as? URL {
-            if let v = try? file.resourceValues(forKeys: Set(keys)), v.isRegularFile == true {
-                total += Int64(v.totalFileAllocatedSize ?? v.fileSize ?? 0)
+        let wanted = Set(keys)
+        var done = false
+        while !done {
+            // Let go of each file's details right away; the Library alone can hold 100,000s of files.
+            autoreleasepool {
+                guard let file = files.nextObject() as? URL else { done = true; return }
+                if let v = try? file.resourceValues(forKeys: wanted), v.isRegularFile == true {
+                    total += Int64(v.totalFileAllocatedSize ?? v.fileSize ?? 0)
+                }
             }
         }
         return total

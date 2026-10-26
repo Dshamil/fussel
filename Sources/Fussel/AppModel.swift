@@ -21,13 +21,17 @@ final class AppModel {
     /// The biggest folders, largest first, for "Where your space goes".
     var folders: [FolderSize] = []
     private var measuringFolders = false
+    private var foldersMeasured: Date?
 
     /// Measures the big folders in the background. Needs Full Disk Access, or macOS would ask
-    /// about every protected folder one by one.
-    func measureFolders() async {
+    /// about every protected folder one by one. Counting every file takes a while (half a minute on a
+    /// full Mac), so it happens at most once an hour, unless a clean-up just changed things (`force`).
+    func measureFolders(force: Bool = false) async {
         guard hasFullDiskAccess, !measuringFolders, !PreviewRenderer.isRendering else { return }
+        if !force, let last = foldersMeasured, Date().timeIntervalSince(last) < 3600 { return }
         measuringFolders = true
         folders = await FolderSizes.measure()
+        foldersMeasured = Date()
         measuringFolders = false
     }
 
@@ -124,7 +128,7 @@ final class AppModel {
         lastRecord = CleanHistory.shared.record(total, source: "Smart Clean", itemCount: count)
         monitor.refreshDisk()
         stage = .done(freed: total.freed, failures: total.failures)
-        Task { await measureFolders() }
+        Task { await measureFolders(force: true) }
     }
 
     /// The clean-up that the hero's Undo button would take back.
