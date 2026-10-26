@@ -138,29 +138,34 @@ struct FusselMascot: View {
     @State private var blink = false
     @State private var pokeDate = Date.distantPast
     @State private var pokeCount = 0
+    @State private var flipping = false
     @State private var gaze = Gaze()
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: AnimationBudget.interval(busy: mood == .busy, active: activeState),
+        TimelineView(.animation(minimumInterval: AnimationBudget.interval(busy: mood == .busy || mood == .happy || flipping,
+                                                                          active: activeState),
                                 paused: reduceMotion || paused || AnimationBudget.still)) { timeline in
             let m = motion(at: timeline.date)
             let g = followsPointer ? gaze.update(at: timeline.date.timeIntervalSinceReferenceDate, size: size) : Gaze.Look()
             ZStack {
                 if showShadow {
+                    // Scaled, not resized: a changing frame would re-lay out the whole window every frame.
                     Ellipse()
                         .fill(Color.black.opacity(0.17 - Double(m.height) * 0.6))
-                        .frame(width: size * 0.26 * (1 - m.height * 1.6), height: size * 0.056)
+                        .frame(width: size * 0.26, height: size * 0.056)
+                        .scaleEffect(x: 1 - m.height * 1.6)
                         .offset(x: -size * 0.02, y: size * 0.33)
                 }
                 FusselBody(
                     mood: mood,
                     color: color,
                     blink: blink && !m.surprised,
-                    look: g.eyes,
+                    // Rounded to steps far below a pixel, so the face is only redrawn when it visibly changes.
+                    look: CGSize(width: Self.step(g.eyes.width), height: Self.step(g.eyes.height)),
                     surprised: m.surprised,
                     cheeks: m.surprised || g.curious > 0.85,
                     costume: costume,
-                    curious: g.curious
+                    curious: Self.step(g.curious)
                 )
                 .equatable()
                 .frame(width: size, height: size)
@@ -173,8 +178,9 @@ struct FusselMascot: View {
                     ForEach(0..<3, id: \.self) { k in
                         let p = (t * 0.35 + Double(k) / 3).truncatingRemainder(dividingBy: 1)
                         Text("z")
-                            .font(.system(size: size * (0.09 + 0.05 * p), weight: .heavy, design: .rounded))
+                            .font(.system(size: size * 0.14, weight: .heavy, design: .rounded))
                             .foregroundStyle(color.opacity(1 - p))
+                            .scaleEffect((0.09 + 0.05 * p) / 0.14)
                             .offset(x: size * (0.22 + 0.12 * p), y: -size * (0.2 + 0.25 * p))
                     }
                 }
@@ -189,6 +195,12 @@ struct FusselMascot: View {
             pokeCount += 1
             pokeDate = Date()
             onPoke?()
+            // Full frame rate just for the flip.
+            flipping = true
+            Task {
+                try? await Task.sleep(for: .milliseconds(800))
+                if Date().timeIntervalSince(pokeDate) >= 0.75 { flipping = false }
+            }
         }
         .task(id: mood) {
             // Blink every few seconds.
@@ -202,6 +214,8 @@ struct FusselMascot: View {
         }
         .accessibilityHidden(true)
     }
+
+    private static func step(_ v: CGFloat) -> CGFloat { (v * 10).rounded() / 10 }
 
     private struct Motion {
         var height: CGFloat = 0

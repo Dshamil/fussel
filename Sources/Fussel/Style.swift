@@ -285,13 +285,15 @@ enum AnimationBudget {
     /// FUSSEL_STILL=1 freezes all animations (used to measure what they cost).
     static let still = ProcessInfo.processInfo.environment["FUSSEL_STILL"] != nil
 
-    /// Seconds between frames, while the window is in front. A window behind others still moves smoothly,
-    /// just at half the rate. Specks drift slowly, so they get half of Fussel's rate.
+    /// Seconds between frames. Fast moves (a poke, scanning, a happy hop, confetti) get 60 fps; calm
+    /// floating looks the same at 30 and costs half. A window behind others runs at half the rate.
+    /// Specks drift slowly, so they get the calm rate.
     static func driftInterval(active: ControlActiveState) -> Double {
         active == .inactive ? 1.0 / 15 : 1.0 / 30
     }
 
     static func interval(busy: Bool, active: ControlActiveState) -> Double {
-        active == .inactive ? 1.0 / 30 : 1.0 / 60
+        let fps: Double = busy ? 60 : 30
+        return active == .inactive ? 2 / fps : 1 / fps
     }
 }

@@ -662,7 +662,6 @@ private struct ModuleCard: View {
         .opacity(appeared ? 1 : 0)
         .scaleEffect(appeared ? 1 : 0.94)
         .offset(y: appeared ? 0 : 22)
-        .blur(radius: appeared ? 0 : 6)
         .onAppear {
             if reduceMotion {
                 appeared = true
