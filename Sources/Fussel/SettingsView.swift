@@ -103,10 +103,15 @@ struct SettingsView: View {
                     .onChange(of: weeklyCheck) { _, enabled in
                         if enabled { Task { _ = await Notifier.requestPermission() } }
                     }
-                Text("If you haven't scanned for a week, Fussel peeks at caches and logs and sends a friendly reminder.")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                HStack(alignment: .firstTextBaseline) {
+                    Text("If you haven't scanned for a week, Fussel peeks at caches and logs and sends a friendly reminder.")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer()
+                    Button("Show Example") { Task { await Notifier.weeklyReminder() } }
+                        .controlSize(.small)
+                }
                 Text("Fussel lives in the menu bar. Click the little fluff to open it, right-click for more.")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
