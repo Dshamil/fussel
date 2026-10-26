@@ -9,15 +9,11 @@ struct StatsLine: View {
     var body: some View {
         let s = app.monitor.sample
         let ready = app.monitor.hasSample
-        let diskUsed = s.diskTotal > 0 ? 1 - Double(s.diskFree) / Double(s.diskTotal) : 0
         let memFree = s.memTotal > s.memUsed ? Int64(s.memTotal - s.memUsed) : 0
         let memUsed = s.memTotal > 0 ? Double(s.memUsed) / Double(s.memTotal) : 0
         let battery = s.battery
         let batteryLow = (battery?.percent ?? 100) <= 20 && !(battery?.isPluggedIn ?? false)
         HStack(spacing: 12) {
-            StatChip(kind: .disk, value: ready ? s.diskFree.byteString : "…", tight: diskUsed > 0.9) {
-                DiskPopover(sample: s) { Task { await app.smartScan() } }
-            }
             StatChip(kind: .memory, value: ready ? memFree.byteString : "…", tight: memUsed > 0.9) {
                 AppsPopover(monitor: app.monitor, title: "Hungriest apps", load: { await app.monitor.memoryHogs() })
             }
@@ -38,11 +34,10 @@ struct StatsLine: View {
 }
 
 enum StatKind {
-    case disk, memory, battery, cpu, network
+    case memory, battery, cpu, network
 
     var title: String {
         switch self {
-        case .disk: return "Free disk space"
         case .memory: return "Free memory"
         case .battery: return "Battery"
         case .cpu: return "CPU load"
@@ -52,7 +47,6 @@ enum StatKind {
 
     var symbol: String {
         switch self {
-        case .disk: return "internaldrive"
         case .memory: return "memorychip"
         case .battery: return "battery.75percent"
         case .cpu: return "cpu"
@@ -97,27 +91,6 @@ private struct StatChip<Details: View>: View {
         .help(kind.title)
         .accessibilityLabel("\(kind.title): \(value)")
         .popover(isPresented: $showing, arrowEdge: .bottom) { details }
-    }
-}
-
-/// Free space with a button to go hunting.
-private struct DiskPopover: View {
-    let sample: SystemSample
-    let scan: () -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("\(sample.diskFree.byteString) free")
-                .font(.rounded(20, .heavy))
-            Text("of \(sample.diskTotal.byteString) on \(sample.diskName)")
-                .font(.system(size: 12))
-                .foregroundStyle(.secondary)
-            Button("Scan for fluff", action: scan)
-                .controlSize(.small)
-                .padding(.top, 4)
-        }
-        .padding(16)
-        .frame(width: 240, alignment: .leading)
     }
 }
 

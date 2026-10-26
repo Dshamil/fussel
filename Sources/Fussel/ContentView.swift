@@ -147,11 +147,17 @@ private struct Sidebar: View {
 
             row(.settings, title: "Settings", symbol: "gearshape", trailing: nil)
             HistoryRow()
-            DiskSummary()
-                .padding(.horizontal, 16)
-                .padding(.top, 12)
-                .padding(.bottom, 16)
+            // The overview shows the disk and its Clean button right in the page, so the sidebar
+            // doesn't repeat them there; every other page keeps this summary.
+            if page != .overview {
+                DiskSummary()
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
+                    .transition(.opacity)
+            }
         }
+        .padding(.bottom, 16)
+        .animation(.easeOut(duration: 0.2), value: page == .overview)
         .frame(maxHeight: .infinity, alignment: .top)
         .background(palette.sidebar)
     }

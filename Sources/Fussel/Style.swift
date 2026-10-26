@@ -161,29 +161,21 @@ private struct CardSurface: ViewModifier {
     }
 }
 
-/// The Glass style's window background: the desktop, blurred, with two soft glows of color.
+/// The Glass style's window background: the desktop, blurred.
 struct GlassBackdrop: View {
     @Environment(\.palette) private var palette
 
     var body: some View {
         ZStack {
             if PreviewRenderer.isRendering {
-                // Screenshots can't see the desktop; a calm stand-in wallpaper takes its place.
-                LinearGradient(colors: palette.isDark ? [Color(hex: 0x2A3140), Color(hex: 0x3A2E38)]
-                                                      : [Color(hex: 0xDCE4EE), Color(hex: 0xEEDFE2)],
+                // Screenshots can't see the desktop; a plain, neutral stand-in takes its place.
+                LinearGradient(colors: palette.isDark ? [Color(hex: 0x34353A), Color(hex: 0x26272B)]
+                                                      : [Color(hex: 0xE4E4E7), Color(hex: 0xD2D3D7)],
                                startPoint: .topLeading, endPoint: .bottomTrailing)
             } else {
+                // Just the frosted desktop: no added glow, so the colors are the user's own.
                 WindowBlur()
             }
-            GeometryReader { geo in
-                Circle().fill(Color(hex: 0x3D8BE0).opacity(palette.isDark ? 0.16 : 0.2))
-                    .frame(width: geo.size.width * 0.55)
-                    .position(x: geo.size.width * 0.85, y: geo.size.height * 0.1)
-                Circle().fill(Color(hex: 0x8B78EC).opacity(palette.isDark ? 0.14 : 0.18))
-                    .frame(width: geo.size.width * 0.5)
-                    .position(x: geo.size.width * 0.3, y: geo.size.height * 0.95)
-            }
-            .blur(radius: 90)
         }
         .ignoresSafeArea()
         .allowsHitTesting(false)
