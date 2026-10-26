@@ -20,7 +20,7 @@ Plus memory, CPU, battery and network at a glance, and a menu bar helper.
 
 <p align="center"><img src="docs/screenshots/styles.gif" width="720" alt="Fussel in Light, Dark, Glass and Oreo"></p>
 
-<p align="center">Light, Dark, Glass or Oreo, picked in Settings. Glass lets your desktop shine through, softly blurred; Oreo pairs a white sidebar with a black main area.</p>
+<p align="center">Light, Dark, Glass or Oreo, picked in Settings. Glass lets your desktop shine through, softly blurred; Oreo pairs a white sidebar with the dark main area.</p>
 
 <p align="center"><img src="docs/screenshots/list.png" width="640" alt="System Junk with explanations and safety labels"></p>
 

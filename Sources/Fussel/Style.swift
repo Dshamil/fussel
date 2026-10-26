@@ -68,14 +68,8 @@ struct Palette {
         return p
     }()
 
-    static let oreoMain: Palette = {
-        var p = Palette.dark
-        p.content = Color(hex: 0x111113)
-        p.card = Color(hex: 0x1C1C1F)
-        p.cardStroke = Color(hex: 0x2C2C30)
-        p.sheet = Color(hex: 0x1C1C1F)
-        return p
-    }()
+    /// The main area of Oreo is exactly the Dark style.
+    static let oreoMain = Palette.dark
 
     static let glassLight = Palette(
         isDark: false,
