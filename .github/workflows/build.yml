@@ -199,6 +199,8 @@ jobs:
           if kill -0 "$pid" 2>/dev/null; then
             echo "Fussel is still running after 20 s, using $(ps -o %cpu= -p "$pid")% CPU"
             kill "$pid"
+          elif grep -q "Target device architecture is nil" run.log; then
+            echo "::notice::Same here: without a usable graphics chip this virtual Mac can't draw any SwiftUI app."
           else
             echo "::error::Fussel quit on its own"; cat run.log; exit 1
           fi
