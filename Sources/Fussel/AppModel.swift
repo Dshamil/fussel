@@ -136,16 +136,21 @@ final class AppModel {
     /// Fluff found by the weekly background check, shown as a dot on the menu bar icon.
     var pendingFluff: Int64 = 0
 
-    /// Puts a clean-up back. Results on screen are outdated afterwards, so start fresh.
+    /// Puts a clean-up back. Undoing the latest clean-up makes what's on screen outdated, so that starts
+    /// fresh; putting back an older one leaves the current scan results as they are.
     func undo(_ record: CleanRecord) async -> (restored: Int, failed: [String]) {
+        let latest = lastRecord?.id == record.id || scannable.contains { $0.lastRecord?.id == record.id }
         let outcome = await CleanHistory.shared.undo(record)
         guard outcome.restored > 0 else {
             undoMessage = "Hmm, I couldn't put anything back. Was the Trash emptied?"
             return outcome
         }
-        if lastRecord?.id == record.id { lastRecord = nil }
-        for module in scannable { module.reset() }
-        stage = .idle
+        monitor.refreshDisk()
+        if latest {
+            lastRecord = nil
+            for module in scannable { module.reset() }
+            stage = .idle
+        }
         undoMessage = outcome.failed.isEmpty ? "Phew, everything's back!" : "Put back \(outcome.restored) item(s)."
         return outcome
     }

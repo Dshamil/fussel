@@ -111,6 +111,7 @@ private struct SidebarDivider: View {
             .animation(.easeOut(duration: 0.15), value: hovering)
             // Run all the way up under the title bar, like the backgrounds on either side.
             .ignoresSafeArea()
+            .accessibilityHidden(true)
             .zIndex(1)
     }
 }

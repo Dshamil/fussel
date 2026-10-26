@@ -15,7 +15,7 @@ Fussel ist eine minimalistische, verspielte Mac-Aufräum-App (ähnlich CleanMyMa
 
 ```
 swift build                     # Debug-Build
-swift test                      # 16 Tests: Schutzregel (Groß/klein, Pfad-Tricks, Schlüsselbund, Apple-Apps, eigene Ordner), Aufräumen + Undo, Scanner, Versionsvergleich, Appcast, Update-Signatur
+swift test                      # 17 Tests: Schutzregel (Groß/klein, Pfad-Tricks, Schlüsselbund, Apple-Apps, eigene Ordner), Aufräumen + Undo, Scanner, Versionsvergleich, Appcast, Update-Signatur
 scripts/build.sh 0.8.1          # Universal-Build → dist/Fussel.app (ad-hoc signiert)
 scripts/package.sh 0.8.1        # Installer dist/Fussel-Installer.pkg + dist/Fussel.dmg
 open dist/Fussel.app            # starten
@@ -54,5 +54,7 @@ Weitere Ordner: `Resources` (Info.plist, `AppIcon/` = fertig gebautes Glas-Icon)
 
 ## Offene Punkte
 
-- Kleinere Audit-Punkte: Wochen-Check und Scan teilen sich den Live-Zähler; Icon wird bei jedem Start neu geschrieben; Undo aus altem Verlauf setzt aktuelle Scan-Ergebnisse zurück.
+- **Apple Developer ID** (Signatur + Notarisierung): größte Hürde für neue Nutzer (Gatekeeper „Trotzdem öffnen“, beim DMG `xattr`). Entscheidung und Konto liegen beim Nutzer.
+- Auf älteren Macs prüfen (macOS 14/15, Intel): Glass-Rückfall, Icon, stilles Update.
 - Auf echtem Mac prüfen: ob die Locke in der Menüleiste bei 18 pt gut lesbar ist.
+- Ideen für später: doppelte Dateien finden, Anmeldeobjekte verwalten, Homebrew-Cask.

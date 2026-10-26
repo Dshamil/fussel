@@ -7,6 +7,7 @@ struct UninstallerView: View {
     @State private var search = ""
     @State private var confirming = false
     @State private var askToQuit = false
+    @FocusState private var listFocused: Bool
 
     private var filteredApps: [InstalledApp] {
         guard !search.isEmpty else { return model.apps }
@@ -37,19 +38,40 @@ struct UninstallerView: View {
                 Spacer()
             } else {
                 // A plain list in the style's own colors, picked like a row in the sidebar.
-                PreviewSafeScroll {
-                    LazyVStack(spacing: 2) {
-                        ForEach(filteredApps) { app in
-                            AppRow(app: app, selected: model.selectedApp == app) {
-                                Task { await model.select(app) }
+                // Once an app is picked, the arrow keys move through the list.
+                ScrollViewReader { scroller in
+                    PreviewSafeScroll {
+                        LazyVStack(spacing: 2) {
+                            ForEach(filteredApps) { app in
+                                AppRow(app: app, selected: model.selectedApp == app) {
+                                    listFocused = true
+                                    Task { await model.select(app) }
+                                }
+                                .id(app.id)
                             }
                         }
+                        .padding(.horizontal, 8)
+                        .padding(.bottom, 8)
                     }
-                    .padding(.horizontal, 8)
-                    .padding(.bottom, 8)
+                    .focusable()
+                    .focusEffectDisabled()
+                    .focused($listFocused)
+                    .onKeyPress(.downArrow) { step(1, scroller); return .handled }
+                    .onKeyPress(.upArrow) { step(-1, scroller); return .handled }
                 }
             }
         }
+    }
+
+    /// Picks the app above or below the current one and keeps it in view.
+    private func step(_ offset: Int, _ scroller: ScrollViewProxy) {
+        let apps = filteredApps
+        guard !apps.isEmpty else { return }
+        let current = model.selectedApp.flatMap { apps.firstIndex(of: $0) }
+        let next = min(max((current ?? -1) + offset, 0), apps.count - 1)
+        let app = apps[next]
+        scroller.scrollTo(app.id)
+        Task { await model.select(app) }
     }
 
     @ViewBuilder
@@ -182,5 +204,9 @@ private struct AppRow: View {
         .contentShape(Rectangle())
         .onHover { hovering = $0 }
         .onTapGesture(perform: action)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(app.name)
+        .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
+        .accessibilityAction { action() }
     }
 }

@@ -118,6 +118,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             menu.addItem(withTitle: "Check for Updates…", action: #selector(checkUpdatesFromMenu), keyEquivalent: "").target = self
         }
         menu.addItem(withTitle: "Settings…", action: #selector(settingsFromMenu), keyEquivalent: ",").target = self
+        menu.addItem(withTitle: "Send Feedback…", action: #selector(feedbackFromMenu), keyEquivalent: "").target = self
         menu.addItem(.separator())
         menu.addItem(withTitle: "Quit Fussel", action: #selector(quitFromMenu), keyEquivalent: "q").target = self
         statusItem?.menu = menu
@@ -132,6 +133,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         Task { await model.smartScan() }
     }
     @objc private func settingsFromMenu() { showSettingsWindow() }
+    @objc private func feedbackFromMenu() { Feedback.open() }
     @objc private func checkUpdatesFromMenu() {
         showMainWindow()
         Task { await model.updater.check() }

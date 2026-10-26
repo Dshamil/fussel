@@ -34,6 +34,17 @@ Plus memory, CPU, battery and network at a glance, and a menu bar helper.
 - Fussel never touches system files, Apple apps, or the top-level folders in your home folder.
 - Nothing is selected in *Large Files* or *Trash & Downloads* until you choose it.
 
+## Privacy
+
+Fussel works on your Mac and keeps what it finds to itself. There are no accounts, no analytics and no tracking. It only goes online for these:
+
+- **Its own updates:** it asks GitHub whether a new Fussel is out (at most once a day, can be turned off in Settings) and downloads it when you choose to update.
+- **Updates for your apps**, only when you check: it asks the App Store about App Store apps, and each other app's own update feed about that app.
+- **The speed test**, only when you start it: macOS's built-in `networkQuality` tool measures your connection with Apple's servers.
+- **Send Feedback** opens a GitHub form in your browser, filled in with Fussel's version, your macOS version and your Mac's chip. Nothing is sent until you submit it yourself.
+
+Scan results, file lists and your clean-up history never leave your Mac.
+
 ## Install
 
 1. Download **Fussel-Installer.zip** from the latest [release](../../releases). Your Mac unpacks it to **Fussel-Installer.pkg**; open that.

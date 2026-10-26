@@ -137,6 +137,16 @@ final class CleaningTests: XCTestCase {
 
     // MARK: What the scanners suggest
 
+    func testTheWeeklyCheckNeverAddsToTheLiveCounter() {
+        let item = CleanupItem(url: home.appendingPathComponent("Library/Caches/x"), name: "x", group: "App Caches", size: 500)
+        ScanProgress.shared.reset()
+        ScanProgress.$quiet.withValue(true) { _ = Scanner.found(item) }
+        XCTAssertEqual(ScanProgress.shared.snapshot.bytes, 0, "a background check must stay out of the scan on screen")
+        _ = Scanner.found(item)
+        XCTAssertEqual(ScanProgress.shared.snapshot.bytes, 500)
+        ScanProgress.shared.reset()
+    }
+
     func testSystemJunkOnlySuggestsWhatTheRuleAllows() {
         // Reads ~/Library/Caches and ~/Library/Logs only; nothing is changed.
         for item in Scanner.scanJunk() {

@@ -137,6 +137,11 @@ private struct FolderRow: View {
         .onHover { hovering = $0 }
         .onTapGesture { NSWorkspace.shared.open(folder.url) }
         .help("Show \(folder.name) in Finder")
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(folder.name), \(folder.bytes.byteString)")
+        .accessibilityHint("Opens it in Finder")
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction { NSWorkspace.shared.open(folder.url) }
     }
 }
 
@@ -201,6 +206,7 @@ struct RecentCleanups: View {
                 .background(Capsule().fill(palette.text.opacity(0.08)))
                 .disabled(working != nil)
                 .help("Put \(record.source) back from the Trash")
+                .accessibilityLabel("Undo clean-up of \(record.freed.byteString), \(record.source)")
             }
         }
         .padding(.horizontal, 8)

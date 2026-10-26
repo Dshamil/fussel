@@ -54,6 +54,14 @@ struct SettingsView: View {
                     }
                 }
             }
+            Section("Feedback") {
+                HStack {
+                    Text("Found a problem or have an idea? It opens a short form on GitHub.")
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Send Feedback") { Feedback.open() }
+                }
+            }
             Section("Welcome Tour") {
                 HStack {
                     Text("A short look at how Fussel works.")
@@ -171,5 +179,32 @@ private struct UpdateControls: View {
 
     private var checkButton: some View {
         Button("Check Now") { Task { await updater.check() } }
+    }
+}
+
+/// Opens a new GitHub issue in the browser, already filled in with what helps to look into it:
+/// Fussel's version, the macOS version and the kind of chip. Nothing personal is included.
+enum Feedback {
+    static func open() {
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
+        let os = ProcessInfo.processInfo.operatingSystemVersion
+        #if arch(arm64)
+        let chip = "Apple silicon"
+        #else
+        let chip = "Intel"
+        #endif
+        let body = """
+        **What happened, or what would you like?**
+
+
+        **Steps to see it (if it's a problem)**
+        1.
+
+        ---
+        Fussel \(version) · macOS \(os.majorVersion).\(os.minorVersion).\(os.patchVersion) · \(chip)
+        """
+        var components = URLComponents(string: "https://github.com/\(FusselUpdater.owner)/\(FusselUpdater.repo)/issues/new")
+        components?.queryItems = [URLQueryItem(name: "body", value: body)]
+        if let url = components?.url { NSWorkspace.shared.open(url) }
     }
 }

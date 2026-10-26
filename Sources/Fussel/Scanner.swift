@@ -270,6 +270,8 @@ enum Scanner {
 /// times per second.
 final class ScanProgress: @unchecked Sendable {
     static let shared = ScanProgress()
+    /// Set for scans nobody watches (the weekly check), so they never add to the counter of a scan on screen.
+    @TaskLocal static var quiet = false
 
     private let lock = NSLock()
     private var bytes: Int64 = 0
@@ -282,6 +284,7 @@ final class ScanProgress: @unchecked Sendable {
     }
 
     func add(_ item: CleanupItem) {
+        guard !Self.quiet else { return }
         lock.lock(); defer { lock.unlock() }
         bytes += item.size
         path = item.displayPath
@@ -289,6 +292,7 @@ final class ScanProgress: @unchecked Sendable {
 
     /// Called for every file the scanners look at; only every 40th updates the shown path.
     func visit(_ url: URL) {
+        guard !Self.quiet else { return }
         lock.lock(); defer { lock.unlock() }
         visits += 1
         if visits % 40 == 0 {

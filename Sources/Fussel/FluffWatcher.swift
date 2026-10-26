@@ -48,7 +48,9 @@ final class FluffWatcher {
         guard Date().timeIntervalSince(lastScan) > week,
               Date().timeIntervalSince(lastNudge) > week else { return }
 
-        let items = await Task.detached(priority: .background) { Scanner.scanJunk() }.value
+        let items = await Task.detached(priority: .background) {
+            ScanProgress.$quiet.withValue(true) { Scanner.scanJunk() }
+        }.value
         let bytes = items.filter(\.preselected).reduce(Int64(0)) { $0 + $1.size }
         defaults.set(Date(), forKey: Self.lastNudgeKey)
         if bytes >= threshold {

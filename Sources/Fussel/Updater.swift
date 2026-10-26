@@ -43,8 +43,8 @@ enum VersionCompare {
 @Observable
 @MainActor
 final class FusselUpdater {
-    static let owner = "Dshamil"
-    static let repo = "fussel"
+    nonisolated static let owner = "Dshamil"
+    nonisolated static let repo = "fussel"
     static let autoKey = "autoCheckUpdates"
     private static let lastCheckKey = "lastUpdateCheck"
 
