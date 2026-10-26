@@ -18,6 +18,8 @@
     <string>__BUILD__</string>
     <key>CFBundleIconFile</key>
     <string>AppIcon</string>
+    <key>CFBundleIconName</key>
+    <string>AppIcon</string>
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
     <key>LSMinimumSystemVersion</key>

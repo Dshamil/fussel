@@ -46,9 +46,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
     func applicationDidFinishLaunching(_ notification: Notification) {
         Self.shared = self
         NSApp.setActivationPolicy(.accessory)
-        // Earlier versions could force a style's appearance; Fussel now always follows the Mac.
-        NSApp.appearance = nil
-        IconChanger.reapplyIfNeeded()
+        AppearanceChoice.apply()
         setUpStatusItem()
         setUpKeyboardShortcuts()
         LoginItem.enableOnFirstLaunch()
@@ -172,11 +170,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
     private func startWiggle() {
         guard wiggleTimer == nil else { return }
         // 10 frames per second only while scanning; the timer is gone the rest of the time.
-        wiggleTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+        wiggleTimer = Timer.scheduledTimer(withTimeInterval: 0.15, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 guard let self else { return }
-                self.wiggleFrame = (self.wiggleFrame + 1) % MenuBarIcon.wiggle.count
-                self.statusItem?.button?.image = MenuBarIcon.wiggle[self.wiggleFrame]
+                self.wiggleFrame = (self.wiggleFrame + 1) % MenuBarIcon.busy.count
+                self.statusItem?.button?.image = MenuBarIcon.busy[self.wiggleFrame]
             }
         }
     }

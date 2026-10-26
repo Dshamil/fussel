@@ -21,9 +21,8 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
 cp "$BIN" "$APP/Contents/MacOS/Fussel"
 chmod +x "$APP/Contents/MacOS/Fussel"
-iconutil -c icns "$ROOT/Resources/AppIcon.iconset" -o "$APP/Contents/Resources/AppIcon.icns"
-# Alternative icons for Fussel's Closet.
-cp -R "$ROOT/Resources/AppIcons" "$APP/Contents/Resources/AppIcons"
+# The Liquid Glass icon, compiled from design/AppIcon.icon by scripts/icon.sh.
+cp "$ROOT/Resources/AppIcon/Assets.car" "$ROOT/Resources/AppIcon/AppIcon.icns" "$APP/Contents/Resources/"
 sed -e "s/__VERSION__/$VERSION/g" -e "s/__BUILD__/$BUILD/g" "$ROOT/Resources/Info.plist" > "$APP/Contents/Info.plist"
 
 # Ad-hoc signature: required for Apple Silicon, no Apple Developer account needed.

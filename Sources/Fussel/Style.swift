@@ -14,28 +14,23 @@ struct Palette {
     var secondary: Color
     var buttonFill: Color
     var buttonText: Color
-    var mascot: Color
-    var speck: Color
-    var badge: LinearGradient
     var sheet: Color
+    /// The Glass style: the desktop shows through a blur and cards are made of glass.
+    var isGlass = false
 
     /// One color per tool, used for its icon square and its slice of the storage bar.
     func accent(_ module: Module) -> Color {
         switch module {
         case .junk: return Color(hex: 0x3FAE7C)
-        case .tidy: return Color(hex: 0xEC7357)
+        case .tidy: return Color(hex: 0xE5484D)
         case .large: return Color(hex: 0x8B78EC)
         case .uninstaller: return Color(hex: 0xE5A33A)
         case .updates: return Color(hex: 0x3D8BE0)
-        case .closet: return Color(hex: 0xE0709F)
         }
     }
 
     static let safe = Color(hex: 0x30A46C)
     static let caution = Color(hex: 0xD99A1E)
-
-    static let coralGradient = LinearGradient(colors: [Color(hex: 0xF69A84), Color(hex: 0xEC6E56)],
-                                              startPoint: .top, endPoint: .bottom)
 
     static let light = Palette(
         isDark: false,
@@ -46,11 +41,8 @@ struct Palette {
         cardStroke: Color(hex: 0xE6E6EB),
         text: Color(hex: 0x1D1D1F),
         secondary: Color(hex: 0x6E6E73),
-        buttonFill: Color(hex: 0x1D1D1F),
+        buttonFill: Theme.graphite,
         buttonText: .white,
-        mascot: .white,
-        speck: .white,
-        badge: coralGradient,
         sheet: .white
     )
 
@@ -65,11 +57,147 @@ struct Palette {
         secondary: Color(hex: 0x98989F),
         buttonFill: Color(hex: 0xF2F2F2),
         buttonText: Color(hex: 0x1D1D1F),
-        mascot: Color(hex: 0xF4F1EC),
-        speck: Color(hex: 0xF4F1EC),
-        badge: coralGradient,
         sheet: Color(hex: 0x1E1E20)
     )
+
+    static let glassLight = Palette(
+        isDark: false,
+        content: .clear,
+        sidebar: Color.white.opacity(0.22),
+        selection: Color.white.opacity(0.6),
+        card: Color.white.opacity(0.45),
+        cardStroke: Color.white.opacity(0.7),
+        text: Color(hex: 0x1D1D1F),
+        secondary: Color(hex: 0x56565C),
+        buttonFill: Theme.graphite,
+        buttonText: .white,
+        sheet: .white,
+        isGlass: true
+    )
+
+    static let glassDark = Palette(
+        isDark: true,
+        content: .clear,
+        sidebar: Color.white.opacity(0.04),
+        selection: Color.white.opacity(0.14),
+        card: Color.white.opacity(0.08),
+        cardStroke: Color.white.opacity(0.14),
+        text: Color(hex: 0xF2F2F2),
+        secondary: Color(hex: 0xA8A8AF),
+        buttonFill: Color(hex: 0xF2F2F2),
+        buttonText: Color(hex: 0x1D1D1F),
+        sheet: Color(hex: 0x1E1E20),
+        isGlass: true
+    )
+}
+
+/// The look picked in Settings: follow the Mac, always light, always dark, or Glass (which follows
+/// the Mac's light or dark).
+enum AppearanceChoice: String, CaseIterable {
+    case system, light, dark, glass
+
+    static var current: AppearanceChoice {
+        AppearanceChoice(rawValue: UserDefaults.standard.string(forKey: SettingsKey.appearance) ?? "") ?? .system
+    }
+
+    static func apply() {
+        switch current {
+        case .light: NSApp.appearance = NSAppearance(named: .aqua)
+        case .dark: NSApp.appearance = NSAppearance(named: .darkAqua)
+        case .system, .glass: NSApp.appearance = nil
+        }
+    }
+}
+
+extension View {
+    /// A card's surface: a soft fill with a hairline, or real glass in the Glass style.
+    func cardSurface(_ palette: Palette, radius: CGFloat) -> some View {
+        modifier(CardSurface(palette: palette, radius: radius))
+    }
+}
+
+private struct CardSurface: ViewModifier {
+    let palette: Palette
+    let radius: CGFloat
+
+    func body(content: Content) -> some View {
+        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
+        // Screenshots can't draw glass, so they get the plain see-through fill below.
+        if palette.isGlass && !PreviewRenderer.isRendering {
+            if #available(macOS 26, *) {
+                content
+                    .glassEffect(.regular, in: shape)
+                    .overlay(shape.strokeBorder(palette.cardStroke, lineWidth: 1))
+            } else {
+                content
+                    .background(.ultraThinMaterial, in: shape)
+                    .overlay(shape.strokeBorder(palette.cardStroke, lineWidth: 1))
+            }
+        } else {
+            content
+                .background(shape.fill(palette.card))
+                .overlay(shape.strokeBorder(palette.cardStroke, lineWidth: 1))
+        }
+    }
+}
+
+/// The Glass style's window background: the desktop, blurred, with two soft glows of color.
+struct GlassBackdrop: View {
+    @Environment(\.palette) private var palette
+
+    var body: some View {
+        ZStack {
+            if PreviewRenderer.isRendering {
+                // Screenshots can't see the desktop; a calm stand-in wallpaper takes its place.
+                LinearGradient(colors: palette.isDark ? [Color(hex: 0x2A3140), Color(hex: 0x3A2E38)]
+                                                      : [Color(hex: 0xDCE4EE), Color(hex: 0xEEDFE2)],
+                               startPoint: .topLeading, endPoint: .bottomTrailing)
+            } else {
+                WindowBlur()
+            }
+            GeometryReader { geo in
+                Circle().fill(Color(hex: 0x3D8BE0).opacity(palette.isDark ? 0.16 : 0.2))
+                    .frame(width: geo.size.width * 0.55)
+                    .position(x: geo.size.width * 0.85, y: geo.size.height * 0.1)
+                Circle().fill(Color(hex: 0x8B78EC).opacity(palette.isDark ? 0.14 : 0.18))
+                    .frame(width: geo.size.width * 0.5)
+                    .position(x: geo.size.width * 0.3, y: geo.size.height * 0.95)
+            }
+            .blur(radius: 90)
+        }
+        .ignoresSafeArea()
+        .allowsHitTesting(false)
+    }
+}
+
+private struct WindowBlur: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = SeeThroughView()
+        // The see-through kind of frost: everything behind is blurred, but its colors shine through.
+        view.material = .fullScreenUI
+        view.blendingMode = .behindWindow
+        view.state = .active
+        return view
+    }
+
+    func updateNSView(_ view: NSVisualEffectView, context: Context) {}
+}
+
+/// Makes its window see-through while it is shown, and solid again once it goes away.
+private final class SeeThroughView: NSVisualEffectView {
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        window?.isOpaque = false
+        window?.backgroundColor = .clear
+    }
+
+    override func viewWillMove(toWindow newWindow: NSWindow?) {
+        if newWindow == nil, let window {
+            window.isOpaque = true
+            window.backgroundColor = .windowBackgroundColor
+        }
+        super.viewWillMove(toWindow: newWindow)
+    }
 }
 
 private struct PaletteKey: EnvironmentKey {
@@ -93,25 +221,17 @@ extension EnvironmentValues {
     }
 }
 
-/// Wraps a scene's content: picks the palette for the Mac's appearance and the costume Fussel wears.
+/// Wraps a scene's content and picks the palette for the Mac's appearance.
 struct StyledRoot<Content: View>: View {
-    @AppStorage(Costume.storageKey) private var storedCostume: String = Costume.auto.rawValue
     @Environment(\.colorScheme) private var scheme
-    /// Used for rendering previews without touching the real setting.
-    var costumeOverride: Costume? = nil
+    @AppStorage(SettingsKey.appearance) private var appearance = AppearanceChoice.system.rawValue
     @ViewBuilder var content: Content
 
-    /// The crown stays in the closet until it's earned.
-    private var wornCostume: Costume {
-        let chosen = (Costume(rawValue: storedCostume) ?? .auto).resolved()
-        if let badge = chosen.requiredBadge, !Achievements.shared.has(badge) { return .none }
-        return chosen
-    }
-
     var body: some View {
+        let glass = appearance == AppearanceChoice.glass.rawValue
         content
-            .environment(\.palette, scheme == .dark ? .dark : .light)
-            .environment(\.costume, costumeOverride ?? wornCostume)
+            .environment(\.palette, scheme == .dark ? (glass ? .glassDark : .dark) : (glass ? .glassLight : .light))
+            .onChange(of: appearance) { AppearanceChoice.apply() }
     }
 }
 
@@ -120,23 +240,5 @@ enum Sounds {
         let enabled = UserDefaults.standard.object(forKey: SettingsKey.sounds) as? Bool ?? false
         guard enabled else { return }
         NSSound(named: NSSound.Name(name))?.play()
-    }
-}
-
-/// Frame rate budget for Fussel's animations: smooth when it matters, calm otherwise.
-enum AnimationBudget {
-    /// FUSSEL_STILL=1 freezes all animations (used to measure what they cost).
-    static let still = ProcessInfo.processInfo.environment["FUSSEL_STILL"] != nil
-
-    /// Seconds between frames. Fast moves (a poke, scanning, a happy hop, confetti) get 60 fps; calm
-    /// floating looks the same at 30 and costs half. A window behind others runs at half the rate.
-    /// Specks drift slowly, so they get the calm rate.
-    static func driftInterval(active: ControlActiveState) -> Double {
-        active == .inactive ? 1.0 / 15 : 1.0 / 30
-    }
-
-    static func interval(busy: Bool, active: ControlActiveState) -> Double {
-        let fps: Double = busy ? 60 : 30
-        return active == .inactive ? 2 / fps : 1 / fps
     }
 }

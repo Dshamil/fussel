@@ -2,7 +2,7 @@ import Foundation
 
 /// The four cleaning areas of Fussel.
 enum Module: String, CaseIterable, Identifiable, Hashable {
-    case junk, large, tidy, uninstaller, updates, closet
+    case junk, large, tidy, uninstaller, updates
 
     var id: String { rawValue }
 
@@ -12,7 +12,6 @@ enum Module: String, CaseIterable, Identifiable, Hashable {
         case .large: return "Large & Old Files"
         case .uninstaller: return "Uninstaller"
         case .updates: return "App Updates"
-        case .closet: return "Fussel's Closet"
         case .tidy: return "Trash & Downloads"
         }
     }
@@ -23,7 +22,6 @@ enum Module: String, CaseIterable, Identifiable, Hashable {
         case .large: return "externaldrive"
         case .uninstaller: return "xmark.bin"
         case .updates: return "arrow.down.circle"
-        case .closet: return "tshirt"
         case .tidy: return "tray.full"
         }
     }
@@ -40,8 +38,6 @@ enum Module: String, CaseIterable, Identifiable, Hashable {
             return "Empty the Trash and sweep out downloads you no longer need."
         case .updates:
             return "See which of your apps have updates waiting, from the App Store or straight from the developer."
-        case .closet:
-            return "Costumes, app icons and the badges you've earned."
         }
     }
 }

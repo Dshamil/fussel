@@ -231,14 +231,14 @@ struct SpeedTestPopover: View {
         VStack(spacing: 12) {
             switch monitor.speedTest {
             case .idle, .running:
-                FusselBadge(mood: .busy, size: 70)
+                StateIcon(symbol: "speedometer", size: 56)
                 Text("Measuring your connection…")
                     .font(.rounded(14, .bold))
                 Text("This takes about 20 seconds.")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
             case .done(let down, let up):
-                FusselBadge(mood: .happy, size: 70)
+                StateIcon(symbol: "checkmark", celebrate: true, size: 56)
                 HStack(spacing: 22) {
                     VStack(spacing: 2) {
                         Text("\(Int(down.rounded()))").font(.rounded(30, .heavy))
@@ -252,7 +252,7 @@ struct SpeedTestPopover: View {
                 Button("Test Again") { Task { await monitor.runSpeedTest() } }
                     .controlSize(.small)
             case .failed:
-                FusselBadge(mood: .idle, size: 70)
+                StateIcon(symbol: "wifi.exclamationmark", size: 56)
                 Text("The speed test didn't work.")
                     .font(.rounded(14, .bold))
                 Text("Check that you're online and try again.")

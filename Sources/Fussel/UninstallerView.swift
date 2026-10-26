@@ -61,9 +61,9 @@ struct UninstallerView: View {
             appDetail(app)
         } else if let result = model.lastResult {
             VStack(spacing: 16) {
-                FusselBadge(mood: .happy, size: 140)
+                StateIcon(symbol: "checkmark", celebrate: true, size: 96)
                 Text("\(result.name) is gone")
-                    .font(.rounded(24, .semibold))
+                    .font(.rounded(24, .bold))
                 Text("Fussel cleared \(result.freed.byteString).")
                     .foregroundStyle(.secondary)
                 if !result.failures.isEmpty {
@@ -76,9 +76,9 @@ struct UninstallerView: View {
             }
         } else {
             VStack(spacing: 18) {
-                FusselBadge(mood: .idle, size: 150)
+                StateIcon(symbol: "xmark.bin", size: 96)
                 Text("Pick an app to remove")
-                    .font(.rounded(22, .semibold))
+                    .font(.rounded(22, .bold))
                 Text("Fussel finds its support files, caches and preferences too.")
                     .foregroundStyle(.secondary)
             }
@@ -93,7 +93,7 @@ struct UninstallerView: View {
                     .frame(width: 56, height: 56)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(app.name)
-                        .font(.rounded(22, .semibold))
+                        .font(.rounded(22, .bold))
                     Text(app.bundleID)
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)

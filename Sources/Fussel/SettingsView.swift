@@ -6,6 +6,7 @@ enum SettingsKey {
     static let oldFileDays = "oldFileDays"
     static let downloadDays = "downloadDays"
     static let sounds = "playSounds"
+    static let appearance = "appearance"
 }
 
 extension ScanOptions {
@@ -28,11 +29,18 @@ struct SettingsView: View {
     @AppStorage(FusselUpdater.autoKey) private var autoUpdate = true
     @State private var updateStatus = ""
     @AppStorage(SettingsKey.sounds) private var playSounds = false
+    @AppStorage(SettingsKey.appearance) private var appearance = AppearanceChoice.system.rawValue
 
     var body: some View {
         Form {
-            Section("App Icon") {
-                IconPicker()
+            Section("Appearance") {
+                Picker("Style", selection: $appearance) {
+                    Text("Match Mac").tag(AppearanceChoice.system.rawValue)
+                    Text("Light").tag(AppearanceChoice.light.rawValue)
+                    Text("Dark").tag(AppearanceChoice.dark.rawValue)
+                    Text("Glass").tag(AppearanceChoice.glass.rawValue)
+                }
+                .pickerStyle(.segmented)
             }
             Section("Sounds") {
                 Toggle("Play little sounds", isOn: $playSounds)

@@ -2,8 +2,8 @@ import SwiftUI
 import AppKit
 
 enum Theme {
-    static let coral = Color(hex: 0xF2836B)
-    static let coralDeep = Color(hex: 0xEC6E56)
+    /// Fussel's color, the same as the app icon's tile.
+    static let graphite = Color(hex: 0x2B2D33)
     static let ink = Color(hex: 0x2B2B33)
 }
 
@@ -66,8 +66,7 @@ struct SecondaryButtonStyle: ButtonStyle {
             .foregroundStyle(palette.text)
             .padding(.horizontal, 14)
             .frame(height: 30)
-            .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(palette.card))
-            .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(palette.cardStroke, lineWidth: 1))
+            .cardSurface(palette, radius: 8)
             .opacity(isEnabled ? (configuration.isPressed ? 0.7 : 1) : 0.4)
             .scaleEffect(configuration.isPressed ? 0.97 : 1)
             .animation(.spring(duration: 0.2, bounce: 0.4), value: configuration.isPressed)

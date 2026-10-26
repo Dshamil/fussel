@@ -42,12 +42,12 @@ struct ContentView: View {
         }
         .animation(.easeOut(duration: 0.2), value: page)
         .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
-        .background(palette.content)
+        .background { if palette.isGlass { GlassBackdrop() } else { palette.content } }
         .environment(\.animationsPaused, !app.windowVisible)
         .onAppear {
             UserDefaults.standard.set(true, forKey: FirstLaunch.seen)
             // Like opening the app should: Fussel takes a look right away.
-            if !didAutoScan, app.stage == .idle, Gaze.enabled {
+            if !didAutoScan, app.stage == .idle, !PreviewRenderer.isRendering {
                 didAutoScan = true
                 Task { await app.smartScan() }
             }
@@ -69,8 +69,10 @@ private struct Sidebar: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 9) {
                 SidebarFussel(busy: app.stage == .scanning || app.stage == .cleaning)
+                // The wordmark: SF Pro Rounded Heavy, set a little tight.
                 Text("Fussel")
-                    .font(.system(size: 15, weight: .bold))
+                    .font(.system(size: 17, weight: .heavy, design: .rounded))
+                    .tracking(-0.6)
                     .foregroundStyle(palette.text)
             }
             .padding(.leading, 18)
@@ -129,8 +131,6 @@ private struct Sidebar: View {
             return app.uninstaller.apps.isEmpty ? nil : "\(app.uninstaller.apps.count) apps"
         case .updates:
             return app.appUpdates.updates.isEmpty ? nil : "\(app.appUpdates.updates.count)"
-        case .closet:
-            return nil
         }
     }
 }
@@ -182,49 +182,48 @@ private struct SidebarRow: View {
     }
 }
 
-/// The Fussel icon at the top of the sidebar. Blinks now and then, looks over when you point at him,
-/// does a flip when clicked, wiggles while he scans and hops with joy after cleaning.
+/// The Fussel badge at the top of the sidebar. Blinks now and then, flicks his curl when you point at him,
+/// swings it while he scans, hops when clicked, smiles after cleaning and gets sleepy on a low battery.
 private struct SidebarFussel: View {
     let busy: Bool
     @Environment(AppModel.self) private var app
+    @Environment(\.palette) private var palette
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.animationsPaused) private var paused
     @State private var blink = false
-    @State private var wiggle = false
     @State private var hovering = false
-    @State private var flips = 0
     @State private var cheering = false
 
     private var mood: MascotMood {
         if busy { return .busy }
-        return cheering ? .happy : .idle
+        if cheering { return .happy }
+        return app.healthMood == .sleepy ? .sleepy : .idle
     }
 
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 7, style: .continuous)
-                .fill(Palette.coralGradient)
-            FusselBody(mood: mood, color: .white, blink: blink && !cheering,
-                       look: hovering ? CGSize(width: 1.3, height: 0.4) : .zero, cheeks: hovering)
-                .frame(width: 30, height: 30)
-                .rotationEffect(.degrees(busy && !reduceMotion ? (wiggle ? 9 : -9) : 0))
-                .animation(busy ? .easeInOut(duration: 0.16).repeatForever(autoreverses: true) : .spring(duration: 0.3),
-                           value: wiggle)
-                // A repeating animation only stops when the view is replaced, so swap it once the scan ends.
-                .id(busy)
-                .rotationEffect(.degrees(Double(flips) * 360))
-                .offset(y: cheering && !reduceMotion ? -3 : 0)
+                .fill(Theme.graphite)
+                .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .strokeBorder(Color.white.opacity(palette.isDark ? 0.14 : 0), lineWidth: 1))
+            // While scanning the curl swings ±16° every 1.1 s; frames only run during the scan.
+            TimelineView(.animation(minimumInterval: 1.0 / 30, paused: !busy || reduceMotion || paused)) { timeline in
+                let swing = 16 * sin(timeline.date.timeIntervalSinceReferenceDate * 2 * .pi / 1.1)
+                FusselBody(mood: mood, blink: blink && !cheering,
+                           curlTilt: busy && !reduceMotion ? swing : (hovering ? -18 : 0))
+                    .equatable()
+                    .frame(width: 28, height: 28)
+            }
+            .offset(y: cheering && !reduceMotion ? -3 : 0)
         }
-        .frame(width: 26, height: 26)
+        .frame(width: 28, height: 28)
         .scaleEffect(hovering ? 1.1 : 1)
         .contentShape(Rectangle())
         .onHover { inside in withAnimation(.spring(duration: 0.3, bounce: 0.5)) { hovering = inside } }
         .onTapGesture {
             Sounds.play("Pop")
-            Achievements.shared.record(.poked)
-            withAnimation(.spring(duration: 0.7, bounce: 0.35)) { flips += 1 }
             cheer(for: 1.2)
         }
-        .onChange(of: busy) { _, busy in wiggle = busy }
         .onChange(of: app.stage) { _, stage in
             if case .done(let freed, _) = stage, freed > 0 { cheer(for: 2.4) }
         }
@@ -414,6 +413,7 @@ private struct OverviewPage: View {
                             .animation(.easeOut(duration: 1.0), value: shown)
                             .animation(.easeOut(duration: 1.2), value: usedBytes)
                             .font(.system(size: 30, weight: .bold))
+                            .tracking(-0.6)
                             .foregroundStyle(palette.text)
                             .overlay { SparkleBurst(trigger: celebrations) }
                         Text("used of \(s.diskTotal.byteString)")
@@ -427,6 +427,7 @@ private struct OverviewPage: View {
                     .monospacedDigit()
 
                     StorageBar(grown: shown)
+                        .padding(.top, 4)
 
                     CategoryList(page: $page, shown: shown)
 
@@ -508,7 +509,8 @@ private struct StorageBar: View {
         let used = Double(max(0, s.diskTotal - s.diskFree))
         let slices: [(Module, Double)] = [Module.junk, .tidy, .large].map { module in
             let model = app.model(for: module)
-            return (module, model.phase == .results ? Double(model.totalSize) : 0)
+            let shown = model.phase == .results || model.phase == .cleaning
+            return (module, shown ? Double(model.totalSize) : 0)
         }
         let known = slices.reduce(0) { $0 + $1.1 }
         GeometryReader { geo in
@@ -580,8 +582,7 @@ private struct CategoryList: View {
                     .animation(.spring(duration: 0.5, bounce: 0.25).delay(0.05 * Double(index) + 0.15), value: shown)
             }
         }
-        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(palette.card))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(palette.cardStroke, lineWidth: 1))
+        .cardSurface(palette, radius: 12)
     }
 }
 
@@ -707,8 +708,6 @@ private struct CategoryRow: View {
             case .done: return app.appUpdates.updates.isEmpty ? "All up to date" : "Updates waiting"
             case .idle: return "Updates for your apps"
             }
-        case .closet:
-            return ""
         }
     }
 }
@@ -742,13 +741,14 @@ struct ToolIcon: View {
 /// A small arc going round, drawn in SwiftUI so it takes the tool's color.
 struct Spinner: View {
     let tint: Color
+    var size: CGFloat = 16
     @State private var spinning = false
 
     var body: some View {
         Circle()
             .trim(from: 0.15, to: 1)
-            .stroke(tint, style: StrokeStyle(lineWidth: 2.2, lineCap: .round))
-            .frame(width: 16, height: 16)
+            .stroke(tint, style: StrokeStyle(lineWidth: size * 0.14, lineCap: .round))
+            .frame(width: size, height: size)
             .rotationEffect(.degrees(spinning ? 360 : 0))
             .animation(.linear(duration: 0.8).repeatForever(autoreverses: false), value: spinning)
             .onAppear { spinning = true }
@@ -759,15 +759,18 @@ struct Spinner: View {
 /// "Safe to Clean" or "Check First", so it's clear what can go without a second look.
 struct SafetyLabel: View {
     let safe: Bool
+    @Environment(\.palette) private var palette
 
     var body: some View {
-        let color = safe ? Palette.safe : Palette.caution
+        // Check First uses its own darker amber text on a pale amber chip, so it stays readable.
+        let text = safe ? Palette.safe : Color(hex: palette.isDark ? 0xF0C15C : 0x9A6A0C)
+        let fill = safe ? Palette.safe.opacity(0.14) : Color(hex: palette.isDark ? 0x3A2E14 : 0xFBF1DC)
         Text(safe ? "Safe to Clean" : "Check First")
-            .font(.system(size: 10.5, weight: .semibold))
-            .foregroundStyle(color)
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundStyle(text)
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
-            .background(RoundedRectangle(cornerRadius: 4, style: .continuous).fill(color.opacity(0.14)))
+            .background(RoundedRectangle(cornerRadius: 4, style: .continuous).fill(fill))
     }
 }
 

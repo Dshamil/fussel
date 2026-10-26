@@ -10,12 +10,12 @@ enum PreviewRenderer {
 
     static func renderAll(to folder: String) {
         _ = NSApplication.shared
-        Gaze.enabled = false
         isRendering = true
         UserDefaults.standard.set(true, forKey: FirstLaunch.seen)
         let dir = URL(fileURLWithPath: folder)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
 
+        renderMenuBar(to: dir)
         let scenarios = ["idle", "scanning", "ready", "done", "stuffed", "pending"]
         for scheme in [ColorScheme.light, .dark] {
             for scenario in scenarios {
@@ -26,13 +26,39 @@ enum PreviewRenderer {
                        name: "\(name(scheme))-\(module.rawValue)-\(scenario)")
             }
         }
+        // The Glass style, over a stand-in desktop.
+        let saved = UserDefaults.standard.string(forKey: SettingsKey.appearance)
+        UserDefaults.standard.set(AppearanceChoice.glass.rawValue, forKey: SettingsKey.appearance)
+        for scheme in [ColorScheme.light, .dark] {
+            render("ready", scheme: scheme, page: .overview, to: dir, name: "glass-\(name(scheme))-ready")
+            render("ready", scheme: scheme, page: .tool(.junk), to: dir, name: "glass-\(name(scheme))-junk-ready")
+        }
+        UserDefaults.standard.set(saved, forKey: SettingsKey.appearance)
     }
 
     private static func name(_ scheme: ColorScheme) -> String { scheme == .dark ? "dark" : "light" }
 
+    /// The menu bar icons, eight times their size: plain, with the dot, happy, and the busy frames.
+    private static func renderMenuBar(to dir: URL) {
+        let icons = [MenuBarIcon.image, MenuBarIcon.imageWithDot, MenuBarIcon.happy] + MenuBarIcon.busy
+        let cell: CGFloat = 18 * 8, pad: CGFloat = 16
+        let strip = NSImage(size: NSSize(width: (cell + pad) * CGFloat(icons.count) + pad, height: cell + 2 * pad))
+        strip.lockFocus()
+        NSColor(white: 0.93, alpha: 1).setFill()
+        NSRect(origin: .zero, size: strip.size).fill()
+        for (i, icon) in icons.enumerated() {
+            icon.draw(in: NSRect(x: pad + CGFloat(i) * (cell + pad), y: pad, width: cell, height: cell))
+        }
+        strip.unlockFocus()
+        if let tiff = strip.tiffRepresentation, let bitmap = NSBitmapImageRep(data: tiff),
+           let png = bitmap.representation(using: .png, properties: [:]) {
+            try? png.write(to: dir.appendingPathComponent("menubar.png"))
+        }
+    }
+
     private static func render(_ scenario: String, scheme: ColorScheme, page: Page, to dir: URL, name: String) {
         let model = sampleModel(scenario)
-        let view = StyledRoot(costumeOverride: Costume.none) {
+        let view = StyledRoot {
             ContentView(page: page)
         }
         .environment(model)

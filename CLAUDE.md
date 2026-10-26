@@ -39,18 +39,17 @@ Fussel ist eine Menüleisten-App (keine Dock-Icon, `LSUIElement`). Läuft schon 
 - `History.swift` – Verlauf + Undo (JSON in Application Support).
 - `SystemMonitor.swift` – Speicher, RAM, CPU, Temperatur (SMC), Akku, Netzwerk. Eine einzige Messschleife: 2 s bei offenem Fenster, 30 s im Hintergrund.
 - `ContentView.swift` – Seitenleiste (Fussel-Icon, Overview, Clean: System Junk/Trash, Review: Large Files/Uninstaller/App Updates, Settings, History, Speicher + „Clean Safe Items“) und die Übersicht (Speicher-Balken, Kategorien-Liste, Werte-Zeile). Ernster Stil im Sinne von Purge, mit dezenten Animationen.
-- `Mascot.swift` – Fussel als Figur (Canvas, 100×100 Design-Raum), heute nur noch als Icon (Seitenleiste, Leerzustände, Menüleiste); Augen folgen dem Zeiger (`Gaze`).
-- `Style.swift`, `Theme.swift` – ruhige Grautöne für Hell/Dunkel (folgt der Mac-Einstellung), je Werkzeug eine Akzentfarbe, Knopf-Stile, `AnimationBudget`.
+- `Mascot.swift` – Fussel: graphitfarbenes Knäuel mit einer Locke, wie im App-Icon (`FusselGeometry`, `FusselBody`), Menüleisten-Symbole (normal, Punkt, fröhlich, wippende Locke beim Scannen). In der App nur als Abzeichen oben in der Seitenleiste; leere und fertige Zustände zeigen Symbole (`StateIcon`).
+- `Style.swift`, `Theme.swift` – Farben für Light/Dark und den Glass-Stil (unscharfer Schreibtisch dahinter, Karten aus Glas ab macOS 26), Wahl `AppearanceChoice` (Match Mac/Light/Dark/Glass, in den Einstellungen), je Werkzeug eine Akzentfarbe, Knopf-Stile.
 - `ModuleView.swift` – Listen der Werkzeuge mit Filter (Safe to Clean / Check First), Sortierung, Erklärung je Eintrag.
-- `StatsView.swift` (Werte-Zeile + Popovers), `SettingsView.swift` (inkl. App-Symbol-Wahl), `UninstallerView.swift`.
+- `StatsView.swift` (Werte-Zeile + Popovers), `SettingsView.swift`, `UninstallerView.swift`.
 - `Updater.swift` – Selbst-Updater über GitHub Releases, prüft die Ed25519-Signatur (`UpdateSignature`) vor dem Installieren.
 - `AppUpdates.swift` – Updates anderer Apps (App Store + Sparkle-Feeds).
-- `Closet.swift` – Kostüm-/Abzeichen-Daten und App-Icon-Wechsel (`IconPicker` in den Einstellungen).
 - `FluffWatcher.swift` – wöchentliche Erinnerung.
 
-Weitere Ordner: `Resources` (Info.plist, Icons), `installer` (pkg-Installer), `scripts`, `release-notes`, `docs` (Logo, Screenshots), `design`, `Tests`.
+Weitere Ordner: `Resources` (Info.plist, `AppIcon/` = fertig gebautes Glas-Icon), `installer` (pkg-Installer), `scripts`, `release-notes`, `docs` (Logo, Screenshots), `design` (`AppIcon.icon` = Liquid-Glass-Icon für Icon Composer; nach Änderungen `scripts/icon.sh` laufen lassen, das baut `Resources/AppIcon`, docs/logo.png und die Installer-Bilder, braucht Xcode 26). Markenregeln: Fussel nur weiß auf Graphit oder graphit auf hell, nie bunt, immer mit Locke; Farbe nur für die fünf Werkzeuge und die Etiketten; Wortmarke SF Pro Rounded Heavy, `Tests`.
 
 ## Offene Punkte
 
 - Kleinere Audit-Punkte: Wochen-Check und Scan teilen sich den Live-Zähler; Icon wird bei jedem Start neu geschrieben; Undo aus altem Verlauf setzt aktuelle Scan-Ergebnisse zurück.
-- Auf echtem Mac prüfen: Flüssigkeit der Animationen, Augen-Tracking, ob der Icon-Wechsel die Signatur stört.
+- Auf echtem Mac prüfen: ob die Locke in der Menüleiste bei 18 pt gut lesbar ist.

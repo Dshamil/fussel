@@ -115,7 +115,6 @@ final class SystemMonitor {
 
     func runSpeedTest() async {
         speedTest = .running
-        Achievements.shared.record(.speedTest)
         let result = await Task.detached(priority: .userInitiated) { SpeedTest.run() }.value
         if let result {
             speedTest = .done(downMbps: result.down, upMbps: result.up)

@@ -25,19 +25,18 @@ struct ModuleView: View {
             Group {
                 switch model.phase {
                 case .idle:
-                    EmptyState(module: model.module, symbol: model.module.symbol, title: "Not scanned yet",
-                               detail: model.module.blurb) {
+                    EmptyState(symbol: model.module.symbol, title: "Not scanned yet", detail: model.module.blurb) {
                         Button("Scan") { Task { await model.scan(options: .current) } }
                             .buttonStyle(ActionButtonStyle())
                             .keyboardShortcut(.defaultAction)
                     }
                 case .scanning:
-                    BusyState(text: "Looking for fluff…", module: model.module)
+                    BusyState(text: "Looking for fluff…")
                 case .cleaning:
-                    BusyState(text: "Moving it to the Trash…", module: model.module)
+                    BusyState(text: "Moving it to the Trash…")
                 case .results:
                     if model.items.isEmpty {
-                        EmptyState(module: model.module, symbol: "checkmark", title: "Nothing to clean",
+                        EmptyState(symbol: "checkmark", celebrate: true, title: "Nothing to clean",
                                    detail: "This corner of your Mac is already tidy.") { EmptyView() }
                     } else {
                         ResultsList(model: model)
@@ -66,7 +65,7 @@ struct ModuleView: View {
 
     private var subtitle: String {
         switch model.phase {
-        case .results: return "\(model.items.count) items · \(model.totalSize.byteString) found"
+        case .results: return "\(model.items.count) item\(model.items.count == 1 ? "" : "s") · \(model.totalSize.byteString) found"
         case .scanning: return "Scanning…"
         case .cleaning: return "Cleaning…"
         case .done(let freed, _): return freed > 0 ? "Cleaned \(freed.byteString)" : "Nothing was removed"
@@ -75,30 +74,20 @@ struct ModuleView: View {
     }
 }
 
-/// A centred icon, a title, a line of text and an optional action.
+/// A calm symbol in the middle, a title, a line of text and an optional action.
 struct EmptyState<Action: View>: View {
     @Environment(\.palette) private var palette
-    let module: Module
     let symbol: String
+    var celebrate = false
     let title: String
     let detail: String
     @ViewBuilder var action: Action
-    @State private var bounce = 0
 
     var body: some View {
-        VStack(spacing: 14) {
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(palette.accent(module).gradient)
-                .overlay(
-                    Image(systemName: symbol)
-                        .font(.system(size: 30, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .symbolEffect(.bounce, value: bounce)
-                )
-                .frame(width: 64, height: 64)
-                .onAppear { bounce += 1 }
+        VStack(spacing: 12) {
+            StateIcon(symbol: symbol, celebrate: celebrate)
             Text(title)
-                .font(.system(size: 17, weight: .semibold))
+                .font(.rounded(22, .bold))
                 .foregroundStyle(palette.text)
             Text(detail)
                 .font(.system(size: 13))
@@ -112,24 +101,37 @@ struct EmptyState<Action: View>: View {
     }
 }
 
+/// A symbol in a soft circle for empty and finished states. Celebrating, it turns green and bounces once.
+struct StateIcon: View {
+    let symbol: String
+    var celebrate = false
+    var size: CGFloat = 76
+    @Environment(\.palette) private var palette
+    @State private var bounce = 0
+
+    var body: some View {
+        Image(systemName: symbol)
+            .font(.system(size: size * 0.4, weight: .medium))
+            .foregroundStyle(celebrate ? Palette.safe : palette.secondary)
+            .symbolEffect(.bounce, value: bounce)
+            .frame(width: size, height: size)
+            .background(Circle().fill((celebrate ? Palette.safe : palette.text).opacity(0.08)))
+            .onAppear { if celebrate { bounce += 1 } }
+            .accessibilityHidden(true)
+    }
+}
+
+/// A spinner and a line saying what's going on.
 struct BusyState: View {
     @Environment(\.palette) private var palette
     let text: String
-    var module: Module? = nil
 
     var body: some View {
         VStack(spacing: 16) {
-            if let module {
-                ToolIcon(module: module, size: 64)
-                    .symbolEffect(.pulse)
-            } else {
-                FusselBadge(mood: .busy, size: 120)
-            }
+            Spinner(tint: palette.secondary, size: 34)
             Text(text)
                 .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(palette.secondary)
-            ProgressView()
-                .controlSize(.small)
         }
     }
 }
@@ -138,12 +140,17 @@ private struct DoneState: View {
     let freed: Int64
     let failures: [String]
     let model: ModuleModel
+    @Environment(AppModel.self) private var app
     @State private var showFailures = false
 
     var body: some View {
-        EmptyState(module: model.module, symbol: "checkmark", title: freed > 0 ? "Cleaned \(freed.byteString)" : "All tidy",
-                   detail: freed > 0 ? "Everything went to the Trash, so you can still put it back." : "Nothing was removed.") {
+        EmptyState(symbol: "checkmark", celebrate: true, title: freed > 0 ? "All tidy. \(freed.byteString) freed." : "All tidy",
+                   detail: freed > 0 ? "Moved to Trash, so you can put it back anytime." : "Nothing was removed.") {
             VStack(spacing: 10) {
+                if freed > 0, let record = model.lastRecord {
+                    Button("Undo") { Task { _ = await app.undo(record) } }
+                        .buttonStyle(SecondaryButtonStyle())
+                }
                 if !failures.isEmpty {
                     Button("\(failures.count) item\(failures.count == 1 ? "" : "s") couldn't be removed") {
                         showFailures = true

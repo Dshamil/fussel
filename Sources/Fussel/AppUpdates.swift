@@ -60,7 +60,6 @@ final class AppUpdatesModel {
             updates = found.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
         }
         phase = .done(checked: candidates.count)
-        Achievements.shared.record(.checkedUpdates)
     }
 
     func open(_ update: AppUpdate) {
@@ -220,7 +219,7 @@ struct AppUpdatesView: View {
             switch model.phase {
             case .idle:
                 VStack(spacing: 18) {
-                    FusselBadge(mood: .idle, size: 150)
+                    StateIcon(symbol: "arrow.down.circle", size: 96)
                     Text("Are your apps up to date?")
                         .font(.rounded(22, .bold))
                     Text("I'll check App Store apps and apps that update themselves.")
@@ -240,7 +239,7 @@ struct AppUpdatesView: View {
             case .done(let checked):
                 if model.updates.isEmpty {
                     VStack(spacing: 16) {
-                        FusselBadge(mood: .happy, size: 140)
+                        StateIcon(symbol: "checkmark", celebrate: true, size: 96)
                         Text("Everything's fresh!")
                             .font(.rounded(22, .bold))
                         Text("I checked \(checked) apps and they're all up to date.")

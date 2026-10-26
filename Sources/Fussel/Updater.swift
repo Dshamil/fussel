@@ -201,7 +201,7 @@ struct UpdateBanner: View {
         if !dismissed, let release = shownRelease {
             HStack(spacing: 10) {
                 Image(systemName: "gift.fill")
-                    .foregroundStyle(Theme.coral)
+                    .foregroundStyle(palette.text)
                     .symbolEffect(.bounce, value: release.version)
                 Text(title(release))
                     .font(.rounded(13, .bold))

@@ -1,0 +1,650 @@
+<title>Fussel Visual Identity</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;700;800;900&display=swap">
+<style>
+/* Layout: a calm brand book. Graphite and white carry the brand; colour only enters through the five tools. */
+:root {
+  /* Brand constants (never change with the theme) */
+  --graphite: #2B2D33;
+  --ink: #1D1D1F;
+  --cotton: #F3F3F5;
+  --white: #FFFFFF;
+  --night: #1E1E20;
+  --junk: #3FAE7C;
+  --tidy: #E5484D;
+  --large: #8B78EC;
+  --uninst: #E5A33A;
+  --updates: #3D8BE0;
+  --safe: #30A46C;
+  --caution: #D99A1E;
+
+  /* Page surfaces (light) */
+  --bg: #F3F3F5;
+  --surface: #FFFFFF;
+  --surface-2: #F7F7F9;
+  --line: #E3E3E8;
+  --fg: #1D1D1F;
+  --muted: #6E6E73;
+  --strong: #2B2D33;     /* the solid button: dark on light */
+  --on-strong: #FFFFFF;
+  --caution-bg: #FBF1DC;
+  --caution-fg: #9A6A0C;
+
+  --display: ui-rounded, "SF Pro Rounded", "Nunito", system-ui, sans-serif;
+  --text: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", "Segoe UI", Roboto, Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #161618; --surface: #1E1E20; --surface-2: #262629; --line: #333337;
+    --fg: #F2F2F2; --muted: #98989F; --strong: #F2F2F2; --on-strong: #1D1D1F;
+    --caution-bg: #3A2E14; --caution-fg: #F0C15C;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #161618; --surface: #1E1E20; --surface-2: #262629; --line: #333337;
+  --fg: #F2F2F2; --muted: #98989F; --strong: #F2F2F2; --on-strong: #1D1D1F;
+  --caution-bg: #3A2E14; --caution-fg: #F0C15C;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--text); font-size: 16px; line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+.wrap {
+  max-width: 1120px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; letter-spacing: -0.015em; }
+h2 { font-size: clamp(28px, 4vw, 40px); font-weight: 800; line-height: 1.1; }
+h3 { font-size: 19px; font-weight: 800; }
+p { margin: 0; }
+.lede { max-width: 62ch; color: var(--muted); font-size: 17px; }
+.label {
+  font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
+}
+.num { font-variant-numeric: tabular-nums; }
+code, .mono { font-family: var(--mono); font-size: 13px; }
+
+/* ---------- Hero ---------- */
+.hero { padding-block: clamp(40px, 8vw, 96px) clamp(32px, 6vw, 64px); }
+.hero-grid { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); gap: clamp(24px, 5vw, 64px); align-items: center; }
+.hero-icon svg { width: 100%; height: auto; display: block; filter: drop-shadow(0 18px 30px rgb(0 0 0 / 0.18)); }
+.wordmark { font-family: var(--display); font-weight: 900; font-size: clamp(64px, 13vw, 148px); line-height: 0.9; letter-spacing: -0.035em; }
+.tagline { font-family: var(--display); font-weight: 700; font-size: clamp(22px, 3vw, 32px); margin-top: 18px; }
+.hero-meta { margin-top: 20px; display: flex; flex-wrap: wrap; gap: 8px 20px; color: var(--muted); font-size: 14px; }
+
+.storage { margin-top: clamp(32px, 6vw, 56px); }
+.bar { display: flex; height: 14px; border-radius: 7px; overflow: hidden; background: var(--line); gap: 2px; }
+.bar span { display: block; height: 100%; }
+.bar-legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 12px; font-size: 13px; color: var(--muted); }
+.bar-legend i { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 6px; vertical-align: 0; }
+
+/* ---------- Sections ---------- */
+section.block { padding-block: clamp(48px, 8vw, 88px); border-top: 1px solid var(--line); }
+.head { display: grid; grid-template-columns: minmax(0, 220px) minmax(0, 1fr); gap: 16px 40px; margin-bottom: 40px; }
+.head .label { padding-top: 10px; }
+.head > div { display: grid; gap: 14px; }
+
+.grid { display: grid; gap: 16px; }
+.g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.g3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.g4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+.tile {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 20px; display: grid; gap: 14px; align-content: start; min-width: 0;
+}
+.stage { border-radius: 10px; display: grid; place-items: center; padding: 28px; min-height: 200px; }
+.stage.light { background: var(--white); border: 1px solid #E6E6EB; }
+.stage.dark { background: var(--graphite); }
+.stage.cotton { background: var(--cotton); }
+.stage svg { display: block; }
+.cap { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.cap p { color: var(--muted); font-size: 14px; }
+.copy {
+  font: 600 12px var(--text); color: var(--fg); background: var(--surface-2);
+  border: 1px solid var(--line); border-radius: 7px; padding: 5px 10px; cursor: pointer;
+}
+.copy:hover { border-color: var(--muted); }
+.copy:focus-visible, a:focus-visible { outline: 2px solid var(--updates); outline-offset: 2px; }
+
+/* Lockups */
+.lockup { display: flex; align-items: center; gap: 14px; font-family: var(--display); font-weight: 900; letter-spacing: -0.03em; }
+.lockup.h { font-size: 46px; }
+.lockup.v { flex-direction: column; gap: 6px; font-size: 34px; }
+
+/* App icon sizes */
+.sizes { display: flex; align-items: flex-end; gap: clamp(14px, 3vw, 28px); flex-wrap: wrap; }
+.sizes figure { margin: 0; display: grid; gap: 8px; justify-items: center; }
+.sizes figcaption { font-size: 12px; color: var(--muted); }
+
+/* Menu bar */
+.menubar {
+  display: flex; align-items: center; justify-content: flex-end; gap: 16px; height: 28px; padding: 0 14px;
+  border-radius: 8px; font: 500 13px var(--text);
+}
+.menubar.l { background: #ECECEE; color: #1D1D1F; }
+.menubar.d { background: #2A2A2D; color: #F2F2F2; }
+.menubar svg { width: 18px; height: 18px; }
+
+/* Moods */
+.mood svg { width: 92px; height: 92px; }
+.busy .curl { animation: swing 1.1s ease-in-out infinite; }
+@keyframes swing { 0%,100% { transform: rotate(-16deg); } 50% { transform: rotate(16deg); } }
+.blinker .eye { animation: blink 5s infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes blink { 0%, 94%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.1); } }
+
+/* Don'ts */
+.dont .stage { position: relative; }
+.dont .stage::after {
+  content: ""; position: absolute; top: 10px; right: 10px; width: 22px; height: 22px; border-radius: 50%;
+  background: var(--tidy) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 22'%3E%3Cpath d='M7 7l8 8M15 7l-8 8' stroke='white' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+
+/* Colour */
+.swatch { border-radius: 14px; overflow: hidden; border: 1px solid var(--line); background: var(--surface); display: grid; min-width: 0; }
+.swatch .chip { height: 108px; display: flex; align-items: flex-end; padding: 12px 14px; font: 700 13px var(--text); }
+.swatch .meta { padding: 12px 14px 14px; display: grid; gap: 3px; }
+.swatch .meta b { font-family: var(--display); font-size: 17px; }
+.swatch .meta span { color: var(--muted); font-size: 13px; }
+.tool-row { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+.tool { border: 1px solid var(--line); border-radius: 14px; padding: 14px; background: var(--surface); display: grid; gap: 10px; min-width: 0; }
+.tool .ic { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; }
+.tool .ic svg { width: 20px; height: 20px; }
+.tool b { font-size: 14px; }
+.tool span { font-size: 12px; color: var(--muted); }
+
+/* Type */
+.type-row { display: grid; grid-template-columns: minmax(0, 200px) minmax(0, 1fr); gap: 8px 32px; padding-block: 22px; border-bottom: 1px solid var(--line); align-items: baseline; }
+.type-row:last-child { border-bottom: 0; }
+.type-row .spec { color: var(--muted); font-size: 13px; display: grid; gap: 2px; }
+.type-row .spec b { color: var(--fg); font-size: 14px; }
+
+/* Voice */
+.pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.say { border-radius: 12px; padding: 16px 18px; display: grid; gap: 6px; border: 1px solid var(--line); background: var(--surface); }
+.say .label { display: flex; align-items: center; gap: 6px; }
+.say .label::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--safe); }
+.say.no { background: transparent; border-style: dashed; }
+.say.no .label::before { background: var(--tidy); }
+.say.no q { color: var(--muted); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--tidy) 60%, transparent); }
+.say q { font-family: var(--display); font-weight: 700; font-size: 18px; quotes: "„" "“"; }
+.say small { color: var(--muted); font-size: 13px; }
+.voice-list { display: grid; gap: 28px; }
+.principles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-bottom: 40px; }
+.principles div { display: grid; gap: 6px; }
+.principles p { color: var(--muted); font-size: 15px; }
+
+/* Window mock */
+.win { border-radius: 12px; overflow: hidden; border: 1px solid var(--line); background: var(--surface); box-shadow: 0 24px 60px rgb(0 0 0 / 0.12); font-family: var(--text); }
+.win-grid { display: grid; grid-template-columns: 200px minmax(0, 1fr); min-height: 380px; }
+.side { background: var(--surface-2); padding: 14px 10px; display: grid; gap: 2px; align-content: start; font-size: 13px; border-right: 1px solid var(--line); }
+.lights { display: flex; gap: 7px; padding: 0 6px 16px; }
+.lights i { width: 11px; height: 11px; border-radius: 50%; }
+.side .brand { display: flex; align-items: center; gap: 9px; padding: 0 6px 12px; font-family: var(--display); font-weight: 800; font-size: 16px; }
+.side .brand svg { width: 26px; height: 26px; }
+.side .it { padding: 5px 8px; border-radius: 6px; display: flex; justify-content: space-between; gap: 8px; }
+.side .it.on { background: var(--line); font-weight: 600; }
+.side .grp { font-size: 11px; font-weight: 600; color: var(--muted); padding: 10px 8px 3px; }
+.side .it span { color: var(--muted); }
+.main { padding: 22px 26px; display: grid; gap: 16px; align-content: start; min-width: 0; }
+.main-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.main-top h3 { font-family: var(--text); font-size: 22px; }
+.main-top p { color: var(--muted); font-size: 12px; }
+.btns { display: flex; gap: 8px; }
+.btn { font: 600 13px var(--text); height: 30px; padding: 0 14px; border-radius: 8px; display: inline-flex; align-items: center; border: 1px solid var(--line); background: var(--surface-2); color: var(--fg); }
+.btn.solid { background: var(--strong); color: var(--on-strong); border-color: transparent; }
+.big { font-size: 32px; font-weight: 700; letter-spacing: -0.02em; }
+.big small { font-size: 13px; font-weight: 500; color: var(--muted); letter-spacing: 0; margin-left: 6px; }
+.rows { border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); }
+.row { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--line); font-size: 13px; }
+.row:last-child { border-bottom: 0; }
+.row .ic { width: 28px; height: 28px; border-radius: 7px; display: grid; place-items: center; }
+.row .ic svg { width: 16px; height: 16px; }
+.row b { display: block; font-weight: 600; }
+.row small { color: var(--muted); font-size: 12px; }
+.row .sz { font-weight: 700; font-size: 15px; }
+.tag { font-size: 10.5px; font-weight: 600; color: var(--caution-fg); background: var(--caution-bg); padding: 1px 6px; border-radius: 4px; margin-left: 6px; }
+
+.notif { display: grid; grid-template-columns: 38px minmax(0, 1fr) auto; gap: 12px; align-items: start; padding: 12px 14px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); box-shadow: 0 10px 30px rgb(0 0 0 / 0.1); font-size: 13px; }
+.notif svg { width: 38px; height: 38px; }
+.notif b { display: block; }
+.notif time { color: var(--muted); font-size: 12px; }
+
+.side-notes { display: grid; gap: 16px; align-content: start; }
+.app-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 340px); gap: 24px; align-items: start; }
+
+footer { padding-block: 40px 56px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+
+@media (max-width: 900px) {
+  .g4, .tool-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .g3, .principles { grid-template-columns: minmax(0, 1fr); }
+  .app-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 640px) {
+  .hero-grid, .head, .type-row, .g2, .pair { grid-template-columns: minmax(0, 1fr); }
+  .hero-icon { max-width: 200px; }
+  .win-grid { grid-template-columns: minmax(0, 1fr); }
+  .side { display: none; }
+  .lockup.h { font-size: 34px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .busy .curl, .blinker .eye { animation: none; }
+}
+</style>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="hero-grid">
+      <div class="hero-icon blinker" data-art="icon"></div>
+      <div>
+        <div class="wordmark">Fussel</div>
+        <p class="tagline">Free up your Mac, calmly.</p>
+        <div class="hero-meta">
+          <span>Visual Identity 1.0</span>
+          <span>Oktober 2026</span>
+          <span>Public Beta</span>
+        </div>
+      </div>
+    </div>
+    <div class="storage" aria-label="Beispiel des Speicher-Balkens">
+      <div class="bar">
+        <span style="width:14%;background:var(--junk)"></span>
+        <span style="width:6%;background:var(--tidy)"></span>
+        <span style="width:22%;background:var(--large)"></span>
+        <span style="width:9%;background:var(--uninst)"></span>
+        <span style="width:4%;background:var(--updates)"></span>
+      </div>
+      <div class="bar-legend">
+        <span><i style="background:var(--junk)"></i>System Junk</span>
+        <span><i style="background:var(--tidy)"></i>Trash &amp; Downloads</span>
+        <span><i style="background:var(--large)"></i>Large Files</span>
+        <span><i style="background:var(--uninst)"></i>Uninstaller</span>
+        <span><i style="background:var(--updates)"></i>App Updates</span>
+        <span><i style="background:var(--line)"></i>Frei</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- ===== Idee ===== -->
+  <section class="block">
+    <div class="wrap">
+      <div class="head">
+        <div class="label">Die Idee</div>
+        <div>
+          <h2>Ein kleiner Fussel, der hinter dir aufräumt.</h2>
+          <p class="lede">Die meisten Mac-Cleaner arbeiten mit Angst: rote Warnungen, riesige Zahlen, „Ihr Mac ist gefährdet“. Fussel macht das Gegenteil. Er ist ein freundliches Knäuel mit einer Locke, das in Ruhe nachschaut, jede Datei erklärt und nichts ohne dich wegwirft. Die Marke ist deshalb leise: Graphit und Weiß, viel Luft, und Farbe nur dort, wo sie etwas bedeutet.</p>
+        </div>
+      </div>
+      <div class="principles">
+        <div><h3>Ruhig</h3><p>Keine Alarmfarben, keine Ausrufezeichen. Die Oberfläche ist grau, die Zahlen sind sachlich.</p></div>
+        <div><h3>Ehrlich</h3><p>Jeder Eintrag sagt, was er ist, und trägt ein klares Etikett: „Safe to Clean“ oder „Check First“.</p></div>
+        <div><h3>Verzeihend</h3><p>Alles landet zuerst im Papierkorb. „Undo“ ist immer in Reichweite und wird auch so beworben.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Logo ===== -->
+  <section class="block">
+    <div class="wrap">
+      <div class="head">
+        <div class="label">Logo</div>
+        <div>
+          <h2>Kugel, Locke, zwei Augen.</h2>
+          <p class="lede">Die Figur ist das Logo. Sie besteht aus genau drei Teilen und funktioniert von 1024 px bis zur Menüleiste. Es gibt sie in zwei Farben: weiß auf Graphit oder graphit auf Hell. Eine bunte Fussel-Figur gibt es nicht.</p>
+        </div>
+      </div>
+
+      <div class="grid g3">
+        <div class="tile">
+          <div class="stage dark"><div data-art="mark-white" style="width:150px"></div></div>
+          <div class="cap"><div><h3>Bildmarke, hell</h3><p>Auf Graphit und dunklen Fotos</p></div><button class="copy" data-copy="mark-white" type="button" id="copy-mark-white">SVG kopieren</button></div>
+        </div>
+        <div class="tile">
+          <div class="stage light"><div data-art="mark-dark" style="width:150px"></div></div>
+          <div class="cap"><div><h3>Bildmarke, dunkel</h3><p>Auf Weiß und hellen Flächen</p></div><button class="copy" data-copy="mark-dark" type="button" id="copy-mark-dark">SVG kopieren</button></div>
+        </div>
+        <div class="tile">
+          <div class="stage cotton"><div data-art="construction" style="width:100%;max-width:230px"></div></div>
+          <div class="cap"><div><h3>Konstruktion</h3><p>100 × 100 Raster, wie in <code>FusselGeometry</code></p></div></div>
+        </div>
+      </div>
+
+      <div class="grid g2" style="margin-top:16px">
+        <div class="tile">
+          <div class="stage light" style="min-height:160px">
+            <div class="lockup h" style="color:#2B2D33"><span data-art="mark-dark" style="width:58px"></span>Fussel</div>
+          </div>
+          <div class="cap"><div><h3>Wortmarke, quer</h3><p>SF Pro Rounded Heavy. Figur so hoch wie die Großbuchstaben plus Locke.</p></div></div>
+        </div>
+        <div class="tile">
+          <div class="stage dark" style="min-height:160px">
+            <div class="lockup v" style="color:#FFFFFF"><span data-art="mark-white" style="width:64px"></span>Fussel</div>
+          </div>
+          <div class="cap"><div><h3>Wortmarke, gestapelt</h3><p>Für quadratische Flächen, Installer und Social-Profile.</p></div></div>
+        </div>
+      </div>
+
+      <div class="grid g2" style="margin-top:16px">
+        <div class="tile">
+          <div class="stage cotton" style="min-height:220px">
+            <div class="sizes">
+              <figure><div data-art="icon" style="width:128px"></div><figcaption>128 pt</figcaption></figure>
+              <figure><div data-art="icon" style="width:64px"></div><figcaption>64 pt</figcaption></figure>
+              <figure><div data-art="icon" style="width:32px"></div><figcaption>32 pt</figcaption></figure>
+              <figure><div data-art="icon" style="width:16px"></div><figcaption>16 pt</figcaption></figure>
+            </div>
+          </div>
+          <div class="cap"><div><h3>App-Icon</h3><p>Graphit-Kachel, Figur aus Glas. Quelle: <code>design/AppIcon.icon</code></p></div><button class="copy" data-copy="icon" type="button" id="copy-icon">SVG kopieren</button></div>
+        </div>
+        <div class="tile">
+          <div class="stage cotton" style="min-height:220px;gap:12px;align-content:center">
+            <div class="menubar l" style="width:min(100%,320px)"><span data-art="menubar"></span><span>Wi‑Fi</span><span class="num">Mo. 26. Okt. 15:42</span></div>
+            <div class="menubar d" style="width:min(100%,320px)"><span data-art="menubar-dot"></span><span>Wi‑Fi</span><span class="num">Mo. 26. Okt. 15:42</span></div>
+          </div>
+          <div class="cap"><div><h3>Menüleiste</h3><p>Template-Bild, 18 pt. Augen ausgestanzt, Locke 35 % kräftiger. Punkt = neuer Fussel gefunden.</p></div><button class="copy" data-copy="menubar" type="button" id="copy-menubar">SVG kopieren</button></div>
+        </div>
+      </div>
+
+      <h3 style="margin:48px 0 16px">Stimmungen</h3>
+      <div class="grid g4">
+        <div class="tile mood"><div class="stage light" style="min-height:150px"><div data-art="mood-idle" class="blinker"></div></div><div><b>Idle</b><p style="color:var(--muted);font-size:14px">Wartet und blinzelt ab und zu.</p></div></div>
+        <div class="tile mood"><div class="stage light busy" style="min-height:150px"><div data-art="mood-idle"></div></div><div><b>Scanning</b><p style="color:var(--muted);font-size:14px">Die Locke wippt, solange er sucht.</p></div></div>
+        <div class="tile mood"><div class="stage light" style="min-height:150px"><div data-art="mood-happy"></div></div><div><b>Happy</b><p style="color:var(--muted);font-size:14px">Nach dem Aufräumen.</p></div></div>
+        <div class="tile mood"><div class="stage light" style="min-height:150px"><div data-art="mood-sleepy"></div></div><div><b>Sleepy</b><p style="color:var(--muted);font-size:14px">Akku fast leer.</p></div></div>
+      </div>
+
+      <h3 style="margin:48px 0 16px">Bitte nicht</h3>
+      <div class="grid g4">
+        <div class="tile dont"><div class="stage light" style="min-height:150px"><div data-art="dont-color" style="width:96px"></div></div><p style="color:var(--muted);font-size:14px">Fussel nicht einfärben. Farbe gehört den Werkzeugen.</p></div>
+        <div class="tile dont"><div class="stage light" style="min-height:150px"><div data-art="dont-nocurl" style="width:96px"></div></div><p style="color:var(--muted);font-size:14px">Nie ohne Locke. Ohne sie ist er nur ein Punkt.</p></div>
+        <div class="tile dont"><div class="stage light" style="min-height:150px"><div data-art="mark-dark" style="width:96px;transform:scaleX(1.45)"></div></div><p style="color:var(--muted);font-size:14px">Nicht verzerren, drehen oder spiegeln.</p></div>
+        <div class="tile dont"><div class="stage light" style="min-height:150px"><div data-art="dont-angry" style="width:96px"></div></div><p style="color:var(--muted);font-size:14px">Keine Warn-Gesichter. Fussel macht nie Angst.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Farbe ===== -->
+  <section class="block">
+    <div class="wrap">
+      <div class="head">
+        <div class="label">Farbe</div>
+        <div>
+          <h2>Graphit trägt die Marke.</h2>
+          <p class="lede">Die Grundfarben sind neutral und folgen dem hellen oder dunklen Modus des Macs. Buntes kommt nur über die fünf Werkzeuge: jedes hat eine Farbe für sein Symbol und seinen Abschnitt im Speicher-Balken. Grün und Bernstein sind für die Sicherheits-Etiketten reserviert.</p>
+        </div>
+      </div>
+
+      <div class="label" style="margin-bottom:12px">Grundfarben</div>
+      <div class="grid g4" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,170px),1fr))">
+        <div class="swatch"><div class="chip" style="background:var(--graphite);color:#fff">Fussel</div><div class="meta"><b>Graphit</b><span class="mono">#2B2D33</span><span>Icon-Kachel, Augen</span></div></div>
+        <div class="swatch"><div class="chip" style="background:var(--white);color:#2B2D33;border-bottom:1px solid #E6E6EB">Fussel</div><div class="meta"><b>Weiß</b><span class="mono">#FFFFFF</span><span>Figur, Inhalt hell</span></div></div>
+        <div class="swatch"><div class="chip" style="background:var(--cotton);color:#1D1D1F">Aa</div><div class="meta"><b>Watte</b><span class="mono">#F3F3F5</span><span>Seitenleiste hell</span></div></div>
+        <div class="swatch"><div class="chip" style="background:var(--ink);color:#F2F2F2">Aa</div><div class="meta"><b>Tinte</b><span class="mono">#1D1D1F</span><span>Text, Hauptknopf</span></div></div>
+        <div class="swatch"><div class="chip" style="background:var(--night);color:#F2F2F2">Aa</div><div class="meta"><b>Nacht</b><span class="mono">#1E1E20</span><span>Inhalt dunkel</span></div></div>
+      </div>
+
+      <div class="label" style="margin:36px 0 12px">Werkzeuge</div>
+      <div class="tool-row">
+        <div class="tool"><div class="ic" style="background:var(--junk)" data-glyph="sparkle"></div><b>System Junk</b><span class="mono">#3FAE7C</span></div>
+        <div class="tool"><div class="ic" style="background:var(--tidy)" data-glyph="tray"></div><b>Trash &amp; Downloads</b><span class="mono">#E5484D</span></div>
+        <div class="tool"><div class="ic" style="background:var(--large)" data-glyph="drive"></div><b>Large Files</b><span class="mono">#8B78EC</span></div>
+        <div class="tool"><div class="ic" style="background:var(--uninst)" data-glyph="box"></div><b>Uninstaller</b><span class="mono">#E5A33A</span></div>
+        <div class="tool"><div class="ic" style="background:var(--updates)" data-glyph="down"></div><b>App Updates</b><span class="mono">#3D8BE0</span></div>
+      </div>
+
+      <div class="label" style="margin:36px 0 12px">Sicherheit</div>
+      <div class="grid g2">
+        <div class="tile" style="grid-template-columns:auto minmax(0,1fr);align-items:center">
+          <div class="ic" style="width:40px;height:40px;border-radius:50%;background:var(--safe);display:grid;place-items:center"><svg viewBox="0 0 20 20" width="20" height="20"><path d="M5 10.5l3.2 3.2L15 6.8" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <div><b>Safe to Clean</b> <span class="mono" style="color:var(--muted)">#30A46C</span><p style="color:var(--muted);font-size:14px">Kann ohne zweiten Blick weg.</p></div>
+        </div>
+        <div class="tile" style="grid-template-columns:auto minmax(0,1fr);align-items:center">
+          <div class="ic" style="width:40px;height:40px;border-radius:50%;background:var(--caution);display:grid;place-items:center"><svg viewBox="0 0 20 20" width="20" height="20"><path d="M10 5.5v5.5" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><circle cx="10" cy="14.4" r="1.3" fill="#fff"/></svg></div>
+          <div><b>Check First</b> <span class="mono" style="color:var(--muted)">#D99A1E</span><p style="color:var(--muted);font-size:14px">Erst anschauen. Wird nie vorausgewählt.</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Schrift ===== -->
+  <section class="block">
+    <div class="wrap">
+      <div class="head">
+        <div class="label">Schrift</div>
+        <div>
+          <h2>Rund für die Figur, gerade für die Fakten.</h2>
+          <p class="lede">Fussel nutzt die Schriften des Macs. Die abgerundete SF Pro Rounded gehört zur Figur und zu großen Momenten. Alles, was erklärt oder zählt, steht in SF Pro. Für Web und Druck ohne Apple-Schriften springt Nunito für die runde Schrift ein.</p>
+        </div>
+      </div>
+      <div class="tile" style="padding-block:4px">
+        <div class="type-row"><div class="spec"><b>Wortmarke</b>SF Pro Rounded Heavy<br>Laufweite −3,5 %</div><div style="font-family:var(--display);font-weight:900;font-size:clamp(40px,7vw,72px);line-height:1;letter-spacing:-0.035em">Fussel</div></div>
+        <div class="type-row"><div class="spec"><b>Überschrift</b>SF Pro Rounded Bold, 28–40 pt</div><div style="font-family:var(--display);font-weight:800;font-size:clamp(24px,3.6vw,36px);line-height:1.15">All tidy. 2.16 GB freed.</div></div>
+        <div class="type-row"><div class="spec"><b>Titel in der App</b>SF Pro Bold, 22 pt</div><div style="font-weight:700;font-size:22px">Overview</div></div>
+        <div class="type-row"><div class="spec"><b>Große Zahl</b>SF Pro Bold, Ziffern tabellarisch</div><div class="num" style="font-weight:700;font-size:clamp(30px,5vw,40px);letter-spacing:-0.02em">358.13 GB <span style="font-size:14px;font-weight:500;color:var(--muted);letter-spacing:0">used of 494 GB</span></div></div>
+        <div class="type-row"><div class="spec"><b>Text</b>SF Pro Regular, 13 pt</div><div style="font-size:15px;max-width:60ch">Cached data that apps keep to load faster. Apps rebuild it when needed, so it's safe to remove.</div></div>
+        <div class="type-row"><div class="spec"><b>Etikett</b>SF Pro Semibold, 11 pt</div><div><span class="tag" style="margin:0;font-size:12px">Check First</span></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Sprache ===== -->
+  <section class="block">
+    <div class="wrap">
+      <div class="head">
+        <div class="label">Sprache</div>
+        <div>
+          <h2>Wie ein Mitbewohner, der gern aufräumt.</h2>
+          <p class="lede">Die App spricht Englisch. Kurz, freundlich, konkret. Fussel nennt Größen in GB statt „Probleme“, erklärt in einem Satz und lässt dich entscheiden. Ein bisschen Fussel-Humor ist erlaubt („some fluff“), Panik nie.</p>
+        </div>
+      </div>
+      <div class="voice-list">
+        <div class="pair">
+          <div class="say"><span class="label">So</span><q>2.16 GB safe to clean</q><small>Eine Zahl mit Einheit, ein klares Etikett.</small></div>
+          <div class="say no"><span class="label">Nicht so</span><q>2,391 problems are slowing down your Mac!</q><small>Erfundene Dringlichkeit, Dateien als „Probleme“.</small></div>
+        </div>
+        <div class="pair">
+          <div class="say"><span class="label">So</span><q>Fussel found some fluff</q><small>Erinnerung pro Woche, ohne Druck.</small></div>
+          <div class="say no"><span class="label">Nicht so</span><q>WARNING: Your disk is almost full</q><small>Großbuchstaben und Alarm.</small></div>
+        </div>
+        <div class="pair">
+          <div class="say"><span class="label">So</span><q>Moved to Trash. Undo</q><small>Sagt genau, was passiert ist, und wie es zurückgeht.</small></div>
+          <div class="say no"><span class="label">Nicht so</span><q>Junk permanently erased</q><small>Klingt endgültig und macht unsicher.</small></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Anwendung ===== -->
+  <section class="block">
+    <div class="wrap">
+      <div class="head">
+        <div class="label">Anwendung</div>
+        <div>
+          <h2>In der App ist Fussel nur ein Abzeichen.</h2>
+          <p class="lede">Die Figur sitzt klein oben in der Seitenleiste. Die Oberfläche selbst bleibt sachlich, mit einer Farbe pro Werkzeug. Der Hauptknopf ist Tinte auf Hell und Weiß auf Dunkel. Die Werte unten sind Beispiele.</p>
+        </div>
+      </div>
+      <div class="app-grid">
+        <div class="win" aria-label="Beispiel des Fussel-Fensters">
+          <div class="win-grid">
+            <div class="side">
+              <div class="lights"><i style="background:#FF5F57"></i><i style="background:#FEBC2E"></i><i style="background:#28C840"></i></div>
+              <div class="brand"><span data-art="icon"></span>Fussel</div>
+              <div class="it on">Overview</div>
+              <div class="grp">Clean</div>
+              <div class="it">System Junk <span class="num">2.16 GB</span></div>
+              <div class="it">Trash &amp; Downloads <span class="num">0 KB</span></div>
+              <div class="grp">Review</div>
+              <div class="it">Large Files <span class="num">4.2 GB</span></div>
+              <div class="it">Uninstaller</div>
+              <div class="it">App Updates</div>
+            </div>
+            <div class="main">
+              <div class="main-top">
+                <div><h3>Overview</h3><p>Scanned just now · 6.36 GB found</p></div>
+                <div class="btns"><span class="btn">Scan</span><span class="btn solid">Clean 2.16 GB</span></div>
+              </div>
+              <div class="big num">358.13 GB<small>used of 494 GB</small></div>
+              <div class="bar" style="height:8px;border-radius:4px">
+                <span style="width:1%;background:var(--junk)"></span><span style="width:1.2%;background:var(--large)"></span><span style="width:70%;background:var(--muted);opacity:.55"></span>
+              </div>
+              <div class="rows">
+                <div class="row"><div class="ic" style="background:var(--junk)" data-glyph="sparkle"></div><div><b>System Junk</b><small>2.16 GB safe to clean</small></div><span class="sz num">2.16 GB</span></div>
+                <div class="row"><div class="ic" style="background:var(--tidy)" data-glyph="tray"></div><div><b>Trash &amp; Downloads</b><small>Nothing to clean</small></div><span class="sz num">0 KB</span></div>
+                <div class="row"><div class="ic" style="background:var(--large)" data-glyph="drive"></div><div><b>Large &amp; Old Files<span class="tag">Check First</span></b><small>1 file to look at</small></div><span class="sz num">4.2 GB</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="side-notes">
+          <div class="notif"><span data-art="icon"></span><div><b>Fussel found some fluff</b>About 1.2 GB of caches and logs are piling up. Click to tidy up.</div><time>now</time></div>
+          <div class="tile">
+            <h3>Faustregeln</h3>
+            <p style="color:var(--muted);font-size:14px">Ecken: 8 pt für Knöpfe, 10–12 pt für Karten, Icon-Quadrate 7–9 pt.<br>Hauptaktion nennt immer die Menge: „Clean 2.16 GB“.<br>„Check First“ wird nie vorausgewählt.<br>Bewegung: kurze Federn (0,2–0,25 s), Fussel blinzelt, die Locke wippt beim Scannen.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="wrap">
+  <span>Fussel Visual Identity 1.0 · Oktober 2026</span>
+  <span>Quellen: <code>Mascot.swift</code>, <code>Style.swift</code>, <code>design/AppIcon.icon</code></span>
+</footer>
+
+<script>
+(() => {
+  // Same geometry as FusselGeometry in Mascot.swift (100×100 design space).
+  const G = {
+    cx: 50, cy: 54, r: 25.4,
+    loop: "M50 30 Q42 18 50 12.7 Q58.7 9.4 58.7 18.7",
+    strand: "M53.3 30 Q60 22 66.7 23.3",
+    eyes: [[42.7, 55.4], [57.3, 55.4]], ew: 6.6, eh: 10.8
+  };
+  const GRAPHITE = "#2B2D33";
+  let uid = 0;
+
+  function eyes(mood, color) {
+    return G.eyes.map(([x, y]) => {
+      if (mood === "happy" || mood === "sleepy") {
+        const bend = mood === "happy" ? -4 : 3;
+        const a = x - G.ew / 2 - 0.6, b = x + G.ew / 2 + 0.6;
+        return `<path d="M${a} ${y} Q${x} ${y + bend} ${b} ${y}" fill="none" stroke="${color}" stroke-width="2.4" stroke-linecap="round"/>`;
+      }
+      if (mood === "angry") {
+        return `<ellipse class="eye" cx="${x}" cy="${y + 1.5}" rx="${G.ew / 2}" ry="${G.eh / 2 - 1.5}" fill="${color}"/>` +
+          `<path d="M${x - 5} ${y - 7 + (x < 50 ? -2 : 2)} L${x + 5} ${y - 7 + (x < 50 ? 2 : -2)}" stroke="${color}" stroke-width="2.4" stroke-linecap="round"/>`;
+      }
+      return `<ellipse class="eye" cx="${x}" cy="${y}" rx="${G.ew / 2}" ry="${G.eh / 2}" fill="${color}"/>`;
+    }).join("");
+  }
+
+  function figure({ body = "#FFFFFF", eye = GRAPHITE, mood = "idle", curl = true } = {}) {
+    const c = curl ? `<g class="curl" style="transform-origin:51.5px 30px"><path d="${G.loop}" fill="none" stroke="${body}" stroke-width="4.7" stroke-linecap="round"/><path d="${G.strand}" fill="none" stroke="${body}" stroke-width="4" stroke-linecap="round"/></g>` : "";
+    return c + `<circle cx="${G.cx}" cy="${G.cy}" r="${G.r}" fill="${body}"/>` + eyes(mood, eye);
+  }
+
+  // The figure spans about y 9…80 and x 24…76; this viewBox frames it with a little air.
+  const markBox = "17 6 66 78";
+  const svg = (box, inner, extra = "") => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${box}" ${extra}>${inner}</svg>`;
+
+  function icon() {
+    const id = ++uid;
+    return svg("0 0 100 100", `
+      <defs>
+        <linearGradient id="tile${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3A3C43"/><stop offset="1" stop-color="#1E1F23"/></linearGradient>
+        <linearGradient id="glass${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#D3D4D9"/></linearGradient>
+      </defs>
+      <rect x="9.8" y="9.8" width="80.4" height="80.4" rx="18.5" fill="url(#tile${id})"/>
+      <g transform="translate(50 45.6) scale(0.8) translate(-50 -44.4)">${figure({ body: `url(#glass${id})` })}</g>`, 'width="100%"');
+  }
+
+  function menubar(dot) {
+    const id = ++uid;
+    const w = G.ew * 1.15, h = G.eh * 1.15;
+    const cut = G.eyes.map(([x, y]) => `<ellipse cx="${x}" cy="${y}" rx="${w / 2}" ry="${h / 2}" fill="#000"/>`).join("");
+    const ring = dot ? `<circle cx="73" cy="19" r="11" fill="#000"/>` : "";
+    return svg("12.5 6 75 75", `
+      <mask id="m${id}"><rect x="0" y="0" width="100" height="100" fill="#fff"/>${cut}${ring}</mask>
+      <g mask="url(#m${id})" fill="currentColor" stroke="currentColor" stroke-linecap="round">
+        <path d="${G.loop}" fill="none" stroke-width="${4.7 * 1.35}"/>
+        <path d="${G.strand}" fill="none" stroke-width="${4 * 1.35}"/>
+        <circle cx="${G.cx}" cy="${G.cy}" r="${G.r}" stroke="none"/>
+      </g>${dot ? `<circle cx="73" cy="19" r="7" fill="currentColor"/>` : ""}`, 'width="18" height="18"');
+  }
+
+  function construction() {
+    const c = "var(--muted)";
+    return svg("0 0 100 100", `
+      <g fill="none" stroke="${c}" stroke-width="0.35" stroke-dasharray="1.2 1.2">
+        <rect x="0.5" y="0.5" width="99" height="99"/>
+        <circle cx="${G.cx}" cy="${G.cy}" r="${G.r}"/>
+        <line x1="50" y1="2" x2="50" y2="98"/><line x1="2" y1="${G.cy}" x2="98" y2="${G.cy}"/>
+      </g>
+      <g opacity="0.92">${figure({ body: GRAPHITE, eye: "#F3F3F5" })}</g>
+      <g fill="${c}" font-family="-apple-system, sans-serif" font-size="3.6">
+        <text x="78" y="57">r 25,4</text>
+        <text x="62" y="12">Locke 4,7 / 4,0</text>
+        <text x="27" y="88">Augen 6,6 × 10,8</text>
+        <text x="3" y="51">Mitte 50 / 54</text>
+      </g>`, 'width="100%"');
+  }
+
+  const art = {
+    "icon": icon,
+    "mark-white": () => svg(markBox, figure({ body: "#FFFFFF", eye: GRAPHITE }), 'width="100%"'),
+    "mark-dark": () => svg(markBox, figure({ body: GRAPHITE, eye: "#FFFFFF" }), 'width="100%"'),
+    "construction": construction,
+    "menubar": () => menubar(false),
+    "menubar-dot": () => menubar(true),
+    "mood-idle": () => svg(markBox, figure({ body: GRAPHITE, eye: "#FFFFFF" })),
+    "mood-happy": () => svg(markBox, figure({ body: GRAPHITE, eye: "#FFFFFF", mood: "happy" })),
+    "mood-sleepy": () => svg(markBox, figure({ body: GRAPHITE, eye: "#FFFFFF", mood: "sleepy" })),
+    "dont-color": () => svg(markBox, figure({ body: "#E5484D", eye: "#FFFFFF" }), 'width="100%"'),
+    "dont-nocurl": () => svg(markBox, figure({ body: GRAPHITE, eye: "#FFFFFF", curl: false }), 'width="100%"'),
+    "dont-angry": () => svg(markBox, figure({ body: GRAPHITE, eye: "#FFFFFF", mood: "angry" }), 'width="100%"')
+  };
+
+  document.querySelectorAll("[data-art]").forEach(el => {
+    el.innerHTML = art[el.dataset.art]();
+    if (!el.style.width && el.dataset.art.startsWith("mood")) return;
+    el.style.display = el.style.display || "inline-block";
+    if (el.dataset.art.startsWith("menubar")) el.style.lineHeight = "0";
+  });
+
+  // Small white tool glyphs, close to the SF Symbols the app uses.
+  const glyphs = {
+    sparkle: '<path d="M10 2.5 Q10.6 9.4 17.5 10 Q10.6 10.6 10 17.5 Q9.4 10.6 2.5 10 Q9.4 9.4 10 2.5Z" fill="#fff"/>',
+    tray: '<path d="M3 11h4l1 2h4l1-2h4v4.5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 3 15.5Z M5 4h10l2 7H3Z" fill="none" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/>',
+    drive: '<rect x="2.5" y="6" width="15" height="9" rx="2" fill="none" stroke="#fff" stroke-width="1.6"/><circle cx="14" cy="10.5" r="1.1" fill="#fff"/>',
+    box: '<path d="M3 6.5h14v9a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 3 15.5Z M2 3.5h16v3H2Z M8 10h4" fill="none" stroke="#fff" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>',
+    down: '<circle cx="10" cy="10" r="7.5" fill="none" stroke="#fff" stroke-width="1.6"/><path d="M10 6v7M7 10.5l3 3 3-3" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>'
+  };
+  document.querySelectorAll("[data-glyph]").forEach(el => {
+    el.innerHTML = `<svg viewBox="0 0 20 20">${glyphs[el.dataset.glyph]}</svg>`;
+  });
+
+  // Copy the exact SVG source of an asset.
+  document.querySelectorAll("[data-copy]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const src = art[btn.dataset.copy]().replace(/ width="[^"]*"| height="[^"]*"/g, "")
+        .replace("<svg ", '<svg width="1024" height="1024" ')
+        .replace(/currentColor/g, "#000");
+      const done = t => { btn.textContent = t; setTimeout(() => (btn.textContent = "SVG kopieren"), 1600); };
+      navigator.clipboard.writeText(src).then(() => done("Kopiert"), () => done("Kopieren nicht erlaubt"));
+    });
+  });
+})();
+</script>
