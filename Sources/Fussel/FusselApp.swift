@@ -39,6 +39,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
     private var updateTimer: Timer?
     private var statusItem: NSStatusItem?
     private var mainWindow: NSWindow?
+    private var slideTimer: Timer?
     private var settingsWindow: NSWindow?
     private var keyMonitor: Any?
     private var watcher: FluffWatcher?
@@ -219,10 +220,64 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
 
     private func toggleMainWindow() {
         if let window = mainWindow, window.isVisible, window.isKeyWindow {
-            window.orderOut(nil)
-            model.monitor.setFast(false)
+            hideMainWindow()
         } else {
             showMainWindow()
+        }
+    }
+
+    /// Where the window lives: the top right corner of the screen with the menu bar icon, under the menu bar.
+    private func dockedFrame(for window: NSWindow) -> NSRect {
+        let screen = statusItem?.button?.window?.screen ?? NSScreen.main ?? NSScreen.screens[0]
+        let visible = screen.visibleFrame
+        let margin: CGFloat = 10
+        let size = NSSize(width: window.frame.width, height: min(window.frame.height, visible.height - 2 * margin))
+        return NSRect(x: visible.maxX - size.width - margin, y: visible.maxY - size.height - margin,
+                      width: size.width, height: size.height)
+    }
+
+    /// Slides the window in from (or out to) the right edge of the screen, frame by frame: in with a
+    /// small springy overshoot, out with a gentle push. No slide with Reduce Motion.
+    private func slide(_ window: NSWindow, to frame: NSRect, alpha: CGFloat, completion: (() -> Void)? = nil) {
+        slideTimer?.invalidate()
+        guard !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion else {
+            window.setFrame(frame, display: true)
+            window.alphaValue = alpha
+            completion?()
+            return
+        }
+        let from = window.frame
+        let fromAlpha = window.alphaValue
+        let comingIn = alpha > 0
+        let duration = comingIn ? 0.5 : 0.26
+        let start = CACurrentMediaTime()
+        let timer = Timer(timeInterval: 1.0 / 120, repeats: true) { [weak self] timer in
+            MainActor.assumeIsolated {
+                let p = min(1, (CACurrentMediaTime() - start) / duration)
+                // In: ease-out with a little overshoot ("back"); out: ease-in.
+                let e = comingIn ? 1 + 1.6 * pow(p - 1, 3) + 0.6 * pow(p - 1, 2) : p * p
+                var f = frame
+                f.origin.x = from.origin.x + (frame.origin.x - from.origin.x) * e
+                window.setFrame(f, display: true)
+                window.alphaValue = max(0, min(1, fromAlpha + (alpha - fromAlpha) * min(1, comingIn ? p * 2.5 : e)))
+                if p >= 1 {
+                    timer.invalidate()
+                    self?.slideTimer = nil
+                    completion?()
+                }
+            }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        slideTimer = timer
+    }
+
+    private func hideMainWindow() {
+        guard let window = mainWindow, window.isVisible else { return }
+        var away = window.frame
+        away.origin.x = (window.screen ?? NSScreen.main)?.frame.maxX ?? away.maxX
+        model.monitor.setFast(false)
+        slide(window, to: away, alpha: 0) {
+            window.orderOut(nil)
         }
     }
 
@@ -232,27 +287,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                 .environment(model)
             let controller = NSHostingController(rootView: root)
             controller.sizingOptions = [.minSize]
-            let window = NSWindow(contentViewController: controller)
+            let window = DockedWindow(contentViewController: controller)
             window.title = "Fussel"
             window.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
             window.titlebarAppearsTransparent = true
             window.titleVisibility = .hidden
-            window.isMovableByWindowBackground = true
+            // Fussel sits in its corner and can't be dragged around.
+            window.isMovable = false
+            window.isMovableByWindowBackground = false
             window.isReleasedWhenClosed = false
             window.setContentSize(NSSize(width: 760, height: 830))
             window.contentMinSize = NSSize(width: 700, height: 820)
-            window.setFrameAutosaveName("FusselMainWindow")
             window.delegate = self
-            if !window.setFrameUsingName("FusselMainWindow") { window.center() }
-            // A window saved by an older, shorter Fussel would cut off the bottom row.
-            if window.contentLayoutRect.height < 820 {
-                window.setContentSize(NSSize(width: max(700, window.contentLayoutRect.width), height: 830))
-            }
             mainWindow = window
         }
+        guard let window = mainWindow else { return }
         NSApp.activate(ignoringOtherApps: true)
-        mainWindow?.makeKeyAndOrderFront(nil)
         model.monitor.setFast(true)
+        let target = dockedFrame(for: window)
+        if window.isVisible && window.alphaValue > 0.99 {
+            window.setFrame(target, display: true)
+            window.makeKeyAndOrderFront(nil)
+            return
+        }
+        // Start just past the right edge of the screen and glide in.
+        var start = target
+        start.origin.x = (window.screen ?? NSScreen.main)?.frame.maxX ?? target.maxX
+        window.alphaValue = 0
+        window.makeKeyAndOrderFront(nil)
+        window.setFrame(start, display: false)
+        slide(window, to: target, alpha: 1)
     }
 
     func showSettingsWindow() {
@@ -267,6 +331,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         }
         NSApp.activate(ignoringOtherApps: true)
         settingsWindow?.makeKeyAndOrderFront(nil)
+    }
+
+    /// The close button and Cmd-W slide the window out instead of closing it.
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        guard sender === mainWindow else { return true }
+        hideMainWindow()
+        return false
     }
 
     /// Closing the window only hides it; Fussel keeps running in the menu bar.
@@ -314,6 +385,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             return nil
         }
     }
+}
+
+/// The main window. macOS normally pulls windows back onto the screen; this one may sit just past
+/// the right edge for a moment, so it can slide in from there.
+final class DockedWindow: NSWindow {
+    override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect { frameRect }
 }
 
 /// Start Fussel together with the Mac, like CleanMyMac.

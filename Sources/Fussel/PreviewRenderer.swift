@@ -13,6 +13,7 @@ enum PreviewRenderer {
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
 
         renderCloset(to: dir)
+        renderSheets(to: dir)
         let styles: [AppStyle] = [.light, .dark, .coral, .graphite]
         let scenarios = ["idle", "scanning", "ready", "done", "tutorial", "stuffed", "hot", "sleepy", "pending", "santa"]
         for style in styles {
@@ -37,6 +38,26 @@ enum PreviewRenderer {
                 let file = dir.appendingPathComponent("\(style.rawValue)-\(scenario).png")
                 try? png.write(to: file)
                 print("Rendered \(file.lastPathComponent)")
+            }
+        }
+    }
+
+    /// A detail sheet before and after cleaning (lists are AppKit views, so the results state can't be drawn).
+    static func renderSheets(to dir: URL) {
+        for style in [AppStyle.light, .dark, .graphite] {
+            for scenario in ["idle", "done"] {
+                let model = sampleModel(scenario)
+                let view = StyledRoot(override: style, costumeOverride: Costume.none) {
+                    DetailSheet(module: .junk)
+                }
+                .environment(model)
+                .environment(\.colorScheme, style == .light ? .light : .dark)
+                let renderer = ImageRenderer(content: view)
+                renderer.scale = 2
+                if let tiff = renderer.nsImage?.tiffRepresentation, let bitmap = NSBitmapImageRep(data: tiff),
+                   let png = bitmap.representation(using: .png, properties: [:]) {
+                    try? png.write(to: dir.appendingPathComponent("sheet-\(style.rawValue)-\(scenario).png"))
+                }
             }
         }
     }

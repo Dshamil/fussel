@@ -10,7 +10,7 @@ struct ModuleView: View {
             case .idle:
                 IntroState(model: model)
             case .scanning:
-                BusyState(text: "Looking for fluff…")
+                BusyState(text: "Looking for fluff…", module: model.module)
             case .results:
                 if model.items.isEmpty {
                     DoneState(title: "Already fluff-free", detail: "Nothing to clean up here right now.",
@@ -19,7 +19,7 @@ struct ModuleView: View {
                     ResultsList(model: model)
                 }
             case .cleaning:
-                BusyState(text: "Tidying up…")
+                BusyState(text: "Tidying up…", module: model.module)
             case let .done(freed, failures):
                 DoneState(title: "All tidy!",
                           detail: freed > 0 ? "Fussel cleared \(freed.byteString)." : "Nothing was removed.",
@@ -31,15 +31,38 @@ struct ModuleView: View {
     }
 }
 
+/// The card's symbol, big, on a soft circle in the card's color.
+struct ModuleEmblem: View {
+    let module: Module
+    var symbol: String? = nil
+    var bounce = 0
+    var pulsing = false
+    @Environment(\.palette) private var palette
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(!palette.colorful ? .white.opacity(0.07) : palette.isDark ? Palette.pastel(module).opacity(0.16) : Palette.pastel(module))
+            Image(systemName: symbol ?? module.symbol)
+                .font(.system(size: 46, weight: .semibold))
+                .foregroundStyle(palette.icon(module))
+                .symbolEffect(.bounce, value: bounce)
+                .symbolEffect(.pulse, isActive: pulsing)
+        }
+        .frame(width: 118, height: 118)
+        .accessibilityHidden(true)
+    }
+}
+
 private struct IntroState: View {
     let model: ModuleModel
 
     var body: some View {
         VStack(spacing: 22) {
-            FusselBadge(mood: .idle, size: 168)
+            ModuleEmblem(module: model.module)
             VStack(spacing: 8) {
-                Text(model.module.title)
-                    .font(.rounded(28, .semibold))
+                Text("Let's take a look")
+                    .font(.rounded(26, .heavy))
                 Text(model.module.blurb)
                     .font(.system(size: 14))
                     .foregroundStyle(.secondary)
@@ -49,7 +72,7 @@ private struct IntroState: View {
             Button("Scan") {
                 Task { await model.scan(options: .current) }
             }
-            .buttonStyle(CoralButtonStyle())
+            .buttonStyle(ActionButtonStyle())
             .keyboardShortcut(.defaultAction)
         }
         .padding(40)
@@ -58,10 +81,15 @@ private struct IntroState: View {
 
 struct BusyState: View {
     let text: String
+    var module: Module? = nil
 
     var body: some View {
         VStack(spacing: 18) {
-            FusselBadge(mood: .busy, size: 150)
+            if let module {
+                ModuleEmblem(module: module, pulsing: true)
+            } else {
+                FusselBadge(mood: .busy, size: 150)
+            }
             Text(text)
                 .font(.rounded(16, .medium))
                 .foregroundStyle(.secondary)
@@ -78,11 +106,14 @@ private struct DoneState: View {
     let model: ModuleModel
     @State private var showFailures = false
 
+    @State private var bounce = 0
+
     var body: some View {
         VStack(spacing: 18) {
-            FusselBadge(mood: .happy, size: 150)
+            ModuleEmblem(module: model.module, symbol: "checkmark", bounce: bounce)
+                .onAppear { bounce += 1 }
             Text(title)
-                .font(.rounded(26, .semibold))
+                .font(.rounded(26, .heavy))
             Text(detail)
                 .font(.system(size: 14))
                 .foregroundStyle(.secondary)
@@ -104,7 +135,7 @@ private struct DoneState: View {
             Button("Scan again") {
                 Task { await model.scan(options: .current) }
             }
-            .buttonStyle(CoralButtonStyle())
+            .buttonStyle(ActionButtonStyle())
         }
         .padding(40)
     }
@@ -113,22 +144,30 @@ private struct DoneState: View {
 private struct ResultsList: View {
     let model: ModuleModel
     @State private var confirming = false
+    @Environment(\.palette) private var palette
 
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 16) {
-                FusselBadge(mood: .idle, size: 60)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Found \(model.totalSize.byteString)")
-                        .font(.rounded(22, .semibold))
-                    Text("\(model.items.count) items · \(model.selectedSize.byteString) selected")
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
+                        .font(.rounded(24, .heavy))
+                    HStack(spacing: 0) {
+                        Text("\(model.items.count) items · ")
+                        Text(model.selectedSize.byteString)
+                            .contentTransition(.numericText(value: Double(model.selectedSize)))
+                        Text(" selected")
+                    }
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .animation(.snappy, value: model.selectedSize)
                 }
                 Spacer()
                 Button("Rescan") {
                     Task { await model.scan(options: .current) }
                 }
+                .buttonStyle(NudgeButtonStyle(tint: palette.text, badgeText: palette.isDark ? Theme.ink : .white,
+                                              symbol: "arrow.clockwise"))
             }
             .padding(.horizontal, 24)
             .padding(.vertical, 14)
@@ -179,7 +218,7 @@ private struct ResultsList: View {
                 Button("Clean \(model.selectedSize.byteString)") {
                     confirming = true
                 }
-                .buttonStyle(CoralButtonStyle())
+                .buttonStyle(ActionButtonStyle())
                 .disabled(model.selected.isEmpty)
             }
             .padding(.horizontal, 24)

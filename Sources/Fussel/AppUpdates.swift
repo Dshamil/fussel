@@ -226,7 +226,7 @@ struct AppUpdatesView: View {
                     Text("I'll check App Store apps and apps that update themselves.")
                         .foregroundStyle(.secondary)
                     Button("Check for Updates") { Task { await model.check() } }
-                        .buttonStyle(CoralButtonStyle())
+                        .buttonStyle(ActionButtonStyle())
                         .keyboardShortcut(.defaultAction)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)

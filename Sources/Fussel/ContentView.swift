@@ -528,6 +528,8 @@ private struct ScanChip: View {
 /// A little speech bubble next to Fussel.
 private struct SpeechBubble: View {
     let text: String
+    /// Tail on the right side, pointing at a Fussel next to the bubble.
+    var tailRight = false
 
     var body: some View {
         Text(text)
@@ -536,7 +538,7 @@ private struct SpeechBubble: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 7)
             .background(
-                BubbleShape()
+                BubbleShape(tailRight: tailRight)
                     .fill(.white)
                     .shadow(color: .black.opacity(0.15), radius: 6, y: 3)
             )
@@ -545,8 +547,17 @@ private struct SpeechBubble: View {
 }
 
 private struct BubbleShape: Shape {
+    var tailRight = false
+
     func path(in rect: CGRect) -> Path {
         var path = Path(roundedRect: rect, cornerRadius: 12, style: .continuous)
+        if tailRight {
+            path.move(to: CGPoint(x: rect.maxX - 1, y: rect.midY - 6))
+            path.addLine(to: CGPoint(x: rect.maxX + 8, y: rect.midY + 2))
+            path.addLine(to: CGPoint(x: rect.maxX - 1, y: rect.midY + 6))
+            path.closeSubpath()
+            return path
+        }
         // Tail pointing down-left towards Fussel.
         path.move(to: CGPoint(x: rect.minX + 14, y: rect.maxY - 1))
         path.addLine(to: CGPoint(x: rect.minX + 6, y: rect.maxY + 9))
@@ -764,34 +775,16 @@ private struct ModuleCard: View {
 
 // MARK: - Detail sheet
 
-private struct DetailSheet: View {
+struct DetailSheet: View {
     @Environment(AppModel.self) private var app
     @Environment(\.palette) private var palette
     @Environment(\.dismiss) private var dismiss
     let module: Module
+    @State private var bubble: String?
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 10) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(palette.tint(module))
-                    Image(systemName: module.symbol)
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(palette.icon(module))
-                }
-                .frame(width: 28, height: 28)
-                Text(module.title)
-                    .font(.rounded(17, .bold))
-                Spacer()
-                Button("Close") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 14)
-
-            Divider()
-
+            header
             Group {
                 if module == .uninstaller {
                     UninstallerView(model: app.uninstaller)
@@ -805,8 +798,102 @@ private struct DetailSheet: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(width: 720, height: 520)
+        .frame(width: 760, height: 560)
         .background(palette.sheet)
+        .onAppear { bubble = comment }
+        .onChange(of: comment) { _, text in
+            withAnimation(.spring(duration: 0.4, bounce: 0.45)) { bubble = text }
+        }
+    }
+
+    /// The card's color as a band across the top, with the title, a little Fussel and his comment.
+    private var header: some View {
+        HStack(spacing: 14) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(palette.isDark ? palette.tint(module) : .white.opacity(0.75))
+                Image(systemName: module.symbol)
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(palette.icon(module))
+            }
+            .frame(width: 40, height: 40)
+            Text(module.title)
+                .font(.rounded(21, .heavy))
+                .foregroundStyle(palette.text)
+            Spacer(minLength: 12)
+            if let bubble {
+                SpeechBubble(text: bubble, tailRight: true)
+                    .id(bubble)
+                    .transition(.scale(scale: 0.5, anchor: .trailing).combined(with: .opacity))
+            }
+            FusselMascot(mood: mascotMood, size: 92, showShadow: false, color: palette.mascot,
+                         followsPointer: true, interactive: true) {
+                Sounds.play("Pop")
+                withAnimation(.spring(duration: 0.35, bounce: 0.45)) { bubble = ["Hehe!", "Boop!", "Wheee!"].randomElement() }
+            }
+            .frame(width: 66, height: 52)
+            Button {
+                dismiss()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 11, weight: .heavy))
+                    .foregroundStyle(palette.text)
+                    .frame(width: 28, height: 28)
+                    .background(Circle().fill(palette.text.opacity(0.08)))
+                    .contentShape(Circle())
+            }
+            .buttonStyle(CardPressStyle())
+            .keyboardShortcut(.cancelAction)
+            .help("Close")
+            .accessibilityLabel("Close")
+        }
+        .padding(.leading, 20)
+        .padding(.trailing, 16)
+        .padding(.vertical, 12)
+        .background {
+            ZStack {
+                Rectangle().fill(palette.card)
+                Rectangle().fill(!palette.colorful ? .clear : palette.isDark ? Palette.pastel(module).opacity(0.13) : Palette.pastel(module))
+                LinearGradient(colors: [.white.opacity(palette.isDark ? 0.04 : 0.45), .clear], startPoint: .top, endPoint: .bottom)
+            }
+        }
+        .overlay(alignment: .bottom) { Rectangle().fill(palette.cardStroke).frame(height: 1) }
+    }
+
+    private var phase: ModuleModel.Phase? {
+        switch module {
+        case .junk, .large, .tidy: return app.model(for: module).phase
+        default: return nil
+        }
+    }
+
+    private var mascotMood: MascotMood {
+        switch phase {
+        case .scanning, .cleaning: return .busy
+        case .done: return .happy
+        default: return .idle
+        }
+    }
+
+    /// What Fussel says about what's on screen.
+    private var comment: String {
+        switch module {
+        case .uninstaller: return "Which app can go?"
+        case .updates: return "Let's freshen up your apps."
+        case .closet: return "Dress me up!"
+        default: break
+        }
+        let model = app.model(for: module)
+        switch model.phase {
+        case .idle: return "Want me to sniff around?"
+        case .scanning: return "Sniff, sniff…"
+        case .cleaning: return "Off to the Trash!"
+        case .done(let freed, _): return freed > 0 ? "Ahh, so fresh!" : "Squeaky clean!"
+        case .results:
+            guard let biggest = model.items.max(by: { $0.size < $1.size }) else { return "Nothing here, yay!" }
+            let name = biggest.name.count > 22 ? String(biggest.name.prefix(20)) + "…" : biggest.name
+            return "Ooh, \(name) is \(biggest.size.byteString)!"
+        }
     }
 }
 

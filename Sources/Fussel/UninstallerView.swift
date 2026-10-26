@@ -135,7 +135,7 @@ struct UninstallerView: View {
                 Button("Uninstall \(model.selectedSize.byteString)") {
                     if model.isRunning(app) { askToQuit = true } else { confirming = true }
                 }
-                .buttonStyle(CoralButtonStyle())
+                .buttonStyle(ActionButtonStyle())
                 .disabled(model.selected.isEmpty || model.loadingLeftovers)
             }
             .padding(.horizontal, 24)
