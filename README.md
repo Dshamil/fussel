@@ -8,7 +8,7 @@
 
 <p align="center"><img src="docs/screenshots/tour.gif" width="720" alt="Fussel scanning, showing what it found, explaining System Junk and cleaning up"></p>
 
-- **Overview**: used and free space, a bar that shows where it goes, and a row per tool
+- **Overview**: used and free space, a row per tool, your biggest folders, and your last clean-ups with Undo
 - **System Junk**: app caches, logs and Xcode build data
 - **Trash & Downloads**: empty the Trash and sweep out old downloads
 - **Large Files**: big files and things you haven't opened in ages
