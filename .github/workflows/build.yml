@@ -183,8 +183,14 @@ jobs:
           ditto -x -k dist/Fussel.zip dist
           APP=dist/Fussel.app/Contents/MacOS/Fussel
           lipo -archs "$APP"
-          "$APP" --render-previews "$PWD/previews"
-          echo "Screenshots: $(ls previews | wc -l)"
+          # Screenshots are drawn on the graphics chip; some virtual Macs (like GitHub's Intel ones) have none.
+          if system_profiler SPDisplaysDataType 2>/dev/null | grep -qi "metal"; then
+            "$APP" --render-previews "$PWD/previews"
+            echo "Screenshots: $(ls previews | wc -l)"
+          else
+            mkdir -p previews
+            echo "::notice::No graphics chip on this virtual Mac, so no screenshots; checking that Fussel runs."
+          fi
           "$APP" > run.log 2>&1 &
           pid=$!
           sleep 20
