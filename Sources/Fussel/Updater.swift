@@ -1,5 +1,21 @@
 import SwiftUI
 import AppKit
+import CryptoKit
+
+/// Checks that an update really comes from Fussel's own build: every release installer is signed on
+/// GitHub with a private key, and only a file with a matching signature gets installed.
+enum UpdateSignature {
+    /// The public half of the signing key (Ed25519). The private half lives only in the repo's secrets.
+    static let publicKey = "zLUceawgTuV1Jhh+MacZxhElFE6hSK6ABb4Nv9tgxtw="
+
+    static func isValid(_ data: Data, signature: String, publicKey: String = publicKey) -> Bool {
+        guard let keyData = Data(base64Encoded: publicKey),
+              let key = try? Curve25519.Signing.PublicKey(rawRepresentation: keyData),
+              let signatureData = Data(base64Encoded: signature.trimmingCharacters(in: .whitespacesAndNewlines))
+        else { return false }
+        return key.isValidSignature(signatureData, for: data)
+    }
+}
 
 /// Compares "1.2.10" with "1.2.9" the way people expect. Ignores a leading "v" and any "-beta" suffix.
 enum VersionCompare {
@@ -22,7 +38,8 @@ enum VersionCompare {
 }
 
 /// Keeps Fussel itself up to date from its GitHub releases.
-/// Downloads the installer package and opens it; the installer quits and restarts Fussel.
+/// Downloads the installer package, checks its signature and only then opens it; the installer quits
+/// and restarts Fussel.
 @Observable
 @MainActor
 final class FusselUpdater {
@@ -35,6 +52,8 @@ final class FusselUpdater {
         let version: String
         let page: URL
         let installer: URL?
+        /// The installer's signature, published next to it as `<installer>.sig`.
+        let signature: URL?
     }
 
     enum State: Equatable {
@@ -91,7 +110,8 @@ final class FusselUpdater {
 
     func install() async {
         guard let release = availableRelease else { return }
-        guard let installerURL = release.installer else {
+        guard let installerURL = release.installer, let signatureURL = release.signature else {
+            // No signed installer: let people download it themselves from the release page.
             NSWorkspace.shared.open(release.page)
             return
         }
@@ -100,6 +120,14 @@ final class FusselUpdater {
             let (temp, response) = try await URLSession.shared.download(from: installerURL)
             guard (response as? HTTPURLResponse)?.statusCode == 200 else {
                 state = .failed("The download didn't work. Try again in a moment.")
+                return
+            }
+            let (signatureData, signatureResponse) = try await URLSession.shared.data(from: signatureURL)
+            let signature = String(decoding: signatureData, as: UTF8.self)
+            guard (signatureResponse as? HTTPURLResponse)?.statusCode == 200,
+                  UpdateSignature.isValid(try Data(contentsOf: temp), signature: signature) else {
+                try? FileManager.default.removeItem(at: temp)
+                state = .failed("This update couldn't be verified, so Fussel won't install it.")
                 return
             }
             let folder = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
@@ -147,12 +175,13 @@ final class FusselUpdater {
                       let page = URL(string: pageString) else { continue }
                 let version = tag.hasPrefix("v") ? String(tag.dropFirst()) : tag
                 let assets = entry["assets"] as? [[String: Any]] ?? []
-                let installer = assets
-                    .first { ($0["name"] as? String)?.hasSuffix(".pkg") == true }
-                    .flatMap { $0["browser_download_url"] as? String }
-                    .flatMap(URL.init(string:))
+                func asset(_ suffix: String) -> URL? {
+                    assets.first { ($0["name"] as? String)?.hasSuffix(suffix) == true }
+                        .flatMap { $0["browser_download_url"] as? String }
+                        .flatMap(URL.init(string:))
+                }
                 if VersionCompare.isNewer(version, than: best?.version ?? current) {
-                    best = Release(version: version, page: page, installer: installer)
+                    best = Release(version: version, page: page, installer: asset(".pkg"), signature: asset(".pkg.sig"))
                 }
             }
             return .success(best)

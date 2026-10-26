@@ -9,13 +9,13 @@ Fussel ist eine minimalistische, verspielte Mac-Aufräum-App (ähnlich CleanMyMa
 - Nach einer Änderung: bauen, starten, selbst prüfen, dann knapp sagen, was sich geändert hat.
 - Kleinste Lösung, die das Problem ganz löst (Ponytail-Skills liegen in `.claude/skills`). Für Design-Fragen den Skill `apple-design` nutzen.
 - Commits nur, wenn der Nutzer es möchte oder ein Release ansteht. Commit-Autor: `Dshamil <dshamilmeziane38@gmail.com>`.
-- Das Repo ist **privat**. Öffentlich machen entscheidet nur der Nutzer.
+- Das Repo ist **öffentlich** (seit 0.9.0 „Public Beta 1“, MIT-Lizenz). Nichts Privates oder Fremdes committen; der Skill `apple-design` (Apple-Texte) bleibt bewusst nur lokal.
 
 ## Bauen und starten (auf dem Mac)
 
 ```
 swift build                     # Debug-Build
-swift test                      # Tests (Schutzregeln, Versionsvergleich, Appcast)
+swift test                      # Tests (Schutzregeln, Versionsvergleich, Appcast, Update-Signatur)
 scripts/build.sh 0.8.1          # Universal-Build → dist/Fussel.app (ad-hoc signiert)
 scripts/package.sh 0.8.1        # Installer dist/Fussel-Installer.pkg + dist/Fussel.dmg
 open dist/Fussel.app            # starten
@@ -26,7 +26,8 @@ Fussel ist eine Menüleisten-App (keine Dock-Icon, `LSUIElement`). Läuft schon 
 
 ## Release
 
-- Version steht in `VERSION`. Neue Nummer + `release-notes/<version>.md` (Vorlage: letzte Notes, mit Logo oben) + Push auf `main` → GitHub Actions (`.github/workflows/build.yml`, macos-15) baut, testet, packt und veröffentlicht eine **Prerelease** mit pkg, dmg und zip.
+- Version steht in `VERSION`. Neue Nummer + `release-notes/<version>.md` (Vorlage: letzte Notes, mit Logo oben; erste Zeile `<!-- title: … -->` setzt den Release-Titel) + Push auf `main` → GitHub Actions (`.github/workflows/build.yml`, macos-15) baut, testet, packt, **signiert den Installer** und veröffentlicht eine **Prerelease** mit pkg, pkg.sig, dmg und zip.
+- Update-Signatur: Ed25519. Privater Schlüssel nur als GitHub-Secret `FUSSEL_SIGNING_KEY` (nicht lesbar, keine Kopie), öffentlicher in `UpdateSignature.publicKey`. Der Updater installiert nur Installer mit passender `.pkg.sig`. Geht das Secret verloren: neues Paar mit `swift scripts/sign-update.swift`, Nutzer müssen dann einmal von Hand aktualisieren.
 - CI legt Screenshots auf den Branch `ci-previews` und misst CPU/RAM (`scripts/perf-probe.sh`).
 - Nicht mit Developer ID signiert/notarisiert: Gatekeeper fragt beim Installer einmal nach („Trotzdem öffnen“). Langfristige Lösung: Apple Developer Account. Bewusst auf später verschoben.
 
@@ -42,7 +43,7 @@ Fussel ist eine Menüleisten-App (keine Dock-Icon, `LSUIElement`). Läuft schon 
 - `Style.swift`, `Theme.swift` – ruhige Grautöne für Hell/Dunkel (folgt der Mac-Einstellung), je Werkzeug eine Akzentfarbe, Knopf-Stile, `AnimationBudget`.
 - `ModuleView.swift` – Listen der Werkzeuge mit Filter (Safe to Clean / Check First), Sortierung, Erklärung je Eintrag.
 - `StatsView.swift` (Werte-Zeile + Popovers), `SettingsView.swift` (inkl. App-Symbol-Wahl), `UninstallerView.swift`.
-- `Updater.swift` – Selbst-Updater über GitHub Releases (geht erst, wenn das Repo öffentlich ist).
+- `Updater.swift` – Selbst-Updater über GitHub Releases, prüft die Ed25519-Signatur (`UpdateSignature`) vor dem Installieren.
 - `AppUpdates.swift` – Updates anderer Apps (App Store + Sparkle-Feeds).
 - `Closet.swift` – Kostüm-/Abzeichen-Daten und App-Icon-Wechsel (`IconPicker` in den Einstellungen).
 - `FluffWatcher.swift` – wöchentliche Erinnerung.
@@ -51,6 +52,5 @@ Weitere Ordner: `Resources` (Info.plist, Icons), `installer` (pkg-Installer), `s
 
 ## Offene Punkte
 
-- **Update-Signatur (wichtig, bevor das Repo öffentlich wird):** Der Selbst-Updater öffnet den Installer ohne Prüfung. Plan: Ed25519-Signatur mit CryptoKit, privater Schlüssel als GitHub-Secret, öffentlicher Schlüssel in der App.
 - Kleinere Audit-Punkte: Wochen-Check und Scan teilen sich den Live-Zähler; Icon wird bei jedem Start neu geschrieben; Undo aus altem Verlauf setzt aktuelle Scan-Ergebnisse zurück.
 - Auf echtem Mac prüfen: Flüssigkeit der Animationen, Augen-Tracking, ob der Icon-Wechsel die Signatur stört.

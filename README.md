@@ -4,24 +4,28 @@
 
 <h1 align="center">Fussel</h1>
 
-<p align="center">A small, friendly Mac cleaner. Fussel finds the fluff on your Mac and moves it to the Trash.<br><i>Currently in beta.</i></p>
+<p align="center">Free up your Mac, calmly. Fussel finds caches, logs and forgotten files, tells you what each one is, and moves what you choose to the Trash.<br><i>Public beta.</i></p>
 
-<p align="center"><img src="docs/screenshots/styles.png" alt="Fussel in White, Dark, Coral and Graphite style"></p>
+<p align="center"><img src="docs/screenshots/overview.png" alt="Fussel's overview in light and dark mode"></p>
 
+- **Overview**: used and free space, a bar that shows where it goes, and a row per tool
 - **System Junk**: app caches, logs and Xcode build data
-- **Large & Old Files**: big files and things you haven't opened in ages
-- **Uninstaller**: remove apps together with their support files, caches and preferences
 - **Trash & Downloads**: empty the Trash and sweep out old downloads
+- **Large Files**: big files and things you haven't opened in ages
+- **Uninstaller**: remove apps together with their support files, caches and preferences
+- **App Updates**: updates for apps from the App Store and the web
 
-Plus live tiles for disk space, memory, battery, CPU and network, four styles (White, Dark, Coral, Graphite),
-a playful tutorial, and a menu bar helper for a quick clean of caches and logs.
+Every item comes with a plain-language explanation and a **Safe to Clean** or **Check First** label.
+Plus memory, CPU, battery and network at a glance, light and dark mode, and a menu bar helper.
+
+<p align="center"><img src="docs/screenshots/list.png" width="640" alt="System Junk with explanations and safety labels"></p>
 
 ## Safety first
 
 - Everything is moved to the Trash first, so you can always restore it.
 - Only items that are already in the Trash are deleted permanently, and Fussel asks before doing it.
 - Fussel never touches system files, Apple apps, or the top-level folders in your home folder.
-- Nothing is selected in *Large & Old Files* or *Trash & Downloads* until you choose it.
+- Nothing is selected in *Large Files* or *Trash & Downloads* until you choose it.
 
 ## Install
 
@@ -43,16 +47,17 @@ Requires macOS 14 Sonoma or later. Runs natively on Apple Silicon and Intel.
 ## Build it yourself
 
 ```sh
-scripts/build.sh 0.6.0      # builds dist/Fussel.app
-scripts/package.sh 0.6.0    # builds dist/Fussel-Installer.pkg and dist/Fussel.dmg
+scripts/build.sh 0.9.0      # builds dist/Fussel.app
+scripts/package.sh 0.9.0    # builds dist/Fussel-Installer.pkg and dist/Fussel.dmg
 ```
 
 Needs Xcode 15 or later (or the Swift toolchain that comes with it).
 
 Every push to `main` is built by GitHub Actions. To publish a new release, bump the
-number in `VERSION` (for example to `0.6.0`) and push: a beta release `v0.6.0` with
-`Fussel.zip` attached is created automatically. If `release-notes/<version>.md` exists,
-it becomes the release text; otherwise GitHub generates notes from the commits.
+number in `VERSION` (for example to `0.9.1`) and push: a beta release `v0.9.1` with the
+installer, disk image and zip attached is created automatically. If `release-notes/<version>.md`
+exists, it becomes the release text (a first line `<!-- title: … -->` sets the release title);
+otherwise GitHub generates notes from the commits.
 
 ## Project layout
 
@@ -60,3 +65,7 @@ it becomes the release text; otherwise GitHub generates notes from the commits.
 - `Resources/`: Info.plist and the app icon
 - `design/`: icon artwork (light, dark, tinted) as SVG and PNG
 - `scripts/`: build and packaging scripts
+
+## License
+
+MIT, see [LICENSE](LICENSE).

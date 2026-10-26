@@ -1,4 +1,5 @@
 import XCTest
+import CryptoKit
 @testable import Fussel
 
 /// The rules that decide what may be deleted and whether an update is newer.
@@ -22,6 +23,19 @@ final class SafetyTests: XCTestCase {
         XCTAssertTrue(Cleaner.isSafeToRemove(home.appendingPathComponent("Library/Caches/com.example.app")))
         XCTAssertTrue(Cleaner.isSafeToRemove(home.appendingPathComponent("Downloads/old.dmg")))
         XCTAssertTrue(Cleaner.isSafeToRemove(URL(fileURLWithPath: "/Applications/Example.app")))
+    }
+
+    func testUpdateSignature() {
+        let key = Curve25519.Signing.PrivateKey()
+        let publicKey = key.publicKey.rawRepresentation.base64EncodedString()
+        let installer = Data("pretend installer".utf8)
+        let signature = try! key.signature(for: installer).base64EncodedString()
+        XCTAssertTrue(UpdateSignature.isValid(installer, signature: signature, publicKey: publicKey))
+        // A changed file, a wrong signature or another key must all be refused.
+        XCTAssertFalse(UpdateSignature.isValid(Data("tampered".utf8), signature: signature, publicKey: publicKey))
+        XCTAssertFalse(UpdateSignature.isValid(installer, signature: "bm9wZQ==", publicKey: publicKey))
+        XCTAssertFalse(UpdateSignature.isValid(installer, signature: signature))
+        XCTAssertFalse(UpdateSignature.isValid(installer, signature: ""))
     }
 
     func testVersionCompare() {
