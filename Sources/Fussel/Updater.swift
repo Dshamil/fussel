@@ -143,7 +143,15 @@ final class FusselUpdater {
             switch Self.installInBackground(target) {
             case .started:
                 // The package quits this Fussel (preinstall) and starts the new one (postinstall).
-                break
+                // If that hasn't happened after two minutes, the quiet route didn't work: show the
+                // regular installer instead of waiting forever.
+                Task { @MainActor [weak self] in
+                    try? await Task.sleep(for: .seconds(120))
+                    guard let self, self.state == .installing else { return }
+                    self.state = .available(release)
+                    self.note = "The update didn't finish on its own, so the installer opened instead."
+                    NSWorkspace.shared.open(target)
+                }
             case .cancelled:
                 state = .available(release)
                 note = "The update was cancelled. Click Update Now to try again."
@@ -160,11 +168,12 @@ final class FusselUpdater {
 
     /// Runs macOS's `installer` for the package with administrator rights, so the update goes in
     /// without clicking through the installer window. macOS asks for the password itself; Fussel never
-    /// sees it. The install runs detached, because the package quits this very app halfway through.
+    /// sees it. The install runs in the background, because the package quits this very app halfway
+    /// through. (No `nohup`: launched this way it refuses with "can't detach from console".)
     private static func installInBackground(_ package: URL) -> InstallStart {
         // AppleScript quotes the path for the shell itself; only its own string needs escaping.
         let path = package.path.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
-        let script = "do shell script \"/usr/bin/nohup /usr/sbin/installer -pkg \" & quoted form of \"\(path)\" & "
+        let script = "do shell script \"/usr/sbin/installer -pkg \" & quoted form of \"\(path)\" & "
             + "\" -target / > /tmp/fussel-update.log 2>&1 &\" with administrator privileges "
             + "with prompt \"Fussel wants to install its update.\""
         var error: NSDictionary?
