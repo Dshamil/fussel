@@ -19,6 +19,7 @@ struct ContentView: View {
     @State private var page: Page
     @State private var didAutoScan = false
     @AppStorage(SettingsKey.appearance) private var appearance = AppearanceChoice.system.rawValue
+    @AppStorage("sidebarWidth") private var sidebarWidth = 236.0
 
     init(page: Page = .overview) {
         _page = State(initialValue: page)
@@ -36,8 +37,8 @@ struct ContentView: View {
                     Sidebar(page: $page)
                 }
             }
-            .frame(width: 236)
-            Rectangle().fill(palette.cardStroke).frame(width: 1)
+            .frame(width: sidebarWidth)
+            SidebarDivider(width: $sidebarWidth)
             Group {
                 switch page {
                 case .overview: OverviewPage(page: $page)
@@ -70,6 +71,46 @@ struct ContentView: View {
 }
 
 // MARK: - Sidebar
+
+/// The line between the sidebar and the page. Drag it to make the sidebar wider or narrower;
+/// double-click it to go back to the usual width. The width is remembered.
+private struct SidebarDivider: View {
+    @Binding var width: Double
+    @Environment(\.palette) private var palette
+    @State private var start: Double?
+    @State private var hovering = false
+
+    static let range = 200.0...340.0
+    static let standard = 236.0
+
+    var body: some View {
+        Rectangle()
+            .fill(hovering || start != nil ? palette.secondary.opacity(0.5) : palette.cardStroke)
+            .frame(width: 1)
+            // A wider, invisible strip to grab, so the 1 pt line is easy to hit.
+            .overlay {
+                Color.clear
+                    .frame(width: 9)
+                    .contentShape(Rectangle())
+                    .onHover { inside in
+                        hovering = inside
+                        if inside { NSCursor.resizeLeftRight.push() } else { NSCursor.pop() }
+                    }
+                    .gesture(DragGesture(minimumDistance: 1, coordinateSpace: .global)
+                        .onChanged { drag in
+                            if start == nil { start = width }
+                            width = min(max((start ?? width) + drag.translation.width, Self.range.lowerBound),
+                                        Self.range.upperBound)
+                        }
+                        .onEnded { _ in start = nil })
+                    .onTapGesture(count: 2) {
+                        withAnimation(.spring(duration: 0.25)) { width = Self.standard }
+                    }
+            }
+            .animation(.easeOut(duration: 0.15), value: hovering)
+            .zIndex(1)
+    }
+}
 
 private struct Sidebar: View {
     @Environment(AppModel.self) private var app

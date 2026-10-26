@@ -43,6 +43,18 @@ struct SettingsView: View {
                 }
                 .pickerStyle(.segmented)
             }
+            Section("Welcome Tour") {
+                HStack {
+                    Text("A short look at how Fussel works.")
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Show Tour") {
+                        guard let delegate = AppDelegate.shared else { return }
+                        delegate.model.showTutorial = true
+                        delegate.showMainWindow()
+                    }
+                }
+            }
             Section("Sounds") {
                 Toggle("Play little sounds", isOn: $playSounds)
             }
