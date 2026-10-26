@@ -469,6 +469,7 @@ private struct ScanChip: View {
     let title: String
     let done: Bool
     let tint: Color
+    @State private var spinning = false
 
     var body: some View {
         HStack(spacing: 6) {
@@ -477,9 +478,14 @@ private struct ScanChip: View {
                     Image(systemName: "checkmark.circle.fill")
                         .transition(.scale(scale: 0.2).combined(with: .opacity))
                 } else {
-                    ProgressView()
-                        .controlSize(.mini)
-                        .tint(tint)
+                    // Drawn in SwiftUI (not ProgressView), so it matches the tint and shows up in previews.
+                    Circle()
+                        .trim(from: 0.2, to: 1)
+                        .stroke(tint, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                        .padding(1.5)
+                        .rotationEffect(.degrees(spinning ? 360 : 0))
+                        .animation(.linear(duration: 0.8).repeatForever(autoreverses: false), value: spinning)
+                        .onAppear { spinning = true }
                 }
             }
             .frame(width: 14, height: 14)
