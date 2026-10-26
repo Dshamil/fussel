@@ -15,7 +15,7 @@ Fussel ist eine minimalistische, verspielte Mac-Aufräum-App (ähnlich CleanMyMa
 
 ```
 swift build                     # Debug-Build
-swift test                      # Tests (Schutzregeln, Versionsvergleich, Appcast, Update-Signatur)
+swift test                      # 16 Tests: Schutzregel (Groß/klein, Pfad-Tricks, Schlüsselbund, Apple-Apps, eigene Ordner), Aufräumen + Undo, Scanner, Versionsvergleich, Appcast, Update-Signatur
 scripts/build.sh 0.8.1          # Universal-Build → dist/Fussel.app (ad-hoc signiert)
 scripts/package.sh 0.8.1        # Installer dist/Fussel-Installer.pkg + dist/Fussel.dmg
 open dist/Fussel.app            # starten
@@ -35,7 +35,7 @@ Fussel ist eine Menüleisten-App (keine Dock-Icon, `LSUIElement`). Läuft schon 
 
 - `FusselApp.swift` – App-Start, Menüleisten-Icon (Links-Klick: Fenster, Rechts-Klick: Menü), Hauptfenster (normales Mac-Fenster, 960×640, verschieb- und vergrößerbar), Tastenkürzel, Login-Item.
 - `AppModel.swift` – Zustand: Smart Scan → Ergebnisse → Aufräumen → fertig, Undo, Stimmungen (hot/sleepy/stuffed).
-- `Scanner.swift`, `Cleaner.swift` – Suchen und in den Papierkorb legen. **`Cleaner.isSafeToRemove` ist die letzte Schutzlinie** – nur mit Tests ändern.
+- `Scanner.swift`, `Cleaner.swift` – Suchen und in den Papierkorb legen. **`Cleaner.isSafeToRemove` ist die letzte Schutzlinie** – nur mit Tests ändern. Tests in `Tests/FusselTests/CleaningTests.swift`; vor einer Änderung prüfen, dass die Tests gegen die alte Fassung anschlagen würden.
 - `History.swift` – Verlauf + Undo (JSON in Application Support).
 - `SystemMonitor.swift` – Speicher, RAM, CPU, Temperatur (SMC), Akku, Netzwerk. Eine einzige Messschleife: 2 s bei offenem Fenster, 30 s im Hintergrund. Werte, die sich ständig ändern, **ohne** `.contentTransition(.numericText())` anzeigen: das zeichnet und verwischt die Ziffern als Bilder und kostete 11 Prozentpunkte CPU und über 100 MB Speicher.
 - `ContentView.swift` – Seitenleiste (Fussel-Icon, Overview, Clean: System Junk/Trash, Review: Large Files/Uninstaller/App Updates, Settings, History, Speicher + „Clean Safe Items“) und die Übersicht (Speicher-Balken, Kategorien-Liste, Werte-Zeile). Ernster Stil im Sinne von Purge, mit dezenten Animationen.

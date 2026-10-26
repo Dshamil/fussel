@@ -30,23 +30,47 @@ enum Cleaner {
         return result
     }
 
-    /// A last line of defence: only paths inside the home folder (never the important top-level
-    /// folders themselves) and app bundles in /Applications may ever be touched.
+    /// A last line of defence: only things inside the home folder (never its folders, the important
+    /// Library folders or anything holding keys) and non-Apple app bundles in /Applications may ever be
+    /// touched. Every scanner already stays within this; this check catches any future mistake.
     static func isSafeToRemove(_ url: URL) -> Bool {
-        let path = url.standardizedFileURL.path
-        let home = FileManager.default.homeDirectoryForCurrentUser.standardizedFileURL.path
-        let library = home + "/Library"
+        let standardized = url.standardizedFileURL
+        // The Mac's disk ignores upper and lower case, so the checks do too: "documents" is Documents.
+        let path = standardized.path.lowercased()
+        let home = FileManager.default.homeDirectoryForCurrentUser.standardizedFileURL.path.lowercased()
+        let library = home + "/library"
         let forbidden: Set<String> = [
-            "/", home, library, home + "/Desktop", home + "/Documents", home + "/Downloads",
-            home + "/Pictures", home + "/Music", home + "/Movies", home + "/Applications", home + "/.Trash",
-            library + "/Caches", library + "/Logs", library + "/Application Support", library + "/Preferences",
-            library + "/Containers", library + "/Group Containers", library + "/LaunchAgents",
-            library + "/Developer", library + "/Developer/Xcode", "/Applications",
+            "/", home, library, home + "/desktop", home + "/documents", home + "/downloads",
+            home + "/pictures", home + "/music", home + "/movies", home + "/public", home + "/applications",
+            home + "/.trash", library + "/caches", library + "/logs", library + "/application support",
+            library + "/preferences", library + "/containers", library + "/group containers",
+            library + "/launchagents", library + "/developer", library + "/developer/xcode",
+            library + "/mobile documents", library + "/cloudstorage", library + "/mail", library + "/messages",
+            "/applications",
         ]
         if forbidden.contains(path) { return false }
-        if path.hasPrefix(home + "/") { return true }
-        if path.hasPrefix("/Applications/") && path.hasSuffix(".app") { return true }
+        // Never anything inside the places that hold passwords and keys.
+        for secret in [library + "/keychains", home + "/.ssh", home + "/.gnupg"]
+        where path == secret || path.hasPrefix(secret + "/") {
+            return false
+        }
+        if path.hasPrefix(home + "/") {
+            // Folders right in the home folder are the user's own (like ~/Projects): files there may go,
+            // the folders themselves never.
+            let inHome = standardized.deletingLastPathComponent().path.lowercased() == home
+            return !(inHome && isFolder(standardized))
+        }
+        // Apps in /Applications, also one folder down (like /Applications/Utilities), but never Apple's own.
+        let depth = standardized.pathComponents.count
+        if path.hasPrefix("/applications/"), path.hasSuffix(".app"), depth == 3 || depth == 4 {
+            return !(Bundle(url: standardized)?.bundleIdentifier?.hasPrefix("com.apple.") ?? false)
+        }
         return false
+    }
+
+    private static func isFolder(_ url: URL) -> Bool {
+        var isDirectory: ObjCBool = false
+        return FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) && isDirectory.boolValue
     }
 }
 

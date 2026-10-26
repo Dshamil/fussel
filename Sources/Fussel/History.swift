@@ -59,36 +59,39 @@ final class CleanHistory {
             return (0, [])
         }
         let items = records[index].trashed
-        let outcome = await Task.detached(priority: .userInitiated) { () -> (Int, [String]) in
-            let fm = FileManager.default
-            var restored = 0
-            var failed: [String] = []
-            for item in items {
-                guard fm.fileExists(atPath: item.trashed.path) else {
-                    failed.append("\(item.name): no longer in the Trash")
-                    continue
-                }
-                guard !fm.fileExists(atPath: item.original.path) else {
-                    failed.append("\(item.name): something new is already in its place")
-                    continue
-                }
-                do {
-                    try fm.createDirectory(at: item.original.deletingLastPathComponent(),
-                                           withIntermediateDirectories: true)
-                    try fm.moveItem(at: item.trashed, to: item.original)
-                    restored += 1
-                } catch {
-                    failed.append("\(item.name): \(error.localizedDescription)")
-                }
-            }
-            return (restored, failed)
-        }.value
+        let outcome = await Task.detached(priority: .userInitiated) { Self.restore(items) }.value
         // Only count it as undone when something actually came back; otherwise it can be tried again.
         if outcome.0 > 0, let i = records.firstIndex(where: { $0.id == record.id }) {
             records[i].undone = true
             save()
         }
         return outcome
+    }
+
+    /// Moves trashed items back to where they were. Never overwrites something new in their place.
+    nonisolated static func restore(_ items: [TrashedItem]) -> (restored: Int, failed: [String]) {
+        let fm = FileManager.default
+        var restored = 0
+        var failed: [String] = []
+        for item in items {
+            guard fm.fileExists(atPath: item.trashed.path) else {
+                failed.append("\(item.name): no longer in the Trash")
+                continue
+            }
+            guard !fm.fileExists(atPath: item.original.path) else {
+                failed.append("\(item.name): something new is already in its place")
+                continue
+            }
+            do {
+                try fm.createDirectory(at: item.original.deletingLastPathComponent(),
+                                       withIntermediateDirectories: true)
+                try fm.moveItem(at: item.trashed, to: item.original)
+                restored += 1
+            } catch {
+                failed.append("\(item.name): \(error.localizedDescription)")
+            }
+        }
+        return (restored, failed)
     }
 
     /// Written right away on the main thread: at most 50 small records, and writes can never overtake each other.
