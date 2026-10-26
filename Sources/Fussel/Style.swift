@@ -124,20 +124,29 @@ private struct CardSurface: ViewModifier {
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
         // Screenshots can't draw glass, so they get the plain see-through fill below.
         if palette.isGlass && !PreviewRenderer.isRendering {
+            // Real glass needs the macOS 26 SDK (Xcode 26); older toolchains build the frosted fallback.
+            #if compiler(>=6.2)
             if #available(macOS 26, *) {
                 content
                     .glassEffect(.regular, in: shape)
                     .overlay(shape.strokeBorder(palette.cardStroke, lineWidth: 1))
             } else {
-                content
-                    .background(.ultraThinMaterial, in: shape)
-                    .overlay(shape.strokeBorder(palette.cardStroke, lineWidth: 1))
+                frosted(content, shape)
             }
+            #else
+            frosted(content, shape)
+            #endif
         } else {
             content
                 .background(shape.fill(palette.card))
                 .overlay(shape.strokeBorder(palette.cardStroke, lineWidth: 1))
         }
+    }
+
+    private func frosted(_ content: Content, _ shape: RoundedRectangle) -> some View {
+        content
+            .background(.ultraThinMaterial, in: shape)
+            .overlay(shape.strokeBorder(palette.cardStroke, lineWidth: 1))
     }
 }
 

@@ -15,8 +15,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Liquid Glass needs the macOS 26 SDK: use Xcode 26 when the runner has it.
       - name: Toolchain
-        run: swift --version
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          if [ -n "$XCODE" ]; then sudo xcode-select -s "$XCODE"; fi
+          xcodebuild -version
+          swift --version
 
       - name: Read version
         id: version
