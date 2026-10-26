@@ -25,8 +25,13 @@ chmod +x "$APP/Contents/MacOS/Fussel"
 cp "$ROOT/Resources/AppIcon/Assets.car" "$ROOT/Resources/AppIcon/AppIcon.icns" "$APP/Contents/Resources/"
 sed -e "s/__VERSION__/$VERSION/g" -e "s/__BUILD__/$BUILD/g" "$ROOT/Resources/Info.plist" > "$APP/Contents/Info.plist"
 
-# Ad-hoc signature: required for Apple Silicon, no Apple Developer account needed.
-codesign --force --deep --sign - "$APP"
+# With the Fussel certificate (on GitHub, see the workflow), every version carries the same signature,
+# so macOS keeps Full Disk Access across updates. Otherwise ad-hoc: enough to run on Apple Silicon.
+if [ -n "${FUSSEL_SIGN_IDENTITY:-}" ]; then
+  codesign --force --deep --keychain "$FUSSEL_SIGN_KEYCHAIN" --sign "$FUSSEL_SIGN_IDENTITY" "$APP"
+else
+  codesign --force --deep --sign - "$APP"
+fi
 
 (cd "$DIST" && ditto -c -k --keepParent Fussel.app Fussel.zip)
 echo "Built $DIST/Fussel.zip (version $VERSION, build $BUILD)"

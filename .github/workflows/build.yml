@@ -27,11 +27,46 @@ jobs:
         id: version
         run: echo "value=$(tr -d '[:space:]' < VERSION)" >> "$GITHUB_OUTPUT"
 
+      # A fixed signing certificate, so macOS recognizes every new Fussel as the same app and keeps
+      # its Full Disk Access across updates. Without the secret (pull requests), or if anything here
+      # fails, the build falls back to the usual ad-hoc signature.
+      - name: Signing certificate
+        continue-on-error: true
+        env:
+          FUSSEL_CERT_P12: ${{ secrets.FUSSEL_CERT_P12 }}
+          FUSSEL_CERT_PASSWORD: ${{ secrets.FUSSEL_CERT_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "${FUSSEL_CERT_P12:-}" ]; then echo "No certificate, building ad-hoc."; exit 0; fi
+          KC="$RUNNER_TEMP/fussel.keychain-db"
+          KPW=$(openssl rand -hex 16)
+          echo "$FUSSEL_CERT_P12" | base64 --decode > "$RUNNER_TEMP/fussel.p12"
+          security create-keychain -p "$KPW" "$KC"
+          security set-keychain-settings -lut 3600 "$KC"
+          security unlock-keychain -p "$KPW" "$KC"
+          security import "$RUNNER_TEMP/fussel.p12" -k "$KC" -P "$FUSSEL_CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KPW" "$KC" > /dev/null
+          security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
+          # Self-made, so this build machine (and only it) has to be told to trust it for signing.
+          /usr/bin/openssl pkcs12 -in "$RUNNER_TEMP/fussel.p12" -clcerts -nokeys \
+            -passin env:FUSSEL_CERT_PASSWORD -out "$RUNNER_TEMP/fussel.pem"
+          sudo security add-trusted-cert -d -r trustRoot -p codeSign -k /Library/Keychains/System.keychain "$RUNNER_TEMP/fussel.pem"
+          rm -f "$RUNNER_TEMP/fussel.p12"
+          ID=$(security find-identity -v -p codesigning "$KC" | awk '/Fussel Code Signing/ {print $2; exit}')
+          if [ -n "$ID" ]; then
+            echo "FUSSEL_SIGN_IDENTITY=$ID" >> "$GITHUB_ENV"
+            echo "FUSSEL_SIGN_KEYCHAIN=$KC" >> "$GITHUB_ENV"
+            echo "Signing with the Fussel certificate."
+          else
+            echo "::warning::The certificate isn't usable for signing, building ad-hoc."
+          fi
+
       - name: Build Fussel.app
         run: |
           chmod +x scripts/*.sh
           set -o pipefail
           scripts/build.sh "${{ steps.version.outputs.value }}" 2>&1 | tee build.log
+          codesign -dr - dist/Fussel.app
 
       - name: Run tests
         run: |
