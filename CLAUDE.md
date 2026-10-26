@@ -9,7 +9,7 @@ Fussel ist eine minimalistische, verspielte Mac-Aufräum-App (ähnlich CleanMyMa
 - Nach einer Änderung: bauen, starten, selbst prüfen, dann knapp sagen, was sich geändert hat.
 - Kleinste Lösung, die das Problem ganz löst (Ponytail-Skills liegen in `.claude/skills`). Für Design-Fragen den Skill `apple-design` nutzen.
 - Commits nur, wenn der Nutzer es möchte oder ein Release ansteht. Commit-Autor: `Dshamil <dshamilmeziane38@gmail.com>`.
-- Das Repo ist **öffentlich** (seit 0.9.0 „Public Beta 1“, MIT-Lizenz). Nichts Privates oder Fremdes committen; der Skill `apple-design` (Apple-Texte) bleibt bewusst nur lokal.
+- Das Repo ist **öffentlich** (seit 0.9.0 „Public Beta 1“, MIT-Lizenz). Nichts Privates oder Fremdes committen; der Skill `apple-design` (Apple-Texte) bleibt bewusst nur lokal. Die alte Geschichte (mit den Apple-Texten und den Vorab-Versionen 0.1–0.8.5) liegt im privaten Archiv `Dshamil/fussel-archive`.
 
 ## Bauen und starten (auf dem Mac)
 

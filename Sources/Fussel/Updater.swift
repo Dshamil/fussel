@@ -6,7 +6,7 @@ import CryptoKit
 /// GitHub with a private key, and only a file with a matching signature gets installed.
 enum UpdateSignature {
     /// The public half of the signing key (Ed25519). The private half lives only in the repo's secrets.
-    static let publicKey = "zLUceawgTuV1Jhh+MacZxhElFE6hSK6ABb4Nv9tgxtw="
+    static let publicKey = "GqWfBfpXrEwleWJFBEr0P2UU5u7ipEkXSSCdUa3zZHU="
 
     static func isValid(_ data: Data, signature: String, publicKey: String = publicKey) -> Bool {
         guard let keyData = Data(base64Encoded: publicKey),
