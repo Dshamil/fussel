@@ -40,6 +40,7 @@ Fussel ist eine Menüleisten-App (keine Dock-Icon, `LSUIElement`). Läuft schon 
 - `ContentView.swift` – der eine Hauptbildschirm (Hero-Banner, Statistik-Kacheln, 6 Karten, Fußzeile mit Verlauf, Stil-Wahl, Zahnrad für Einstellungen).
 - `Mascot.swift` – Fussel als Figur (Canvas, 100×100 Design-Raum), Augen folgen dem Zeiger (`Gaze`), Menüleisten-Icons.
 - `Particles.swift` – Fusseln, Scan-Strudel, Konfetti.
+- `FusselWorld.swift` – Fussels kleine Welt im Banner: Dielenboden, Lichtstrahl, verlorene Sachen, Fusselhaufen je nach Scan.
 - `Style.swift`, `Theme.swift` – Stile White/Dark/Coral, Farben, `AnimationBudget` (60/30 fps; pausiert bei verstecktem Fenster).
 - `Tutorial.swift`, `StatsView.swift`, `SettingsView.swift`, `ModuleView.swift`, `UninstallerView.swift`.
 - `Updater.swift` – Selbst-Updater über GitHub Releases (geht erst, wenn das Repo öffentlich ist).

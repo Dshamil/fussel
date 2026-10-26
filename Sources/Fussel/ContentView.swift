@@ -155,6 +155,9 @@ private struct HeroCard: View {
                     )
                     .shadow(color: palette.isDark ? .black.opacity(0.35) : Theme.coralDeep.opacity(0.25),
                             radius: 18, y: 10)
+                FusselWorld(pile: pile, isDark: palette.isDark)
+                    .animation(.spring(duration: 1.2, bounce: 0.3), value: pile)
+                    .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
                 ParticleField(mode: particleMode, tint: palette.speck,
                               center: UnitPoint(x: 0.15, y: 0.5), burstDate: burstDate)
                     .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
@@ -226,6 +229,18 @@ private struct HeroCard: View {
                  ? "Items already in the Trash are deleted permanently. Everything else goes to the Trash."
                  : "Everything selected goes to the Trash, so you can still change your mind.")
         }
+    }
+
+    /// How much fluff lies on the floor: a little always, more the more a scan finds, none after cleaning.
+    private var pile: Double {
+        let bytes: Int64
+        switch app.stage {
+        case .idle: bytes = max(app.pendingFluff, 1_500_000_000)
+        case .scanning: bytes = liveBytes
+        case .ready: bytes = app.foundTotal
+        case .cleaning, .done: bytes = 0
+        }
+        return min(1, log10(1 + Double(bytes) / 1_000_000_000) / 1.1)
     }
 
     private var particleMode: ParticleField.Mode {
