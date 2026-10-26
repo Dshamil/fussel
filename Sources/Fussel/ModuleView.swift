@@ -130,7 +130,7 @@ struct BusyState: View {
         VStack(spacing: 16) {
             Spinner(tint: palette.secondary, size: 34)
             Text(text)
-                .font(.system(size: 14, weight: .medium))
+                .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(palette.secondary)
         }
     }
@@ -161,7 +161,7 @@ private struct DoneState: View {
                             VStack(alignment: .leading, spacing: 6) {
                                 ForEach(failures, id: \.self) { Text($0).font(.system(size: 11)) }
                             }
-                            .padding(14)
+                            .padding(16)
                         }
                         .frame(width: 380, height: 220)
                     }
@@ -219,7 +219,7 @@ private struct ResultsList: View {
                 .buttonStyle(SecondaryButtonStyle())
                 .help("Change the order")
             }
-            .padding(.horizontal, 28)
+            .padding(.horizontal, 32)
 
             HStack {
                 CheckBox(isOn: Binding(get: { allOn }, set: { on in items.forEach { model.setSelected($0, on) } }),
@@ -232,7 +232,7 @@ private struct ResultsList: View {
                     .contentTransition(.numericText(value: Double(model.selectedSize)))
                     .animation(.snappy, value: model.selectedSize)
             }
-            .padding(.horizontal, 28)
+            .padding(.horizontal, 32)
             .padding(.top, 12)
             .padding(.bottom, 8)
 
@@ -246,7 +246,7 @@ private struct ResultsList: View {
                             .animation(.spring(duration: 0.45, bounce: 0.2).delay(min(0.3, 0.03 * Double(index))), value: appeared)
                     }
                 }
-                .padding(.horizontal, 28)
+                .padding(.horizontal, 32)
                 .padding(.bottom, 24)
                 .animation(.spring(duration: 0.35), value: filter)
                 .animation(.spring(duration: 0.35), value: sort)
@@ -271,10 +271,10 @@ private struct ResultsList: View {
             }
             .font(.system(size: 12, weight: .semibold))
             .foregroundStyle(on ? palette.text : palette.secondary)
-            .padding(.horizontal, 10)
+            .padding(.horizontal, 12)
             .frame(height: 26)
-            .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(on ? palette.selection : .clear))
-            .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous).strokeBorder(palette.cardStroke, lineWidth: on ? 0 : 1))
+            .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(on ? palette.selection : .clear))
+            .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(palette.cardStroke, lineWidth: on ? 0 : 1))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -304,12 +304,12 @@ struct ItemRow: View {
                     .foregroundStyle(palette.text)
                     .lineLimit(1)
                 Text(item.explanation)
-                    .font(.system(size: 11.5))
+                    .font(.system(size: 11))
                     .foregroundStyle(palette.secondary)
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
                 Text(item.displayPath)
-                    .font(.system(size: 10.5))
+                    .font(.system(size: 11))
                     .foregroundStyle(palette.secondary.opacity(0.8))
                     .lineLimit(1)
                     .truncationMode(.middle)
@@ -332,10 +332,10 @@ struct ItemRow: View {
             .help("Show in Finder")
             .opacity(hovering ? 1 : 0.4)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(palette.card))
-        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(palette.card))
+        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
             .strokeBorder(isOn ? palette.text.opacity(0.25) : palette.cardStroke, lineWidth: 1))
         .scaleEffect(hovering ? 1.005 : 1)
         .onHover { inside in withAnimation(.easeOut(duration: 0.15)) { hovering = inside } }
@@ -356,13 +356,13 @@ struct CheckBox: View {
             isOn.toggle()
         } label: {
             HStack(spacing: 8) {
-                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
                     .fill(isOn ? palette.text : .clear)
-                    .overlay(RoundedRectangle(cornerRadius: 5, style: .continuous)
+                    .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous)
                         .strokeBorder(isOn ? .clear : palette.secondary.opacity(0.6), lineWidth: 1.5))
                     .overlay(
                         Image(systemName: "checkmark")
-                            .font(.system(size: 10, weight: .heavy))
+                            .font(.system(size: 11, weight: .heavy))
                             .foregroundStyle(palette.content)
                             .scaleEffect(isOn ? 1 : 0.3)
                             .opacity(isOn ? 1 : 0)

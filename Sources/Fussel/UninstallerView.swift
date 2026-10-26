@@ -30,7 +30,7 @@ struct UninstallerView: View {
         VStack(spacing: 0) {
             TextField("Search apps", text: $search)
                 .textFieldStyle(.roundedBorder)
-                .padding(10)
+                .padding(12)
             if model.loadingApps {
                 Spacer()
                 ProgressView().controlSize(.small)
@@ -62,7 +62,7 @@ struct UninstallerView: View {
             VStack(spacing: 16) {
                 StateIcon(symbol: "checkmark", celebrate: true, size: 96)
                 Text("\(result.name) is gone")
-                    .font(.rounded(24, .bold))
+                    .font(.rounded(22, .bold))
                 Text("Fussel cleared \(result.freed.byteString).")
                     .foregroundStyle(.secondary)
                 if !result.failures.isEmpty {
@@ -100,7 +100,7 @@ struct UninstallerView: View {
                 Spacer()
             }
             .padding(.horizontal, 24)
-            .padding(.vertical, 14)
+            .padding(.vertical, 16)
 
             Divider()
 
@@ -176,8 +176,8 @@ private struct AppRow: View {
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 8)
-        .padding(.vertical, 5)
-        .background(RoundedRectangle(cornerRadius: 7, style: .continuous)
+        .padding(.vertical, 4)
+        .background(RoundedRectangle(cornerRadius: 8, style: .continuous)
             .fill(selected ? palette.selection : (hovering ? palette.selection.opacity(0.5) : .clear)))
         .contentShape(Rectangle())
         .onHover { hovering = $0 }

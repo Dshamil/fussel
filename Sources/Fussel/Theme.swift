@@ -1,6 +1,8 @@
 import SwiftUI
 import AppKit
 
+/// Fussel's grid. Spacing: 4, 8, 12, 16, 24, 32 pt. Type: 11 labels, 12 secondary, 13 body,
+/// 15 emphasis, 22 titles, 30 the big number. Corners: 6 chips, 8 buttons and rows, 12 cards, 16 sheets.
 enum Theme {
     /// Fussel's color, the same as the app icon's tile.
     static let graphite = Color(hex: 0x2B2D33)
@@ -46,7 +48,7 @@ struct ActionButtonStyle: ButtonStyle {
         configuration.label
             .font(.system(size: 13, weight: .semibold))
             .foregroundStyle(palette.buttonText)
-            .padding(.horizontal, 14)
+            .padding(.horizontal, 16)
             .frame(height: 30)
             .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(palette.buttonFill))
             .opacity(isEnabled ? (configuration.isPressed ? 0.8 : 1) : 0.4)
@@ -64,7 +66,7 @@ struct SecondaryButtonStyle: ButtonStyle {
         configuration.label
             .font(.system(size: 13, weight: .semibold))
             .foregroundStyle(palette.text)
-            .padding(.horizontal, 14)
+            .padding(.horizontal, 16)
             .frame(height: 30)
             .cardSurface(palette, radius: 8)
             .opacity(isEnabled ? (configuration.isPressed ? 0.7 : 1) : 0.4)

@@ -82,7 +82,7 @@ private struct StatChip<Details: View>: View {
                     // renders and blurs the digits as images, which cost CPU and memory all the time.
             }
             .foregroundStyle(tight ? warningRed : palette.secondary)
-            .padding(.vertical, 3)
+            .padding(.vertical, 4)
             .contentShape(Rectangle())
             .offset(y: hovering ? -2 : 0)
         }
@@ -101,7 +101,7 @@ private struct BatteryPopover: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("\(battery.percent) %")
-                .font(.rounded(20, .heavy))
+                .font(.rounded(22, .heavy))
             Text(detail)
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
@@ -206,7 +206,7 @@ struct SpeedTestPopover: View {
             case .idle, .running:
                 StateIcon(symbol: "speedometer", size: 56)
                 Text("Measuring your connection…")
-                    .font(.rounded(14, .bold))
+                    .font(.rounded(13, .bold))
                 Text("This takes about 20 seconds.")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
@@ -227,7 +227,7 @@ struct SpeedTestPopover: View {
             case .failed:
                 StateIcon(symbol: "wifi.exclamationmark", size: 56)
                 Text("The speed test didn't work.")
-                    .font(.rounded(14, .bold))
+                    .font(.rounded(13, .bold))
                 Text("Check that you're online and try again.")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
@@ -235,7 +235,7 @@ struct SpeedTestPopover: View {
                     .controlSize(.small)
             }
         }
-        .padding(18)
+        .padding(16)
         .frame(width: 260)
     }
 }

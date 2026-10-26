@@ -218,7 +218,7 @@ struct UpdateBanner: View {
                         .buttonStyle(ActionButtonStyle())
                 }
             }
-            .padding(.horizontal, 14)
+            .padding(.horizontal, 16)
             .padding(.vertical, 8)
             .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(palette.card))
             .overlay(Capsule().strokeBorder(palette.cardStroke, lineWidth: 1))

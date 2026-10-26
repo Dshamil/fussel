@@ -19,7 +19,7 @@ struct ContentView: View {
     @State private var page: Page
     @State private var didAutoScan = false
     @AppStorage(SettingsKey.appearance) private var appearance = AppearanceChoice.system.rawValue
-    @AppStorage("sidebarWidth") private var sidebarWidth = 236.0
+    @AppStorage("sidebarWidth") private var sidebarWidth = 248.0
 
     init(page: Page = .overview) {
         _page = State(initialValue: page)
@@ -82,7 +82,7 @@ private struct SidebarDivider: View {
     @State private var hovering = false
 
     static let range = 200.0...340.0
-    static let standard = 236.0
+    static let standard = 248.0
 
     var body: some View {
         Rectangle()
@@ -126,13 +126,13 @@ private struct Sidebar: View {
                 SidebarFussel(busy: app.stage == .scanning || app.stage == .cleaning)
                 // The wordmark: SF Pro Rounded Heavy, set a little tight.
                 Text("Fussel")
-                    .font(.system(size: 17, weight: .heavy, design: .rounded))
+                    .font(.system(size: 15, weight: .heavy, design: .rounded))
                     .tracking(-0.6)
                     .foregroundStyle(palette.text)
             }
-            .padding(.leading, 18)
+            .padding(.leading, 16)
             .padding(.top, 40)
-            .padding(.bottom, 18)
+            .padding(.bottom, 16)
 
             row(.overview, title: "Overview", symbol: "square.grid.2x2", trailing: nil)
             section("Clean")
@@ -166,7 +166,7 @@ private struct Sidebar: View {
         Text(title)
             .font(.system(size: 11, weight: .semibold))
             .foregroundStyle(palette.secondary)
-            .padding(.leading, 20)
+            .padding(.leading, 24)
             .padding(.top, 16)
             .padding(.bottom, 4)
     }
@@ -226,16 +226,16 @@ private struct SidebarRow: View {
                         .transition(.opacity)
                 }
             }
-            .padding(.horizontal, 10)
+            .padding(.horizontal, 12)
             .frame(height: 28)
             .background(
-                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .fill(selected ? palette.selection : (hovering ? palette.selection.opacity(0.5) : .clear))
             )
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .padding(.horizontal, 10)
+        .padding(.horizontal, 12)
         .onHover { hovering = $0 }
         .animation(.easeOut(duration: 0.15), value: hovering)
         .animation(.spring(duration: 0.4), value: trailing)
@@ -263,9 +263,9 @@ private struct SidebarFussel: View {
 
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 7, style: .continuous)
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .fill(Theme.graphite)
-                .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .strokeBorder(Color.white.opacity(palette.isDark ? 0.14 : 0), lineWidth: 1))
             // While scanning the curl swings ±16° every 1.1 s; frames only run during the scan.
             TimelineView(.animation(minimumInterval: 1.0 / 30, paused: !busy || reduceMotion || paused)) { timeline in
@@ -426,9 +426,9 @@ struct PageHeader<Actions: View>: View {
             Spacer(minLength: 16)
             HStack(spacing: 8) { actions }
         }
-        .padding(.horizontal, 28)
-        .padding(.top, 30)
-        .padding(.bottom, 18)
+        .padding(.horizontal, 32)
+        .padding(.top, 32)
+        .padding(.bottom, 16)
     }
 }
 
@@ -500,10 +500,10 @@ private struct OverviewPage: View {
                         RecentCleanups()
                             .frame(width: 290)
                     }
-                    .padding(.top, 6)
+                    .padding(.top, 8)
                 }
-                .padding(.horizontal, 28)
-                .padding(.bottom, 28)
+                .padding(.horizontal, 32)
+                .padding(.bottom, 32)
             }
         }
         .onAppear {
@@ -668,19 +668,15 @@ private struct CategoryRow: View {
 
     var body: some View {
         Button(action: open) {
-            HStack(spacing: 14) {
+            HStack(spacing: 12) {
                 ToolIcon(module: module, size: 30, bounce: bounce)
                     .scaleEffect(hovering ? 1.08 : 1)
                     .rotationEffect(.degrees(hovering ? -6 : 0))
                 VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 8) {
-                        Text(module.title)
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(palette.text)
-                        if module == .large || module == .uninstaller {
-                            SafetyLabel(safe: false)
-                        }
-                    }
+                    // Safe to Clean / Check First belong to single files, so the tools themselves carry no label.
+                    Text(module.title)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(palette.text)
                     Text(detail)
                         .font(.system(size: 12))
                         .foregroundStyle(palette.secondary)
@@ -712,8 +708,8 @@ private struct CategoryRow: View {
                     .foregroundStyle(palette.secondary)
                     .offset(x: hovering ? 3 : 0)
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 11)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
             .background(hovering ? palette.text.opacity(0.04) : .clear)
             .contentShape(Rectangle())
         }
@@ -743,7 +739,7 @@ private struct CategoryRow: View {
             switch model.phase {
             case .results: return model.totalSize.byteString
             case .scanning, .cleaning: return "…"
-            case .done(let freed, _): return freed > 0 ? "−\(freed.byteString)" : "0 KB"
+            case .done(let freed, _): return freed > 0 ? freed.byteString : "0 KB"
             case .idle: return "—"
             }
         }
@@ -765,7 +761,7 @@ private struct CategoryRow: View {
             case .results: return model.items.isEmpty ? "Nothing to clean" : "\(model.selectedSize.byteString) safe to clean"
             case .scanning: return "Looking…"
             case .cleaning: return "Cleaning…"
-            case .done: return "Cleaned"
+            case .done(let freed, _): return freed > 0 ? "\(freed.byteString) freed" : "Nothing to clean"
             case .idle: return "Not scanned yet"
             }
         case .large:
@@ -840,9 +836,9 @@ struct SafetyLabel: View {
         Text(safe ? "Safe to Clean" : "Check First")
             .font(.system(size: 11, weight: .semibold))
             .foregroundStyle(text)
-            .padding(.horizontal, 6)
+            .padding(.horizontal, 8)
             .padding(.vertical, 2)
-            .background(RoundedRectangle(cornerRadius: 4, style: .continuous).fill(fill))
+            .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(fill))
     }
 }
 
@@ -866,7 +862,7 @@ private struct AccessBanner: View {
             Button("Open Settings") { Permissions.openFullDiskAccessSettings() }
                 .buttonStyle(SecondaryButtonStyle())
         }
-        .padding(14)
+        .padding(16)
         .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Palette.caution.opacity(0.1)))
         .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Palette.caution.opacity(0.3), lineWidth: 1))
     }

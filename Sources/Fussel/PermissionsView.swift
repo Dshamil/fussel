@@ -18,7 +18,7 @@ struct PermissionsView: View {
 
             VStack(alignment: .leading, spacing: 0) {
                 Text("A few permissions")
-                    .font(.rounded(24, .bold))
+                    .font(.rounded(22, .bold))
                     .foregroundStyle(palette.text)
                 Text("So I can do my job properly. You can change these anytime in System Settings.")
                     .font(.system(size: 13))
@@ -28,7 +28,7 @@ struct PermissionsView: View {
 
                 VStack(spacing: 0) {
                     row(symbol: "externaldrive", title: "Full Disk Access", needed: true,
-                        text: "Lets me look into the Trash and every hidden cache. I only look; nothing ever leaves your Mac.",
+                        text: "Lets me look into the Trash and every hidden cache. Nothing ever leaves your Mac.",
                         allowed: app.hasFullDiskAccess) {
                         Button("Open Settings") { Permissions.openFullDiskAccessSettings() }
                             .buttonStyle(SecondaryButtonStyle())
@@ -51,7 +51,7 @@ struct PermissionsView: View {
                     }
                 }
                 .cardSurface(palette, radius: 12)
-                .padding(.top, 18)
+                .padding(.top, 16)
 
                 if !app.hasFullDiskAccess {
                     Text("In System Settings, switch on Fussel in the list. If he's not there, click + and pick Fussel from Applications. You may need to reopen Fussel afterwards.")
@@ -77,7 +77,7 @@ struct PermissionsView: View {
                         .frame(width: 0, height: 0)
                         .opacity(0)
                 }
-                .padding(.top, 18)
+                .padding(.top, 16)
             }
             .padding(24)
             .frame(width: 500)
@@ -100,7 +100,7 @@ struct PermissionsView: View {
                                    @ViewBuilder action: () -> Action) -> some View {
         HStack(alignment: .center, spacing: 14) {
             Image(systemName: symbol)
-                .font(.system(size: 16, weight: .medium))
+                .font(.system(size: 15, weight: .medium))
                 .foregroundStyle(palette.text)
                 .frame(width: 30, height: 30)
                 .background(Circle().fill(palette.text.opacity(0.07)))
@@ -111,11 +111,11 @@ struct PermissionsView: View {
                         .foregroundStyle(palette.text)
                     if needed {
                         Text("Needed")
-                            .font(.system(size: 10.5, weight: .semibold))
+                            .font(.system(size: 11, weight: .semibold))
                             .foregroundStyle(palette.secondary)
-                            .padding(.horizontal, 5)
+                            .padding(.horizontal, 4)
                             .padding(.vertical, 1)
-                            .background(RoundedRectangle(cornerRadius: 4, style: .continuous).fill(palette.text.opacity(0.07)))
+                            .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(palette.text.opacity(0.07)))
                     }
                 }
                 Text(text)
@@ -132,7 +132,7 @@ struct PermissionsView: View {
                 action()
             }
         }
-        .padding(.horizontal, 14)
+        .padding(.horizontal, 16)
         .padding(.vertical, 12)
     }
 

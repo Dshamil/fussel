@@ -259,7 +259,7 @@ struct AppUpdatesView: View {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("\(model.updates.count) update\(model.updates.count == 1 ? "" : "s") available")
-                        .font(.rounded(20, .bold))
+                        .font(.rounded(22, .bold))
                     Text("Checked \(checked) apps")
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
@@ -268,7 +268,7 @@ struct AppUpdatesView: View {
                 Button("Check Again") { Task { await model.check() } }
             }
             .padding(.horizontal, 24)
-            .padding(.vertical, 14)
+            .padding(.vertical, 16)
             Divider()
             List(model.updates) { update in
                 HStack(spacing: 12) {
@@ -289,7 +289,7 @@ struct AppUpdatesView: View {
                     }
                     .controlSize(.small)
                 }
-                .padding(.vertical, 3)
+                .padding(.vertical, 4)
             }
             .listStyle(.inset)
             // Let the style's own background show instead of the list's.

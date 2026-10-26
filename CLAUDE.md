@@ -45,7 +45,7 @@ Fussel ist eine Menüleisten-App (keine Dock-Icon, `LSUIElement`). Läuft schon 
 - `ModuleView.swift` – Listen der Werkzeuge mit Filter (Safe to Clean / Check First), Sortierung, Erklärung je Eintrag.
 - `StatsView.swift` (Werte-Zeile + Popovers), `SettingsView.swift`, `UninstallerView.swift`.
 - `PermissionsView.swift` – eigener Bildschirm für die Rechte (Festplattenvollzugriff = nötig, Mitteilungen, Start mit dem Mac), zeigt live „Allowed“. Kommt beim ersten Start direkt nach der Tour (auch nach Skip), sonst über „Check Permissions“ in den Einstellungen.
-- `Tutorial.swift` – kurze Willkommens-Tour (4 Karten, Skip/Esc), von selbst nur beim allerersten Start nach der Installation (`FirstLaunch.seen`), sonst über „Show Tour“ in den Einstellungen. Die Seitenleiste ist per Ziehen am Trennstrich 200–340 pt breit (Doppelklick: zurück auf 236).
+- `Tutorial.swift` – kurze Willkommens-Tour (4 Karten, Skip/Esc), von selbst nur beim allerersten Start nach der Installation (`FirstLaunch.seen`), sonst über „Show Tour“ in den Einstellungen. Die Seitenleiste ist per Ziehen am Trennstrich 200–340 pt breit (Doppelklick: zurück auf 248).
 - `Updater.swift` – Selbst-Updater über GitHub Releases, prüft die Ed25519-Signatur (`UpdateSignature`) vor dem Installieren.
 - `AppUpdates.swift` – Updates anderer Apps (App Store + Sparkle-Feeds).
 - `FluffWatcher.swift` – wöchentliche Erinnerung.

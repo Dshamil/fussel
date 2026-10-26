@@ -131,7 +131,7 @@ private struct FolderRow: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
-        .background(RoundedRectangle(cornerRadius: 7, style: .continuous)
+        .background(RoundedRectangle(cornerRadius: 8, style: .continuous)
             .fill(hovering ? palette.selection.opacity(0.6) : .clear))
         .contentShape(Rectangle())
         .onHover { hovering = $0 }
@@ -196,7 +196,7 @@ struct RecentCleanups: View {
                 .buttonStyle(.plain)
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(palette.text)
-                .padding(.horizontal, 10)
+                .padding(.horizontal, 12)
                 .frame(height: 22)
                 .background(Capsule().fill(palette.text.opacity(0.08)))
                 .disabled(working != nil)
@@ -222,7 +222,7 @@ private struct OverviewCard<Content: View>: View {
                 .padding(.horizontal, 8)
             content
         }
-        .padding(10)
+        .padding(12)
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .cardSurface(palette, radius: 12)
     }

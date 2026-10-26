@@ -64,7 +64,7 @@ struct Tutorial: View {
                         .frame(width: 84, height: 84)
                     }
                     Text(card.title)
-                        .font(.rounded(24, .bold))
+                        .font(.rounded(22, .bold))
                         .foregroundStyle(palette.text)
                     Text(card.text)
                         .font(.system(size: 13))
@@ -101,7 +101,7 @@ struct Tutorial: View {
                         .buttonStyle(ActionButtonStyle())
                         .keyboardShortcut(.defaultAction)
                 }
-                .padding(.top, 18)
+                .padding(.top, 16)
             }
             .padding(24)
             .frame(width: 460)
