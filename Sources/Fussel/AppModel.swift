@@ -18,6 +18,18 @@ final class AppModel {
     var showPermissions = false
     /// On the first start the permissions screen follows the tour, even if the tour is skipped.
     var permissionsAfterTour = false
+    /// The biggest folders, largest first, for "Where your space goes".
+    var folders: [FolderSize] = []
+    private var measuringFolders = false
+
+    /// Measures the big folders in the background. Needs Full Disk Access, or macOS would ask
+    /// about every protected folder one by one.
+    func measureFolders() async {
+        guard hasFullDiskAccess, !measuringFolders, !PreviewRenderer.isRendering else { return }
+        measuringFolders = true
+        folders = await FolderSizes.measure()
+        measuringFolders = false
+    }
 
     func model(for module: Module) -> ModuleModel {
         switch module {
@@ -91,6 +103,7 @@ final class AppModel {
             try? await Task.sleep(for: .seconds(3.2 - elapsed))
         }
         stage = .ready
+        Task { await measureFolders() }
     }
 
     /// How many of the three scans have finished, for the progress chips.
@@ -111,6 +124,7 @@ final class AppModel {
         lastRecord = CleanHistory.shared.record(total, source: "Smart Clean", itemCount: count)
         monitor.refreshDisk()
         stage = .done(freed: total.freed, failures: total.failures)
+        Task { await measureFolders() }
     }
 
     /// The clean-up that the hero's Undo button would take back.

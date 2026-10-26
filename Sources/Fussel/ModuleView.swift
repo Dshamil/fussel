@@ -391,6 +391,7 @@ struct PreviewSafeScroll<Content: View>: View {
     var body: some View {
         if PreviewRenderer.isRendering {
             VStack(spacing: 0) { content }
+                .fixedSize(horizontal: false, vertical: true)
                 .frame(maxHeight: .infinity, alignment: .top)
                 .clipped()
         } else {

@@ -486,6 +486,13 @@ private struct OverviewPage: View {
 
                     StatsLine()
                         .padding(.top, 2)
+
+                    HStack(alignment: .top, spacing: 16) {
+                        BiggestFolders()
+                        RecentCleanups()
+                            .frame(width: 290)
+                    }
+                    .padding(.top, 6)
                 }
                 .padding(.horizontal, 28)
                 .padding(.bottom, 28)
@@ -493,6 +500,10 @@ private struct OverviewPage: View {
         }
         .onAppear {
             withAnimation(.spring(duration: 1.0, bounce: 0.2).delay(0.1)) { shown = true }
+        }
+        .task { if app.folders.isEmpty { await app.measureFolders() } }
+        .onChange(of: app.hasFullDiskAccess) { _, allowed in
+            if allowed { Task { await app.measureFolders() } }
         }
         .onChange(of: app.stage) { _, stage in
             if case .done(let freed, _) = stage, freed > 0 { celebrations += 1 }

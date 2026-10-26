@@ -152,7 +152,7 @@ struct HistoryList: View {
                 Text("\(record.freed.byteString) · \(record.source)")
                     .font(.system(size: 13, weight: .semibold))
                     .strikethrough(record.undone)
-                Text("\(record.date.formatted(.relative(presentation: .named))) · \(record.itemCount) items")
+                Text("\(record.date.formatted(.relative(presentation: .named).locale(Locale(identifier: "en_US")))) · \(record.itemCount) items")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
             }

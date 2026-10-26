@@ -135,6 +135,10 @@ enum PreviewRenderer {
                 InstalledApp(url: URL(fileURLWithPath: "/System/Applications/\($0).app"), name: $0, bundleID: "")
             }
             model.uninstaller.selectedApp = model.uninstaller.apps[3]
+            model.folders = [("Library", 96_400_000_000), ("Pictures", 61_200_000_000), ("Applications", 38_900_000_000),
+                             ("Movies", 24_700_000_000), ("Downloads", 9_300_000_000)].map {
+                FolderSize(url: home.appendingPathComponent($0.0), name: $0.0, bytes: $0.1)
+            }
             model.stage = .ready
         case "done":
             model.junk.phase = .done(freed: 2_160_000_000, failures: [])
