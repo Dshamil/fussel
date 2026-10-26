@@ -13,7 +13,7 @@ enum PreviewRenderer {
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
 
         renderCloset(to: dir)
-        let styles: [AppStyle] = [.light, .dark, .coral]
+        let styles: [AppStyle] = [.light, .dark, .coral, .graphite]
         let scenarios = ["idle", "scanning", "ready", "done", "tutorial", "stuffed", "hot", "sleepy", "pending", "santa"]
         for style in styles {
             for scenario in scenarios {
@@ -22,7 +22,7 @@ enum PreviewRenderer {
                     ContentView()
                 }
                 .environment(model)
-                .environment(\.colorScheme, style == .dark ? .dark : .light)
+                .environment(\.colorScheme, style == .dark || style == .graphite ? .dark : .light)
                 .frame(width: 760, height: 830)
 
                 let renderer = ImageRenderer(content: view)

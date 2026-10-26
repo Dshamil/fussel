@@ -619,7 +619,7 @@ private struct ModuleCard: View {
             .background {
                 ZStack {
                     shape.fill(palette.card)
-                    shape.fill(palette.isDark ? Palette.pastel(module).opacity(0.13) : Palette.pastel(module))
+                    shape.fill(!palette.colorful ? .clear : palette.isDark ? Palette.pastel(module).opacity(0.13) : Palette.pastel(module))
                     // Light falls from the top, like on a soft plastic toy.
                     shape.fill(LinearGradient(colors: [.white.opacity(palette.isDark ? 0.05 : 0.55), .clear],
                                               startPoint: .top, endPoint: .center))

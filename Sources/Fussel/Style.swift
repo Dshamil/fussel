@@ -1,9 +1,9 @@
 import SwiftUI
 import AppKit
 
-/// The three looks of Fussel, plus following the system.
+/// The four looks of Fussel, plus following the system.
 enum AppStyle: String, CaseIterable, Identifiable {
-    case system, light, dark, coral
+    case system, light, dark, coral, graphite
 
     var id: String { rawValue }
 
@@ -13,6 +13,7 @@ enum AppStyle: String, CaseIterable, Identifiable {
         case .light: return "White"
         case .dark: return "Dark"
         case .coral: return "Coral"
+        case .graphite: return "Graphite"
         }
     }
 
@@ -21,7 +22,7 @@ enum AppStyle: String, CaseIterable, Identifiable {
         switch self {
         case .system: return nil
         case .light, .coral: return NSAppearance(named: .aqua)
-        case .dark: return NSAppearance(named: .darkAqua)
+        case .dark, .graphite: return NSAppearance(named: .darkAqua)
         }
     }
 }
@@ -49,6 +50,8 @@ struct Palette {
     /// Pastel per card, borrowed from the first icon sketches.
     var tint: (Module) -> Color
     var icon: (Module) -> Color
+    /// False for Graphite: cards and tiles drop their pastels and stay gray.
+    var colorful = true
 
     static func pastel(_ module: Module) -> Color {
         switch module {
@@ -145,11 +148,35 @@ struct Palette {
         icon: { _ in Theme.ink }
     )
 
+    /// Graphite: one calm dark gray, no gradients, color only where it means something.
+    static let graphite = Palette(
+        isDark: true,
+        canvas: solid(0x1C1C1E),
+        card: Color(hex: 0x2A2A2D),
+        cardStroke: Color(hex: 0x37373B),
+        text: Color(hex: 0xF2F2F2),
+        secondary: Color(hex: 0xA1A1A6),
+        heroFill: solid(0x2A2A2D),
+        heroStroke: .white.opacity(0.06),
+        heroText: Color(hex: 0xF2F2F2),
+        heroButtonFill: Color(hex: 0xF2F2F2),
+        heroButtonText: Color(hex: 0x1C1C1E),
+        mascot: Color(hex: 0xF4F1EC),
+        speck: Color(hex: 0xC7C7CC),
+        badge: solid(0x2A2A2D),
+        sheet: Color(hex: 0x232325),
+        blobs: (.clear, .clear),
+        tint: { _ in .white.opacity(0.07) },
+        icon: { _ in Color(hex: 0xD1D1D6) },
+        colorful: false
+    )
+
     static func resolve(_ style: AppStyle, scheme: ColorScheme) -> Palette {
         switch style {
         case .light: return .white
         case .dark: return .dark
         case .coral: return .coral
+        case .graphite: return .graphite
         case .system: return scheme == .dark ? .dark : .white
         }
     }
@@ -268,6 +295,9 @@ struct StyleSwitcher: View {
                 .overlay(Circle().strokeBorder(.white.opacity(0.25), lineWidth: 0.5))
         case .coral:
             Circle().fill(Palette.coralGradient)
+        case .graphite:
+            Circle().fill(Color(hex: 0x3A3A3E))
+                .overlay(Circle().strokeBorder(.white.opacity(0.25), lineWidth: 0.5))
         }
     }
 }

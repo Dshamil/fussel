@@ -80,10 +80,10 @@ private struct StatTile<Gauge: View, Footer: View>: View {
         VStack(alignment: .leading, spacing: 8) {
             ZStack {
                 RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .fill(palette.isDark ? kind.pastel.opacity(0.18) : kind.pastel)
+                    .fill(!palette.colorful ? .white.opacity(0.07) : palette.isDark ? kind.pastel.opacity(0.18) : kind.pastel)
                 Image(systemName: symbol ?? kind.symbol)
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(palette.isDark ? kind.pastel : Theme.ink)
+                    .foregroundStyle(!palette.colorful ? palette.text : palette.isDark ? kind.pastel : Theme.ink)
                     .symbolEffect(.bounce, value: hovering)
             }
             .frame(width: 30, height: 30)
@@ -118,7 +118,7 @@ private struct StatTile<Gauge: View, Footer: View>: View {
             ZStack {
                 shape.fill(palette.card)
                 // A whisper of the tile's pastel, fading out towards the bottom.
-                shape.fill(LinearGradient(colors: [kind.pastel.opacity(palette.isDark ? 0.10 : 0.5), .clear],
+                shape.fill(LinearGradient(colors: [kind.pastel.opacity(!palette.colorful ? 0 : palette.isDark ? 0.10 : 0.5), .clear],
                                           startPoint: .top, endPoint: .bottom))
             }
             .shadow(color: .black.opacity(hovering ? (palette.isDark ? 0.3 : 0.08) : 0), radius: 12, y: 6)
@@ -146,8 +146,9 @@ private struct FillBar: View {
         GeometryReader { geo in
             ZStack(alignment: .leading) {
                 Capsule().fill(palette.text.opacity(0.08))
+                // Graphite keeps its bars gray and only shows red when it gets tight.
                 Capsule()
-                    .fill(tint)
+                    .fill(palette.colorful || tint == warningRed ? tint : Color(hex: 0xC7C7CC))
                     .frame(width: max(9, geo.size.width * min(1, max(0, grown ? fraction : 0))))
                     .animation(.spring(duration: 0.9, bounce: 0.3), value: fraction)
             }
@@ -165,15 +166,17 @@ private struct TileButtonStyle: ButtonStyle {
     @Environment(\.palette) private var palette
 
     func makeBody(configuration: Configuration) -> some View {
-        NudgeButtonStyle(tint: palette.isDark ? kind.pastel : kind.ink,
+        NudgeButtonStyle(tint: !palette.colorful ? palette.text : palette.isDark ? kind.pastel : kind.ink,
                          badgeText: palette.isDark ? Theme.ink : .white)
             .makeBody(configuration: configuration)
     }
 }
 
 /// Green while there's room, orange when it fills up, red once it gets tight.
+private let warningRed = Color(hex: 0xE5484D)
+
 private func barColor(_ fraction: Double) -> Color {
-    if fraction > 0.9 { return Color(hex: 0xE5484D) }
+    if fraction > 0.9 { return warningRed }
     if fraction > 0.75 { return Color(hex: 0xF5A524) }
     return Color(hex: 0x30A46C)
 }
@@ -235,7 +238,7 @@ private struct BatteryTile: View {
                  detail: detail(battery)) {
             if let battery {
                 FillBar(fraction: Double(battery.percent) / 100,
-                        tint: low ? Color(hex: 0xE5484D) : Color(hex: 0x30A46C))
+                        tint: low ? warningRed : Color(hex: 0x30A46C))
             }
         } footer: {
             if let health = battery?.health {
@@ -307,7 +310,8 @@ private struct NetworkTile: View {
         StatTile(kind: .network,
                  value: "↓ \(rate(s.downBytesPerSecond))",
                  detail: "↑ \(rate(s.upBytesPerSecond))") {
-            Sparkline(values: app.monitor.downHistory, tint: StatKind.network.pastel, dark: palette.isDark)
+            Sparkline(values: app.monitor.downHistory, tint: palette.colorful ? StatKind.network.pastel : palette.secondary,
+                      dark: palette.isDark)
                 .frame(height: 18)
         } footer: {
             Button("Speed Test") {
