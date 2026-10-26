@@ -83,6 +83,14 @@ enum PreviewRenderer {
         print("Rendered \(name).png")
     }
 
+    /// Made-up clean-ups for "Recent clean-ups" in screenshots.
+    static let sampleRecords: [CleanRecord] = [(Int64(2_160_000_000), 1800.0, "Smart Clean"), (840_000_000, 2 * 86_400.0, "System Junk"),
+                                               (1_350_000_000, 6 * 86_400.0, "Trash & Downloads")].map { freed, ago, source in
+        let item = TrashedItem(name: "Example", original: URL(fileURLWithPath: "/tmp/example"),
+                               trashed: URL(fileURLWithPath: "/tmp/example"), size: freed)
+        return CleanRecord(date: Date().addingTimeInterval(-ago), source: source, freed: freed, itemCount: 12, trashed: [item])
+    }
+
     static func sampleModel(_ scenario: String) -> AppModel {
         let model = AppModel()
         model.hasFullDiskAccess = scenario != "idle"

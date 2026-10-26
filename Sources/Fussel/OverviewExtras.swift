@@ -142,7 +142,8 @@ struct RecentCleanups: View {
 
     var body: some View {
         OverviewCard(title: "Recent clean-ups") {
-            let records = Array(CleanHistory.shared.records.prefix(3))
+            // Screenshots show made-up clean-ups, never the history of the Mac they're drawn on.
+            let records = PreviewRenderer.isRendering ? PreviewRenderer.sampleRecords : Array(CleanHistory.shared.records.prefix(3))
             if records.isEmpty {
                 Text("Nothing cleaned yet. When you do, Undo will be right here.")
                     .font(.system(size: 12))

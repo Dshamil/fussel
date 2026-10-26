@@ -45,12 +45,13 @@ extension PreviewRenderer {
         writeGIF(frames, to: dir.appendingPathComponent("fussel.gif"))
     }
 
-    /// The window in one state, at its real size.
+    /// The window in one state.
     private static func window(_ scenario: String, scheme: ColorScheme, page: Page) -> CGImage? {
         let view = StyledRoot { ContentView(page: page) }
             .environment(sampleModel(scenario))
             .environment(\.colorScheme, scheme)
-            .frame(width: 960, height: 640)
+            // A little taller than the default window, so the overview fits down to its last card.
+            .frame(width: 960, height: 740)
         let renderer = ImageRenderer(content: view)
         renderer.scale = 1
         return renderer.cgImage
