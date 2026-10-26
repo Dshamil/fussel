@@ -54,7 +54,10 @@ ln -s /Applications "$WORK/dmg/Applications"
 # The mounted disk shows the Fussel icon too: the flag has to be set on the mounted volume itself.
 cp "$ICON" "$WORK/dmg/.VolumeIcon.icns"
 hdiutil create -volname "Fussel" -srcfolder "$WORK/dmg" -ov -format UDRW "$WORK/rw.dmg"
-MOUNT=$(hdiutil attach -nobrowse -readwrite "$WORK/rw.dmg" | tail -1 | awk -F'\t' '{print $NF}')
+# Mounted at a place of our own choosing, so there's no output to parse (that once came back empty).
+MOUNT="$WORK/mount"
+mkdir -p "$MOUNT"
+hdiutil attach -nobrowse -readwrite -mountpoint "$MOUNT" "$WORK/rw.dmg" > /dev/null
 SetFile -a C "$MOUNT"
 hdiutil detach "$MOUNT" -quiet
 hdiutil convert "$WORK/rw.dmg" -format UDZO -o "$DIST/Fussel.dmg"
