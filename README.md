@@ -6,14 +6,14 @@
 
 <p align="center">A small, friendly Mac cleaner. Fussel finds the fluff on your Mac and moves it to the Trash.<br><i>Currently in beta.</i></p>
 
-<p align="center"><img src="docs/screenshots/styles.png" alt="Fussel in White, Dark and Coral style"></p>
+<p align="center"><img src="docs/screenshots/styles.png" alt="Fussel in White, Dark, Coral and Graphite style"></p>
 
 - **System Junk**: app caches, logs and Xcode build data
 - **Large & Old Files**: big files and things you haven't opened in ages
 - **Uninstaller**: remove apps together with their support files, caches and preferences
 - **Trash & Downloads**: empty the Trash and sweep out old downloads
 
-Plus live tiles for disk space, memory, battery, CPU and network, three styles (White, Dark, Coral),
+Plus live tiles for disk space, memory, battery, CPU and network, four styles (White, Dark, Coral, Graphite),
 a playful tutorial, and a menu bar helper for a quick clean of caches and logs.
 
 ## Safety first
