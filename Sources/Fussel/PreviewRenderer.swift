@@ -16,7 +16,7 @@ enum PreviewRenderer {
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
 
         renderMenuBar(to: dir)
-        let scenarios = ["idle", "scanning", "ready", "done", "stuffed", "pending", "tutorial", "permissions"]
+        let scenarios = ["idle", "scanning", "ready", "done", "stuffed", "pending", "tutorial", "permissions", "updated"]
         for scheme in [ColorScheme.light, .dark] {
             for scenario in scenarios {
                 render(scenario, scheme: scheme, page: .overview, to: dir, name: "\(name(scheme))-\(scenario)")
@@ -124,6 +124,9 @@ enum PreviewRenderer {
             model.showTutorial = true
         case "permissions":
             model.showPermissions = true
+        case "updated":
+            model.justUpdatedTo = "0.9.9"
+            model.hasFullDiskAccess = false
         case "ready":
             model.junk.items = [
                 CleanupItem(url: home.appendingPathComponent("Library/Caches/com.example.browser"), name: "Browser",

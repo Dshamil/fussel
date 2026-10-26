@@ -16,6 +16,8 @@ final class AppModel {
     var showTutorial = false
     /// Shows the permissions screen over the main window.
     var showPermissions = false
+    /// Set once after Fussel was updated, to show which version is now running.
+    var justUpdatedTo: String?
     /// On the first start the permissions screen follows the tour, even if the tour is skipped.
     var permissionsAfterTour = false
     /// The biggest folders, largest first, for "Where your space goes".

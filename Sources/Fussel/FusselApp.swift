@@ -70,7 +70,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             model.showTutorial = true
             model.permissionsAfterTour = true
             showMainWindow()
+        } else if let updated = Self.versionAfterUpdate() {
+            // Right after an update: say so once, and help with Full Disk Access if macOS forgot it.
+            model.justUpdatedTo = updated
+            showMainWindow()
         }
+        UserDefaults.standard.set(model.updater.currentVersion, forKey: Self.lastVersionKey)
+    }
+
+    private static let lastVersionKey = "lastRunVersion"
+
+    /// The running version, if it's newer than the one that ran last time.
+    private static func versionAfterUpdate() -> String? {
+        let current = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.0.0"
+        // Before 0.9.9 nobody wrote this down; a known user without it has just come from an older Fussel.
+        let last = UserDefaults.standard.string(forKey: lastVersionKey) ?? "0.0.0"
+        return VersionCompare.isNewer(current, than: last) ? current : nil
     }
 
     /// Opening Fussel.app again (from Programme or Spotlight) shows the window.
