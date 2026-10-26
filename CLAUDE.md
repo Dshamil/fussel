@@ -22,7 +22,7 @@ open dist/Fussel.app            # starten
 ```
 
 Fussel ist eine Menüleisten-App (keine Dock-Icon, `LSUIElement`). Läuft schon eine Version, vorher beenden: `pkill -x Fussel`.
-`Fussel --render-previews <ordner>` rendert Screenshots aller Stile (ImageRenderer kann keine AppKit-Views wie native Buttons zeichnen; die erscheinen dort als gelbe Platzhalter).
+`Fussel --render-gifs docs/screenshots` erneuert die README-GIFs (tour, styles, fussel). `Fussel --render-previews <ordner>` rendert Screenshots aller Stile (ImageRenderer kann keine AppKit-Views wie native Buttons zeichnen; die erscheinen dort als gelbe Platzhalter).
 
 ## Release
 

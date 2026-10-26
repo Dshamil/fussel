@@ -16,6 +16,10 @@ struct FusselApp: App {
             PreviewRenderer.renderAll(to: args[i + 1])
             exit(0)
         }
+        if let i = args.firstIndex(of: "--render-gifs"), i + 1 < args.count {
+            PreviewRenderer.renderGIFs(to: args[i + 1])
+            exit(0)
+        }
     }
 
     var body: some Scene {

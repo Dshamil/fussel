@@ -6,7 +6,7 @@
 
 <p align="center">Free up your Mac, calmly. Fussel finds caches, logs and forgotten files, tells you what each one is, and moves what you choose to the Trash.<br><i>Public beta.</i></p>
 
-<p align="center"><img src="docs/screenshots/overview.png" alt="Fussel's overview in light and dark mode"></p>
+<p align="center"><img src="docs/screenshots/tour.gif" width="720" alt="Fussel scanning, showing what it found, explaining System Junk and cleaning up"></p>
 
 - **Overview**: used and free space, a bar that shows where it goes, and a row per tool
 - **System Junk**: app caches, logs and Xcode build data
@@ -16,9 +16,16 @@
 - **App Updates**: updates for apps from the App Store and the web
 
 Every item comes with a plain-language explanation and a **Safe to Clean** or **Check First** label.
-Plus memory, CPU, battery and network at a glance, light and dark mode, and a menu bar helper.
+Plus memory, CPU, battery and network at a glance, and a menu bar helper.
+
+<p align="center"><img src="docs/screenshots/styles.gif" width="720" alt="Fussel in Light, Dark and the see-through Glass style"></p>
+
+<p align="center">Light, Dark or Glass, picked in Settings. Glass lets your desktop shine through, softly blurred.</p>
 
 <p align="center"><img src="docs/screenshots/list.png" width="640" alt="System Junk with explanations and safety labels"></p>
+
+<p align="center"><img src="docs/screenshots/fussel.gif" width="96" alt="Fussel swinging his curl"><br>
+<i>Fussel lives in your menu bar and swings his curl while he looks around.</i></p>
 
 ## Safety first
 

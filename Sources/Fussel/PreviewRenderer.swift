@@ -77,7 +77,7 @@ enum PreviewRenderer {
         print("Rendered \(name).png")
     }
 
-    private static func sampleModel(_ scenario: String) -> AppModel {
+    static func sampleModel(_ scenario: String) -> AppModel {
         let model = AppModel()
         model.hasFullDiskAccess = scenario != "idle"
         let home = FileManager.default.homeDirectoryForCurrentUser
