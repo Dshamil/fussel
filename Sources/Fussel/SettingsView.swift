@@ -27,7 +27,6 @@ struct SettingsView: View {
     @State private var openAtLogin = LoginItem.isEnabled
     @AppStorage(FluffWatcher.enabledKey) private var weeklyCheck = true
     @AppStorage(FusselUpdater.autoKey) private var autoUpdate = true
-    @State private var updateStatus = ""
     @AppStorage(SettingsKey.sounds) private var playSounds = false
     @AppStorage(SettingsKey.appearance) private var appearance = AppearanceChoice.system.rawValue
 
@@ -76,24 +75,14 @@ struct SettingsView: View {
                     Text("Version \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?")")
                         .foregroundStyle(.secondary)
                     Spacer()
-                    if !updateStatus.isEmpty {
-                        Text(updateStatus)
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
+                    if let updater = AppDelegate.shared?.model.updater {
+                        UpdateControls(updater: updater)
                     }
-                    Button("Check Now") {
-                        updateStatus = "Checking…"
-                        Task { @MainActor in
-                            let updater = AppDelegate.shared?.model.updater
-                            await updater?.check()
-                            switch updater?.state {
-                            case .available(let release)?: updateStatus = "Fussel \(release.version) is available"
-                            case .upToDate?: updateStatus = "You're up to date"
-                            case .failed(let message)?: updateStatus = message
-                            default: updateStatus = ""
-                            }
-                        }
-                    }
+                }
+                if let note = AppDelegate.shared?.model.updater.note {
+                    Text(note)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
                 }
             }
             Section("Large & Old Files") {
@@ -145,5 +134,42 @@ struct SettingsView: View {
         .formStyle(.grouped)
         .frame(width: 440)
         .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+/// What Settings shows next to the version: a status, and Update Now as soon as there is something new.
+private struct UpdateControls: View {
+    let updater: FusselUpdater
+
+    var body: some View {
+        switch updater.state {
+        case .checking:
+            ProgressView().controlSize(.small)
+            Text("Checking…").font(.system(size: 11)).foregroundStyle(.secondary)
+        case .available(let release):
+            Text("Fussel \(release.version) is available")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+            Button("Update Now") { Task { await updater.install() } }
+                .keyboardShortcut(.defaultAction)
+        case .downloading:
+            ProgressView().controlSize(.small)
+            Text("Downloading…").font(.system(size: 11)).foregroundStyle(.secondary)
+        case .installing:
+            ProgressView().controlSize(.small)
+            Text("Installing…").font(.system(size: 11)).foregroundStyle(.secondary)
+        case .upToDate:
+            Text("You're up to date").font(.system(size: 11)).foregroundStyle(.secondary)
+            checkButton
+        case .failed(let message):
+            Text(message).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(2)
+            checkButton
+        case .idle:
+            checkButton
+        }
+    }
+
+    private var checkButton: some View {
+        Button("Check Now") { Task { await updater.check() } }
     }
 }

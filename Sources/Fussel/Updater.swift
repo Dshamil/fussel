@@ -38,8 +38,8 @@ enum VersionCompare {
 }
 
 /// Keeps Fussel itself up to date from its GitHub releases.
-/// Downloads the installer package, checks its signature and only then opens it; the installer quits
-/// and restarts Fussel.
+/// Downloads the installer package, checks its signature and only then installs it in the background,
+/// after one password prompt from macOS. The package quits this Fussel and starts the new one.
 @Observable
 @MainActor
 final class FusselUpdater {
@@ -67,6 +67,8 @@ final class FusselUpdater {
     var state: State = .idle
     /// The newest release found, kept while it downloads and installs.
     private(set) var release: Release?
+    /// A short note after an update didn't go through, e.g. when the password prompt was cancelled.
+    var note: String?
 
     var currentVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.0.0"
@@ -137,11 +139,39 @@ final class FusselUpdater {
             try? FileManager.default.removeItem(at: target)
             try FileManager.default.moveItem(at: temp, to: target)
             state = .installing
-            // The installer quits this Fussel (preinstall) and starts the new one (postinstall).
-            NSWorkspace.shared.open(target)
+            note = nil
+            switch Self.installInBackground(target) {
+            case .started:
+                // The package quits this Fussel (preinstall) and starts the new one (postinstall).
+                break
+            case .cancelled:
+                state = .available(release)
+                note = "The update was cancelled. Click Update Now to try again."
+            case .failed:
+                // Something odd with the quiet route: fall back to the regular installer window.
+                NSWorkspace.shared.open(target)
+            }
         } catch {
             state = .failed("The download didn't work: \(error.localizedDescription)")
         }
+    }
+
+    enum InstallStart { case started, cancelled, failed }
+
+    /// Runs macOS's `installer` for the package with administrator rights, so the update goes in
+    /// without clicking through the installer window. macOS asks for the password itself; Fussel never
+    /// sees it. The install runs detached, because the package quits this very app halfway through.
+    private static func installInBackground(_ package: URL) -> InstallStart {
+        // AppleScript quotes the path for the shell itself; only its own string needs escaping.
+        let path = package.path.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
+        let script = "do shell script \"/usr/bin/nohup /usr/sbin/installer -pkg \" & quoted form of \"\(path)\" & "
+            + "\" -target / > /tmp/fussel-update.log 2>&1 &\" with administrator privileges "
+            + "with prompt \"Fussel wants to install its update.\""
+        var error: NSDictionary?
+        NSAppleScript(source: script)?.executeAndReturnError(&error)
+        guard let error else { return .started }
+        // -128 is "User canceled" in AppleScript.
+        return (error[NSAppleScript.errorNumber] as? Int) == -128 ? .cancelled : .failed
     }
 
     // MARK: GitHub
@@ -236,7 +266,7 @@ struct UpdateBanner: View {
     private func title(_ release: FusselUpdater.Release) -> String {
         switch updater.state {
         case .downloading: return "Downloading Fussel \(release.version)…"
-        case .installing: return "Opening the installer…"
+        case .installing: return "Installing… Fussel restarts in a moment"
         default: return "Fussel \(release.version) is here!"
         }
     }
