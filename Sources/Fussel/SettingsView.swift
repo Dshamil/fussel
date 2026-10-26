@@ -43,6 +43,18 @@ struct SettingsView: View {
                 }
                 .pickerStyle(.segmented)
             }
+            Section("Permissions") {
+                HStack {
+                    Text("Full Disk Access, notifications and starting with your Mac.")
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Check Permissions") {
+                        guard let delegate = AppDelegate.shared else { return }
+                        delegate.model.showPermissions = true
+                        delegate.showMainWindow()
+                    }
+                }
+            }
             Section("Welcome Tour") {
                 HStack {
                     Text("A short look at how Fussel works.")

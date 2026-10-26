@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// A short welcome tour over the main window, shown once on the very first start after installing.
-/// Five small cards; Skip (or Esc) closes it at any point.
+/// Four small cards; Skip (or Esc) closes it at any point. On the first start the permissions screen follows.
 struct Tutorial: View {
     @Environment(AppModel.self) private var app
     @Environment(\.palette) private var palette
@@ -17,7 +17,7 @@ struct Tutorial: View {
 
     private let cards = [
         Card(title: "Hi, I'm Fussel.",
-             text: "I help you free up space on your Mac, calmly. Here's how it works, in four quick steps.",
+             text: "I help you free up space on your Mac, calmly. Here's how it works, in three quick steps.",
              symbol: nil),
         Card(title: "First, I take a look",
              text: "Click Scan and I check caches, logs, the Trash, old downloads and big files. Nothing is removed yet.",
@@ -28,9 +28,6 @@ struct Tutorial: View {
         Card(title: "Clean, and change your mind",
              text: "Everything goes to the Trash first. Changed your mind? Undo puts it right back.",
              symbol: "arrow.uturn.backward"),
-        Card(title: "Let me see everything",
-             text: "With Full Disk Access I can reach the Trash and every hidden cache. You can allow it now or later.",
-             symbol: "lock.open"),
     ]
 
     private var isLast: Bool { step == cards.count - 1 }
@@ -81,10 +78,6 @@ struct Tutorial: View {
                             SafetyLabel(safe: false)
                         }
                     }
-                    if isLast {
-                        Button("Open Settings") { Permissions.openFullDiskAccessSettings() }
-                            .buttonStyle(SecondaryButtonStyle())
-                    }
                 }
                 .frame(maxWidth: .infinity, minHeight: 250)
                 .id(step)
@@ -131,6 +124,13 @@ struct Tutorial: View {
     }
 
     private func finish() {
-        withAnimation(.easeOut(duration: 0.2)) { app.showTutorial = false }
+        withAnimation(.easeOut(duration: 0.2)) {
+            app.showTutorial = false
+            // First start: ask for what Fussel needs right after the tour.
+            if app.permissionsAfterTour {
+                app.permissionsAfterTour = false
+                app.showPermissions = true
+            }
+        }
     }
 }

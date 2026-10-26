@@ -55,6 +55,7 @@ struct ContentView: View {
         .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
         .background { if palette.isGlass { GlassBackdrop() } else { palette.content } }
         .overlay { if app.showTutorial { Tutorial().transition(.opacity) } }
+        .overlay { if app.showPermissions { PermissionsView().transition(.opacity) } }
         .environment(\.animationsPaused, !app.windowVisible)
         .onAppear {
             UserDefaults.standard.set(true, forKey: FirstLaunch.seen)

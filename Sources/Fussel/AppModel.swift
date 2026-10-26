@@ -14,6 +14,10 @@ final class AppModel {
     let updater = FusselUpdater()
     /// Shows the onboarding tutorial over the main window.
     var showTutorial = false
+    /// Shows the permissions screen over the main window.
+    var showPermissions = false
+    /// On the first start the permissions screen follows the tour, even if the tour is skipped.
+    var permissionsAfterTour = false
 
     func model(for module: Module) -> ModuleModel {
         switch module {

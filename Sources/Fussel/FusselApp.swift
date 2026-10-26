@@ -68,6 +68,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         // marks the tour as seen as soon as it appears, so it never comes back, even if skipped.
         if !UserDefaults.standard.bool(forKey: FirstLaunch.seen) {
             model.showTutorial = true
+            model.permissionsAfterTour = true
             showMainWindow()
         }
     }

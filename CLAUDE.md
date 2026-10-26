@@ -43,7 +43,8 @@ Fussel ist eine Menüleisten-App (keine Dock-Icon, `LSUIElement`). Läuft schon 
 - `Style.swift`, `Theme.swift` – Farben für Light/Dark und den Glass-Stil (unscharfer Schreibtisch dahinter, Karten aus Glas ab macOS 26), Wahl `AppearanceChoice` (Match Mac/Light/Dark/Glass/Oreo = weiße Seitenleiste + Hauptbereich wie Dark, in den Einstellungen), je Werkzeug eine Akzentfarbe, Knopf-Stile.
 - `ModuleView.swift` – Listen der Werkzeuge mit Filter (Safe to Clean / Check First), Sortierung, Erklärung je Eintrag.
 - `StatsView.swift` (Werte-Zeile + Popovers), `SettingsView.swift`, `UninstallerView.swift`.
-- `Tutorial.swift` – kurze Willkommens-Tour (5 Karten, Skip/Esc), von selbst nur beim allerersten Start nach der Installation (`FirstLaunch.seen`), sonst über „Show Tour“ in den Einstellungen. Die Seitenleiste ist per Ziehen am Trennstrich 200–340 pt breit (Doppelklick: zurück auf 236).
+- `PermissionsView.swift` – eigener Bildschirm für die Rechte (Festplattenvollzugriff = nötig, Mitteilungen, Start mit dem Mac), zeigt live „Allowed“. Kommt beim ersten Start direkt nach der Tour (auch nach Skip), sonst über „Check Permissions“ in den Einstellungen.
+- `Tutorial.swift` – kurze Willkommens-Tour (4 Karten, Skip/Esc), von selbst nur beim allerersten Start nach der Installation (`FirstLaunch.seen`), sonst über „Show Tour“ in den Einstellungen. Die Seitenleiste ist per Ziehen am Trennstrich 200–340 pt breit (Doppelklick: zurück auf 236).
 - `Updater.swift` – Selbst-Updater über GitHub Releases, prüft die Ed25519-Signatur (`UpdateSignature`) vor dem Installieren.
 - `AppUpdates.swift` – Updates anderer Apps (App Store + Sparkle-Feeds).
 - `FluffWatcher.swift` – wöchentliche Erinnerung.
