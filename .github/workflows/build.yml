@@ -109,7 +109,7 @@ jobs:
               NOTES_ARG=(--generate-notes)
             fi
             gh release create "$TAG" dist/Fussel-Installer.zip dist/Fussel-Installer.pkg dist/Fussel-Installer.pkg.sig dist/Fussel.dmg dist/Fussel.zip \
-              --prerelease \
+              --latest \
               --target "$GITHUB_SHA" \
               --title "$TITLE" \
               "${NOTES_ARG[@]}"

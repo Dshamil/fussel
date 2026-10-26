@@ -69,7 +69,7 @@ enum Notifier {
     static func weeklyReminder() async {
         guard await requestPermission() else { return }
         let content = UNMutableNotificationContent()
-        content.title = "Weekly tidy-up time!"
+        content.title = "Time for a quick tidy-up"
         content.body = "It's been a week since your last scan. Want me to take a quick look?"
         content.sound = .default
         let request = UNNotificationRequest(identifier: "weekly-reminder", content: content, trigger: nil)
