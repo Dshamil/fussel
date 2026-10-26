@@ -67,4 +67,10 @@ enum Permissions {
             NSWorkspace.shared.open(url)
         }
     }
+
+    static func openBatterySettings() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.Battery-Settings.extension") {
+            NSWorkspace.shared.open(url)
+        }
+    }
 }

@@ -12,6 +12,8 @@ struct BatteryInfo: Sendable, Equatable {
     var isPluggedIn: Bool
     /// Minutes until empty (on battery) or full (charging); nil while macOS is still estimating.
     var minutesLeft: Int?
+    /// macOS's own verdict, e.g. "Good" or "Fair"; nil on Macs that don't report it.
+    var health: String? = nil
 }
 
 struct SystemSample: Sendable {
@@ -27,11 +29,13 @@ struct SystemSample: Sendable {
     var upBytesPerSecond: Double = 0
 }
 
-struct AppMemory: Identifiable, Sendable {
+/// A running app and how much it uses: memory in bytes, or CPU as a share of one core.
+struct AppUsage: Identifiable, Sendable {
     var id: pid_t { pid }
     let pid: pid_t
     let name: String
-    let bytes: UInt64
+    var bytes: UInt64 = 0
+    var cpu: Double? = nil
     let path: String?
 }
 
@@ -120,14 +124,14 @@ final class SystemMonitor {
         }
     }
 
-    func memoryHogs() async -> [AppMemory] {
+    func memoryHogs() async -> [AppUsage] {
         let apps = NSWorkspace.shared.runningApplications
             .filter { $0.activationPolicy == .regular && $0.processIdentifier != getpid() }
             .map { ($0.processIdentifier, $0.localizedName ?? "App", $0.bundleURL?.path) }
         return await Task.detached(priority: .userInitiated) {
-            apps.compactMap { pid, name, path -> AppMemory? in
+            apps.compactMap { pid, name, path -> AppUsage? in
                 guard let bytes = Sampler.footprint(of: pid) else { return nil }
-                return AppMemory(pid: pid, name: name, bytes: bytes, path: path)
+                return AppUsage(pid: pid, name: name, bytes: bytes, path: path)
             }
             .sorted { $0.bytes > $1.bytes }
             .prefix(6)
@@ -135,7 +139,37 @@ final class SystemMonitor {
         }.value
     }
 
-    func quit(_ app: AppMemory) {
+    /// The apps using the most CPU right now, read from `ps` (percent of one core).
+    func cpuHogs() async -> [AppUsage] {
+        let apps = Dictionary(
+            NSWorkspace.shared.runningApplications
+                .filter { $0.activationPolicy == .regular && $0.processIdentifier != getpid() }
+                .map { ($0.processIdentifier, ($0.localizedName ?? "App", $0.bundleURL?.path)) },
+            uniquingKeysWith: { first, _ in first })
+        return await Task.detached(priority: .userInitiated) {
+            let ps = Process()
+            ps.executableURL = URL(fileURLWithPath: "/bin/ps")
+            ps.arguments = ["-Aeo", "pid=,pcpu="]
+            let pipe = Pipe()
+            ps.standardOutput = pipe
+            guard (try? ps.run()) != nil else { return [] }
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            ps.waitUntilExit()
+            return String(decoding: data, as: UTF8.self)
+                .split(separator: "\n")
+                .compactMap { line -> AppUsage? in
+                    let parts = line.split(separator: " ")
+                    guard parts.count == 2, let pid = pid_t(parts[0]), let cpu = Double(parts[1].replacingOccurrences(of: ",", with: ".")),
+                          let app = apps[pid] else { return nil }
+                    return AppUsage(pid: pid, name: app.0, cpu: cpu, path: app.1)
+                }
+                .sorted { ($0.cpu ?? 0) > ($1.cpu ?? 0) }
+                .prefix(6)
+                .map { $0 }
+        }.value
+    }
+
+    func quit(_ app: AppUsage) {
         NSRunningApplication(processIdentifier: app.pid)?.terminate()
     }
 }
@@ -242,7 +276,8 @@ final class Sampler: @unchecked Sendable {
                 percent: Int((Double(current) / Double(maximum) * 100).rounded()),
                 isCharging: charging,
                 isPluggedIn: plugged,
-                minutesLeft: (minutes ?? -1) > 0 ? minutes : nil
+                minutesLeft: (minutes ?? -1) > 0 ? minutes : nil,
+                health: desc[kIOPSBatteryHealthKey] as? String
             )
         }
         return nil

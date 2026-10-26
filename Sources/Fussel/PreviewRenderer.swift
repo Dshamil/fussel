@@ -23,7 +23,7 @@ enum PreviewRenderer {
                 }
                 .environment(model)
                 .environment(\.colorScheme, style == .dark ? .dark : .light)
-                .frame(width: 760, height: 790)
+                .frame(width: 760, height: 830)
 
                 let renderer = ImageRenderer(content: view)
                 renderer.scale = 2
@@ -66,7 +66,7 @@ enum PreviewRenderer {
         model.monitor.sample = SystemSample(
             diskName: "Macintosh HD", diskFree: 135_870_000_000, diskTotal: 494_000_000_000,
             memUsed: 14_200_000_000, memTotal: 16_000_000_000,
-            battery: BatteryInfo(percent: 64, isCharging: false, isPluggedIn: false, minutesLeft: 214),
+            battery: BatteryInfo(percent: 64, isCharging: false, isPluggedIn: false, minutesLeft: 214, health: "Good"),
             cpu: 0.12, temperature: 36, downBytesPerSecond: 3_200, upBytesPerSecond: 0
         )
         model.monitor.downHistory = (0..<30).map { Double(($0 * 37) % 11) * 900 }

@@ -42,6 +42,49 @@ extension Int64 {
     }
 }
 
+/// A light action without a pill: bold tinted text and a small round badge with a symbol.
+/// On hover the badge grows and nudges forward; pressing squishes it.
+struct NudgeButtonStyle: ButtonStyle {
+    var tint: Color
+    /// Color of the symbol inside the badge.
+    var badgeText: Color
+    var symbol = "arrow.right"
+    var size: CGFloat = 12
+
+    func makeBody(configuration: Configuration) -> some View {
+        NudgeButton(configuration: configuration, style: self)
+    }
+
+    private struct NudgeButton: View {
+        let configuration: ButtonStyleConfiguration
+        let style: NudgeButtonStyle
+        @Environment(\.isEnabled) private var isEnabled
+        @State private var hovering = false
+
+        var body: some View {
+            HStack(spacing: style.size * 0.5) {
+                configuration.label
+                    .font(.rounded(style.size, .bold))
+                    .foregroundStyle(style.tint)
+                Image(systemName: style.symbol)
+                    .font(.system(size: style.size * 0.7, weight: .heavy))
+                    .foregroundStyle(style.badgeText)
+                    .frame(width: style.size * 1.45, height: style.size * 1.45)
+                    .background(Circle().fill(style.tint))
+                    .scaleEffect(hovering ? 1.18 : 1)
+                    .offset(x: hovering ? 2 : 0)
+            }
+            .padding(.vertical, 4)
+            .contentShape(Rectangle())
+            .scaleEffect(configuration.isPressed ? 0.93 : 1)
+            .opacity(isEnabled ? 1 : 0.4)
+            .animation(.spring(duration: 0.22, bounce: 0.5), value: configuration.isPressed)
+            .animation(.spring(duration: 0.3, bounce: 0.55), value: hovering)
+            .onHover { hovering = $0 }
+        }
+    }
+}
+
 /// The big coral pill button used for the main action on each screen.
 struct CoralButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var isEnabled

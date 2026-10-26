@@ -13,6 +13,21 @@ struct ContentView: View {
         GridItem(.flexible(), spacing: 14),
     ]
 
+    /// A small heading over a row of cards, so cleaning and tools read as two groups.
+    private func cardGroup(_ title: String, _ modules: [Module], startIndex: Int) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.rounded(13, .bold))
+                .foregroundStyle(palette.text)
+                .padding(.leading, 4)
+            LazyVGrid(columns: columns, spacing: 14) {
+                ForEach(Array(modules.enumerated()), id: \.element) { index, module in
+                    ModuleCard(module: module, index: startIndex + index) { openModule = module }
+                }
+            }
+        }
+    }
+
     var body: some View {
         VStack(spacing: 16) {
             UpdateBanner(updater: app.updater)
@@ -22,11 +37,8 @@ struct ContentView: View {
 
             StatsRow()
 
-            LazyVGrid(columns: columns, spacing: 14) {
-                ForEach(Array(Module.allCases.enumerated()), id: \.element) { index, module in
-                    ModuleCard(module: module, index: index) { openModule = module }
-                }
-            }
+            cardGroup("Clean up", [.junk, .large, .tidy], startIndex: 0)
+            cardGroup("Tools", [.uninstaller, .updates, .closet], startIndex: 3)
 
             HStack(alignment: .center, spacing: 12) {
                 if !app.hasFullDiskAccess {
@@ -42,7 +54,7 @@ struct ContentView: View {
         .padding(.bottom, 22)
         .padding(.top, 8)
         .frame(minWidth: 700, idealWidth: 760, maxWidth: .infinity,
-               minHeight: 770, maxHeight: .infinity, alignment: .top)
+               minHeight: 820, maxHeight: .infinity, alignment: .top)
         .background { Backdrop().ignoresSafeArea() }
         .environment(\.animationsPaused, !app.windowVisible)
         .overlay {
@@ -382,6 +394,12 @@ private struct HeroCard: View {
         }
     }
 
+    /// The quieter action next to the big button.
+    private func secondary(_ symbol: String) -> NudgeButtonStyle {
+        NudgeButtonStyle(tint: palette.heroText, badgeText: palette.isDark ? Theme.ink : .white,
+                         symbol: symbol, size: 13)
+    }
+
     @ViewBuilder
     private var action: some View {
         let style = HeroButtonStyle(fill: palette.heroButtonFill, text: palette.heroButtonText)
@@ -409,9 +427,7 @@ private struct HeroCard: View {
                         .buttonStyle(style)
                         .keyboardShortcut(.defaultAction)
                     Button("Scan Again") { Task { await app.smartScan() } }
-                        .buttonStyle(.plain)
-                        .font(.rounded(13, .semibold))
-                        .foregroundStyle(palette.heroText)
+                        .buttonStyle(secondary("arrow.clockwise"))
                 }
             } else {
                 Button("Scan Again") { Task { await app.smartScan() } }
@@ -422,14 +438,8 @@ private struct HeroCard: View {
                 Button("Scan Again") { Task { await app.smartScan() } }
                     .buttonStyle(style)
                 if let record = app.lastRecord, record.canUndo {
-                    Button {
-                        Task { _ = await app.undo(record) }
-                    } label: {
-                        Label("Undo", systemImage: "arrow.uturn.backward")
-                    }
-                    .buttonStyle(.plain)
-                    .font(.rounded(13, .semibold))
-                    .foregroundStyle(palette.heroText)
+                    Button("Undo") { Task { _ = await app.undo(record) } }
+                    .buttonStyle(secondary("arrow.uturn.backward"))
                     .help("Put everything back from the Trash")
                 }
             }
@@ -607,21 +617,13 @@ private struct ModuleCard: View {
             .padding(14)
             .frame(maxWidth: .infinity, minHeight: 104, alignment: .topLeading)
             .background {
-                ZStack(alignment: .bottomTrailing) {
+                ZStack {
                     shape.fill(palette.card)
                     shape.fill(palette.isDark ? Palette.pastel(module).opacity(0.13) : Palette.pastel(module))
                     // Light falls from the top, like on a soft plastic toy.
                     shape.fill(LinearGradient(colors: [.white.opacity(palette.isDark ? 0.05 : 0.55), .clear],
                                               startPoint: .top, endPoint: .center))
-                    // The card's symbol, big and cropped, as a playful watermark.
-                    Image(systemName: module.symbol)
-                        .font(.system(size: 66, weight: .bold))
-                        .foregroundStyle(palette.icon(module).opacity(palette.isDark ? 0.12 : 0.08))
-                        .rotationEffect(.degrees(hovering ? -4 : -16))
-                        .scaleEffect(hovering ? 1.15 : 1)
-                        .offset(x: 16, y: 20)
                 }
-                .clipShape(shape)
                 .shadow(color: shadowColor.opacity(hovering ? 0.28 : 0.1), radius: hovering ? 16 : 6, y: hovering ? 10 : 3)
             }
             .overlay(shape.strokeBorder(palette.isDark ? palette.tint(module) : .white.opacity(0.7), lineWidth: 1))
@@ -824,7 +826,8 @@ struct FullDiskAccessHint: View {
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 8)
             Button("Open Settings") { Permissions.openFullDiskAccessSettings() }
-                .controlSize(.small)
+                .buttonStyle(NudgeButtonStyle(tint: palette.text, badgeText: palette.isDark ? Theme.ink : .white,
+                                              symbol: "arrow.up.right"))
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 9)

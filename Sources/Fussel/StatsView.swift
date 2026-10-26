@@ -13,6 +13,8 @@ struct StatsRow: View {
             CPUTile()
             NetworkTile()
         }
+        // All tiles as tall as the tallest, so their buttons line up.
+        .fixedSize(horizontal: false, vertical: true)
         .onAppear { app.monitor.start() }
     }
 }
@@ -47,6 +49,17 @@ enum StatKind {
         case .battery: return Color(hex: 0xCFE8DC) // mint
         case .cpu: return Color(hex: 0xF9E3A0)     // butter
         case .network: return Color(hex: 0xCDE4F7) // sky
+        }
+    }
+
+    /// A deep shade of the pastel for text on light tiles (about 4.8:1 or more).
+    var ink: Color {
+        switch self {
+        case .disk: return Color(hex: 0xB4472A)
+        case .memory: return Color(hex: 0x5B46B8)
+        case .battery: return Color(hex: 0x2E7D5B)
+        case .cpu: return Color(hex: 0x8A6408)
+        case .network: return Color(hex: 0x2F6FAE)
         }
     }
 }
@@ -99,7 +112,7 @@ private struct StatTile<Gauge: View, Footer: View>: View {
             footer
         }
         .padding(13)
-        .frame(maxWidth: .infinity, minHeight: 162, alignment: .topLeading)
+        .frame(maxWidth: .infinity, minHeight: 140, maxHeight: .infinity, alignment: .topLeading)
         .background {
             let shape = RoundedRectangle(cornerRadius: 20, style: .continuous)
             ZStack {
@@ -134,11 +147,7 @@ private struct FillBar: View {
             ZStack(alignment: .leading) {
                 Capsule().fill(palette.text.opacity(0.08))
                 Capsule()
-                    .fill(LinearGradient(colors: [tint.opacity(0.7), tint], startPoint: .leading, endPoint: .trailing))
-                    // A glossy stripe on top, like a candy bar.
-                    .overlay(alignment: .top) {
-                        Capsule().fill(.white.opacity(0.4)).frame(height: 2.5).padding(.horizontal, 4).padding(.top, 1.5)
-                    }
+                    .fill(tint)
                     .frame(width: max(9, geo.size.width * min(1, max(0, grown ? fraction : 0))))
                     .animation(.spring(duration: 0.9, bounce: 0.3), value: fraction)
             }
@@ -150,22 +159,19 @@ private struct FillBar: View {
     }
 }
 
-/// Small pill for the tile actions.
+/// The tile actions: text and arrow badge in the tile's own color.
 private struct TileButtonStyle: ButtonStyle {
+    let kind: StatKind
     @Environment(\.palette) private var palette
 
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.rounded(12, .bold))
-            .foregroundStyle(palette.text)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
-            .background(Capsule().fill(palette.text.opacity(configuration.isPressed ? 0.16 : 0.08)))
-            .scaleEffect(configuration.isPressed ? 0.95 : 1)
-            .animation(.spring(duration: 0.2, bounce: 0.5), value: configuration.isPressed)
+        NudgeButtonStyle(tint: palette.isDark ? kind.pastel : kind.ink,
+                         badgeText: palette.isDark ? Theme.ink : .white)
+            .makeBody(configuration: configuration)
     }
 }
 
+/// Green while there's room, orange when it fills up, red once it gets tight.
 private func barColor(_ fraction: Double) -> Color {
     if fraction > 0.9 { return Color(hex: 0xE5484D) }
     if fraction > 0.75 { return Color(hex: 0xF5A524) }
@@ -185,8 +191,8 @@ private struct DiskTile: View {
                  detail: "free on \(s.diskName)") {
             FillBar(fraction: used, tint: barColor(used))
         } footer: {
-            Button("Free Up") { Task { await app.smartScan() } }
-                .buttonStyle(TileButtonStyle())
+            Button("Scan") { Task { await app.smartScan() } }
+                .buttonStyle(TileButtonStyle(kind: .disk))
                 .disabled(app.stage == .scanning || app.stage == .cleaning)
         }
     }
@@ -205,10 +211,11 @@ private struct MemoryTile: View {
                  detail: "free of \(Int64(s.memTotal).byteString)") {
             FillBar(fraction: used, tint: barColor(used))
         } footer: {
-            Button("Free Up") { showing = true }
-                .buttonStyle(TileButtonStyle())
+            Button("Quit Apps") { showing = true }
+                .buttonStyle(TileButtonStyle(kind: .memory))
                 .popover(isPresented: $showing, arrowEdge: .bottom) {
-                    MemoryPopover(monitor: app.monitor)
+                    AppsPopover(monitor: app.monitor, title: "Hungriest apps",
+                                load: { await app.monitor.memoryHogs() })
                 }
         }
     }
@@ -231,7 +238,11 @@ private struct BatteryTile: View {
                         tint: low ? Color(hex: 0xE5484D) : Color(hex: 0x30A46C))
             }
         } footer: {
-            EmptyView()
+            if let health = battery?.health {
+                Button("Health: \(health)") { Permissions.openBatterySettings() }
+                    .buttonStyle(TileButtonStyle(kind: .battery))
+                    .help("Open Battery settings")
+            }
         }
     }
 
@@ -266,6 +277,7 @@ private struct BatteryTile: View {
 private struct CPUTile: View {
     @Environment(AppModel.self) private var app
     @Environment(\.palette) private var palette
+    @State private var showing = false
 
     var body: some View {
         let s = app.monitor.sample
@@ -275,7 +287,12 @@ private struct CPUTile: View {
                  detail: s.temperature.map { "\(Int($0.rounded())) °C" } ?? app.monitor.thermal.label) {
             FillBar(fraction: load, tint: barColor(load))
         } footer: {
-            EmptyView()
+            Button("Top Apps") { showing = true }
+                .buttonStyle(TileButtonStyle(kind: .cpu))
+                .popover(isPresented: $showing, arrowEdge: .bottom) {
+                    AppsPopover(monitor: app.monitor, title: "Busiest apps",
+                                load: { await app.monitor.cpuHogs() })
+                }
         }
     }
 }
@@ -299,7 +316,7 @@ private struct NetworkTile: View {
                     Task { await app.monitor.runSpeedTest() }
                 }
             }
-            .buttonStyle(TileButtonStyle())
+            .buttonStyle(TileButtonStyle(kind: .network))
             .popover(isPresented: $showing, arrowEdge: .bottom) {
                 SpeedTestPopover(monitor: app.monitor)
             }
@@ -340,16 +357,19 @@ private struct Sparkline: View {
 
 // MARK: - Popovers
 
-private struct MemoryPopover: View {
+/// The apps using the most memory or CPU, each with a Quit button.
+private struct AppsPopover: View {
     let monitor: SystemMonitor
-    @State private var apps: [AppMemory] = []
+    let title: String
+    let load: () async -> [AppUsage]
+    @State private var apps: [AppUsage] = []
     @State private var loading = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Hungriest apps")
+            Text(title)
                 .font(.rounded(15, .bold))
-            Text("Quitting an app gives its memory back. Fussel asks the app nicely, so unsaved work is safe.")
+            Text("Quitting an app frees what it uses. Fussel asks the app nicely, so unsaved work is safe.")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -368,7 +388,7 @@ private struct MemoryPopover: View {
                         }
                         Text(app.name).lineLimit(1)
                         Spacer()
-                        Text(Int64(app.bytes).byteString)
+                        Text(app.cpu.map { "\(Int($0.rounded())) % CPU" } ?? Int64(app.bytes).byteString)
                             .monospacedDigit()
                             .foregroundStyle(.secondary)
                         Button("Quit") {
@@ -383,7 +403,7 @@ private struct MemoryPopover: View {
         .padding(16)
         .frame(width: 320)
         .task {
-            apps = await monitor.memoryHogs()
+            apps = await load()
             loading = false
         }
     }
