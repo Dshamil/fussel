@@ -39,6 +39,7 @@ struct SettingsView: View {
                     Text("Light").tag(AppearanceChoice.light.rawValue)
                     Text("Dark").tag(AppearanceChoice.dark.rawValue)
                     Text("Glass").tag(AppearanceChoice.glass.rawValue)
+                    Text("Oreo").tag(AppearanceChoice.oreo.rawValue)
                 }
                 .pickerStyle(.segmented)
             }

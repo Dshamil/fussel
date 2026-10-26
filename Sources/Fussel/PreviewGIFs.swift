@@ -21,9 +21,9 @@ extension PreviewRenderer {
             .compactMap { window($0.0, scheme: .light, page: $0.1) }
         writeGIF(crossfade(tour, hold: 1.8), to: dir.appendingPathComponent("tour.gif"))
 
-        // The looks: Light, Dark and Glass in both.
+        // The looks: Light, Dark, Glass in both, and Oreo.
         var looks: [CGImage] = []
-        for (choice, scheme) in [(AppearanceChoice.light, ColorScheme.light), (.dark, .dark), (.glass, .light), (.glass, .dark)] {
+        for (choice, scheme) in [(AppearanceChoice.light, ColorScheme.light), (.dark, .dark), (.glass, .light), (.glass, .dark), (.oreo, .dark)] {
             UserDefaults.standard.set(choice.rawValue, forKey: SettingsKey.appearance)
             if let image = window("ready", scheme: scheme, page: .overview) { looks.append(image) }
         }

@@ -18,6 +18,7 @@ struct ContentView: View {
     @Environment(\.palette) private var palette
     @State private var page: Page
     @State private var didAutoScan = false
+    @AppStorage(SettingsKey.appearance) private var appearance = AppearanceChoice.system.rawValue
 
     init(page: Page = .overview) {
         _page = State(initialValue: page)
@@ -25,8 +26,17 @@ struct ContentView: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            Sidebar(page: $page)
-                .frame(width: 236)
+            Group {
+                if appearance == AppearanceChoice.oreo.rawValue {
+                    // Oreo: the sidebar stays light while the rest of the window is dark.
+                    Sidebar(page: $page)
+                        .environment(\.palette, .oreoSide)
+                        .environment(\.colorScheme, .light)
+                } else {
+                    Sidebar(page: $page)
+                }
+            }
+            .frame(width: 236)
             Rectangle().fill(palette.cardStroke).frame(width: 1)
             Group {
                 switch page {

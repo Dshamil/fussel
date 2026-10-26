@@ -60,6 +60,23 @@ struct Palette {
         sheet: Color(hex: 0x1E1E20)
     )
 
+    /// The Oreo style: a white sidebar next to a black main area.
+    static let oreoSide: Palette = {
+        var p = Palette.light
+        p.sidebar = .white
+        p.selection = Color(hex: 0xEDEDF0)
+        return p
+    }()
+
+    static let oreoMain: Palette = {
+        var p = Palette.dark
+        p.content = Color(hex: 0x111113)
+        p.card = Color(hex: 0x1C1C1F)
+        p.cardStroke = Color(hex: 0x2C2C30)
+        p.sheet = Color(hex: 0x1C1C1F)
+        return p
+    }()
+
     static let glassLight = Palette(
         isDark: false,
         content: .clear,
@@ -94,7 +111,7 @@ struct Palette {
 /// The look picked in Settings: follow the Mac, always light, always dark, or Glass (which follows
 /// the Mac's light or dark).
 enum AppearanceChoice: String, CaseIterable {
-    case system, light, dark, glass
+    case system, light, dark, glass, oreo
 
     static var current: AppearanceChoice {
         AppearanceChoice(rawValue: UserDefaults.standard.string(forKey: SettingsKey.appearance) ?? "") ?? .system
@@ -103,7 +120,7 @@ enum AppearanceChoice: String, CaseIterable {
     static func apply() {
         switch current {
         case .light: NSApp.appearance = NSAppearance(named: .aqua)
-        case .dark: NSApp.appearance = NSAppearance(named: .darkAqua)
+        case .dark, .oreo: NSApp.appearance = NSAppearance(named: .darkAqua)
         case .system, .glass: NSApp.appearance = nil
         }
     }
@@ -238,8 +255,10 @@ struct StyledRoot<Content: View>: View {
 
     var body: some View {
         let glass = appearance == AppearanceChoice.glass.rawValue
+        let palette: Palette = appearance == AppearanceChoice.oreo.rawValue ? .oreoMain
+            : scheme == .dark ? (glass ? .glassDark : .dark) : (glass ? .glassLight : .light)
         content
-            .environment(\.palette, scheme == .dark ? (glass ? .glassDark : .dark) : (glass ? .glassLight : .light))
+            .environment(\.palette, palette)
             .onChange(of: appearance) { AppearanceChoice.apply() }
     }
 }

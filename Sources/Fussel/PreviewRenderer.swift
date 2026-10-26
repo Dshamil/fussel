@@ -33,6 +33,9 @@ enum PreviewRenderer {
             render("ready", scheme: scheme, page: .overview, to: dir, name: "glass-\(name(scheme))-ready")
             render("ready", scheme: scheme, page: .tool(.junk), to: dir, name: "glass-\(name(scheme))-junk-ready")
         }
+        UserDefaults.standard.set(AppearanceChoice.oreo.rawValue, forKey: SettingsKey.appearance)
+        render("ready", scheme: .dark, page: .overview, to: dir, name: "oreo-ready")
+        render("ready", scheme: .dark, page: .tool(.junk), to: dir, name: "oreo-junk-ready")
         UserDefaults.standard.set(saved, forKey: SettingsKey.appearance)
     }
 
