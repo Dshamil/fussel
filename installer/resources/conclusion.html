@@ -4,20 +4,31 @@
 <meta charset="utf-8">
 <meta name="color-scheme" content="light dark">
 <style>
-  body { font-family: -apple-system, "SF Pro Rounded", sans-serif; font-size: 13px; line-height: 1.5; color: CanvasText; }
-  h1 { font-size: 22px; margin: 0 0 6px; }
-  ol { padding-left: 18px; }
-  li { margin: 4px 0; }
+  :root { --fg: #1D1D1F; --muted: #6E6E73; --line: #E3E3E8; --card: #F7F7F9; --strong: #2B2D33; --on-strong: #FFFFFF; }
+  @media (prefers-color-scheme: dark) {
+    :root { --fg: #F2F2F2; --muted: #98989F; --line: #333337; --card: #262629; --strong: #F2F2F2; --on-strong: #1D1D1F; }
+  }
+  body { font: 13px/1.5 -apple-system, BlinkMacSystemFont, sans-serif; color: var(--fg); margin: 0; }
+  h1 { font: 800 26px/1.15 ui-rounded, "SF Pro Rounded", -apple-system, sans-serif; letter-spacing: -0.02em; margin: 2px 0 4px; }
+  .lead { font: 700 15px/1.4 ui-rounded, "SF Pro Rounded", -apple-system, sans-serif; color: var(--muted); margin: 0 0 16px; }
+  .steps { border: 1px solid var(--line); border-radius: 10px; background: var(--card); }
+  .step { display: flex; gap: 12px; padding: 10px 12px; border-top: 1px solid var(--line); }
+  .step:first-child { border-top: 0; }
+  .step span { width: 22px; height: 22px; border-radius: 50%; background: var(--strong); color: var(--on-strong); flex: none;
+               font: 800 12px/22px ui-rounded, "SF Pro Rounded", -apple-system, sans-serif; text-align: center; }
+  .step b { display: block; font-weight: 600; }
+  .step small { color: var(--muted); font-size: 12px; }
+  .note { color: var(--muted); font-size: 12px; margin-top: 14px; }
 </style>
 </head>
 <body>
-  <h1>All set!</h1>
-  <p>Fussel is now in your Applications folder and is already waiting in the menu bar.</p>
-  <ol>
-    <li><b>Click the fluff</b> in the menu bar to open Fussel, right-click it for more options.</li>
-    <li>For the best results, allow <b>Full Disk Access</b> in System Settings › Privacy &amp; Security.</li>
-    <li>Fussel starts automatically with your Mac. You can change that in its settings.</li>
-  </ol>
-  <p>Happy tidying!</p>
+  <h1>All set.</h1>
+  <p class="lead">Fussel is waiting in your menu bar.</p>
+  <div class="steps">
+    <div class="step"><span>1</span><div><b>Click Fussel in the menu bar</b><small>to open the window. Right-click him for a quick scan, settings or quit.</small></div></div>
+    <div class="step"><span>2</span><div><b>Allow Full Disk Access</b><small>in System Settings › Privacy &amp; Security, so Fussel can see the Trash and every cache.</small></div></div>
+    <div class="step"><span>3</span><div><b>Pick a look</b><small>Light, Dark or Glass, in Fussel's settings. He also starts with your Mac; you can turn that off there.</small></div></div>
+  </div>
+  <p class="note">Happy tidying!</p>
 </body>
 </html>

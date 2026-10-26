@@ -62,6 +62,7 @@ jobs:
           name: Fussel
           path: |
             dist/Fussel-Installer.pkg
+            dist/Fussel-Installer.zip
             dist/Fussel.dmg
             dist/Fussel.zip
 
@@ -107,7 +108,7 @@ jobs:
             else
               NOTES_ARG=(--generate-notes)
             fi
-            gh release create "$TAG" dist/Fussel-Installer.pkg dist/Fussel-Installer.pkg.sig dist/Fussel.dmg dist/Fussel.zip \
+            gh release create "$TAG" dist/Fussel-Installer.zip dist/Fussel-Installer.pkg dist/Fussel-Installer.pkg.sig dist/Fussel.dmg dist/Fussel.zip \
               --prerelease \
               --target "$GITHUB_SHA" \
               --title "$TITLE" \

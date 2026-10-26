@@ -10,7 +10,7 @@ DIST="$ROOT/dist"
 APP="$DIST/Fussel.app"
 WORK="$DIST/package-work"
 
-rm -rf "$WORK" "$DIST/Fussel-Installer.pkg" "$DIST/Fussel.dmg"
+rm -rf "$WORK" "$DIST/Fussel-Installer.pkg" "$DIST/Fussel-Installer.zip" "$DIST/Fussel.dmg"
 mkdir -p "$WORK/root" "$WORK/scripts" "$WORK/resources"
 
 # --- Installer package -------------------------------------------------------
@@ -40,11 +40,24 @@ productbuild \
   --package-path "$WORK" \
   "$DIST/Fussel-Installer.pkg"
 
+# The package wears the Fussel icon. Browsers drop custom icons on download, so it also ships
+# zipped: unzipping brings the icon back. The icon lives beside the file's data, so the
+# signature of the package stays valid.
+ICON="$ROOT/Resources/AppIcon/AppIcon.icns"
+swift "$ROOT/design/set-icon.swift" "$ICON" "$DIST/Fussel-Installer.pkg"
+(cd "$DIST" && ditto -c -k --sequesterRsrc Fussel-Installer.pkg Fussel-Installer.zip)
+
 # --- Disk image: drag Fussel onto Applications --------------------------------
 mkdir -p "$WORK/dmg"
 ditto "$APP" "$WORK/dmg/Fussel.app"
 ln -s /Applications "$WORK/dmg/Applications"
-hdiutil create -volname "Fussel" -srcfolder "$WORK/dmg" -ov -format UDZO "$DIST/Fussel.dmg"
+# The mounted disk shows the Fussel icon too: the flag has to be set on the mounted volume itself.
+cp "$ICON" "$WORK/dmg/.VolumeIcon.icns"
+hdiutil create -volname "Fussel" -srcfolder "$WORK/dmg" -ov -format UDRW "$WORK/rw.dmg"
+MOUNT=$(hdiutil attach -nobrowse -readwrite "$WORK/rw.dmg" | tail -1 | awk -F'\t' '{print $NF}')
+SetFile -a C "$MOUNT"
+hdiutil detach "$MOUNT" -quiet
+hdiutil convert "$WORK/rw.dmg" -format UDZO -o "$DIST/Fussel.dmg"
 
 rm -rf "$WORK"
 echo "Built $DIST/Fussel-Installer.pkg and $DIST/Fussel.dmg"

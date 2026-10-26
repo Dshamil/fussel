@@ -36,7 +36,7 @@ Plus memory, CPU, battery and network at a glance, and a menu bar helper.
 
 ## Install
 
-1. Download **Fussel-Installer.pkg** from the latest [release](../../releases) and open it.
+1. Download **Fussel-Installer.zip** from the latest [release](../../releases). Your Mac unpacks it to **Fussel-Installer.pkg**; open that.
 2. Fussel isn't signed with an Apple Developer ID yet, so macOS blocks the installer at first:
    open **System Settings › Privacy & Security** and click **Open Anyway**.
 3. Click through the installer. Fussel lands in Applications and appears in the menu bar.
