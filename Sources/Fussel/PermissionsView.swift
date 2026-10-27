@@ -8,6 +8,7 @@ struct PermissionsView: View {
     @Environment(AppModel.self) private var app
     @Environment(\.palette) private var palette
     @State private var notifications = UNAuthorizationStatus.notDetermined
+    @State private var bannersOff = false
     @State private var startsWithMac = LoginItem.isEnabled
 
     var body: some View {
@@ -35,9 +36,10 @@ struct PermissionsView: View {
                     }
                     Rectangle().fill(palette.cardStroke).frame(height: 1).padding(.leading, 58)
                     row(symbol: "bell", title: "Notifications", needed: false,
-                        text: "For the weekly reminder when fluff piles up.",
-                        allowed: notifications == .authorized || notifications == .provisional) {
-                        Button(notifications == .denied ? "Open Settings" : "Allow") { allowNotifications() }
+                        text: bannersOff ? "Allowed, but set to None in System Settings, so the reminder can't be seen."
+                                         : "For the weekly reminder when fluff piles up.",
+                        allowed: (notifications == .authorized || notifications == .provisional) && !bannersOff) {
+                        Button(notifications == .denied || bannersOff ? "Open Settings" : "Allow") { allowNotifications() }
                             .buttonStyle(SecondaryButtonStyle())
                     }
                     Rectangle().fill(palette.cardStroke).frame(height: 1).padding(.leading, 58)
@@ -141,14 +143,13 @@ struct PermissionsView: View {
         guard !PreviewRenderer.isRendering else { return }
         app.refreshAccess()
         notifications = await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
+        bannersOff = await Notifier.bannersOff
         startsWithMac = LoginItem.isEnabled
     }
 
     private func allowNotifications() {
-        if notifications == .denied {
-            if let url = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension?id=app.fussel.Fussel") {
-                NSWorkspace.shared.open(url)
-            }
+        if notifications == .denied || bannersOff {
+            Notifier.openSettings()
         } else {
             Task {
                 _ = await Notifier.requestPermission()

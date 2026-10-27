@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 import UserNotifications
 
 /// The weekly reminder: if nobody has scanned for a week, Fussel quietly checks caches and logs in
@@ -65,7 +65,21 @@ final class FluffWatcher {
 enum Notifier {
     static func requestPermission() async -> Bool {
         let center = UNUserNotificationCenter.current()
-        return (try? await center.requestAuthorization(options: [.alert, .sound])) ?? false
+        return (try? await center.requestAuthorization(options: [.alert])) ?? false
+    }
+
+    /// Allowed, but set to "None" in System Settings: the reminder arrives without anything to see.
+    static var bannersOff: Bool {
+        get async {
+            let settings = await UNUserNotificationCenter.current().notificationSettings()
+            return settings.authorizationStatus == .authorized && settings.alertStyle == .none
+        }
+    }
+
+    static func openSettings() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension?id=app.fussel.Fussel") {
+            NSWorkspace.shared.open(url)
+        }
     }
 
     static func weeklyReminder() async {
@@ -73,7 +87,6 @@ enum Notifier {
         let content = UNMutableNotificationContent()
         content.title = "Time for a quick tidy-up"
         content.body = "It's been a week since your last scan. Want me to take a quick look?"
-        content.sound = .default
         let request = UNNotificationRequest(identifier: "weekly-reminder", content: content, trigger: nil)
         try? await UNUserNotificationCenter.current().add(request)
     }
@@ -83,7 +96,6 @@ enum Notifier {
         let content = UNMutableNotificationContent()
         content.title = "Fussel found some fluff"
         content.body = "About \(bytes.byteString) of caches and logs are piling up. Click to tidy up."
-        content.sound = .default
         let request = UNNotificationRequest(identifier: "weekly-fluff", content: content, trigger: nil)
         try? await UNUserNotificationCenter.current().add(request)
     }

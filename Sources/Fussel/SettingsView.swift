@@ -131,7 +131,12 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                     Spacer()
-                    Button("Show Example") { Task { await Notifier.weeklyReminder() } }
+                    Button("Show Example") {
+                        Task {
+                            // With banners set to None, there'd be nothing to see: show where to switch them on.
+                            if await Notifier.bannersOff { Notifier.openSettings() } else { await Notifier.weeklyReminder() }
+                        }
+                    }
                         .controlSize(.small)
                 }
                 Text("Fussel lives in the menu bar. Click the little fluff to open it, right-click for more.")

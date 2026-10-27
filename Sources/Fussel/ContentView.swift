@@ -26,6 +26,11 @@ struct ContentView: View {
     }
 
     var body: some View {
+        // The page needs about 572 pt (what it gets in the smallest window), so in a narrow window
+        // the sidebar stops growing before it pushes the page out of the window.
+        GeometryReader { window in
+        let widest = min(SidebarDivider.range.upperBound,
+                         max(SidebarDivider.range.lowerBound, window.size.width - 572))
         HStack(spacing: 0) {
             Group {
                 if appearance == AppearanceChoice.oreo.rawValue {
@@ -37,8 +42,8 @@ struct ContentView: View {
                     Sidebar(page: $page)
                 }
             }
-            .frame(width: sidebarWidth)
-            SidebarDivider(width: $sidebarWidth)
+            .frame(width: min(sidebarWidth, widest))
+            SidebarDivider(width: $sidebarWidth, widest: widest)
             Group {
                 switch page {
                 case .overview: OverviewPage(page: $page)
@@ -52,6 +57,7 @@ struct ContentView: View {
             .transition(.opacity.combined(with: .offset(y: 6)))
         }
         .animation(.easeOut(duration: 0.2), value: page)
+        }
         .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
         .background { if palette.isGlass { GlassBackdrop() } else { palette.content } }
         .overlay { if app.showTutorial { Tutorial().transition(.opacity) } }
@@ -78,6 +84,8 @@ struct ContentView: View {
 /// double-click it to go back to the usual width. The width is remembered.
 private struct SidebarDivider: View {
     @Binding var width: Double
+    /// How wide the sidebar may get in this window.
+    var widest: Double
     @Environment(\.palette) private var palette
     @State private var start: Double?
     @State private var hovering = false
@@ -100,9 +108,9 @@ private struct SidebarDivider: View {
                     }
                     .gesture(DragGesture(minimumDistance: 1, coordinateSpace: .global)
                         .onChanged { drag in
-                            if start == nil { start = width }
+                            if start == nil { start = min(width, widest) }
                             width = min(max((start ?? width) + drag.translation.width, Self.range.lowerBound),
-                                        Self.range.upperBound)
+                                        widest)
                         }
                         .onEnded { _ in start = nil })
                     .onTapGesture(count: 2) {

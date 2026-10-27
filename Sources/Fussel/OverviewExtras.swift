@@ -26,7 +26,10 @@ enum FolderSizes {
         let sizes = await withTaskGroup(of: FolderSize.self) { group in
             for url in places {
                 group.addTask(priority: .utility) {
-                    FolderSize(url: url, name: url.lastPathComponent, bytes: size(of: url))
+                    // There's an Applications folder in the home folder too (apps just for you); keep the two apart.
+                    let name = url.path == home.appendingPathComponent("Applications").path
+                        ? "Applications (Home)" : url.lastPathComponent
+                    return FolderSize(url: url, name: name, bytes: size(of: url))
                 }
             }
             var all: [FolderSize] = []

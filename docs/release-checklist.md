@@ -23,7 +23,7 @@ Was nicht klappt oder komisch aussieht: in Fussel **Settings › Feedback › Se
 
 - [ ] Der Scan startet von selbst, die drei Kreisel drehen sich, danach stehen Zahlen da
 - [ ] „Where your space goes“ zeigt nach einer halben Minute die größten Ordner. Ein Klick öffnet den Ordner im Finder
-- [ ] **Clean …** oben rechts fragt nach und räumt auf. Danach steht dort „… freed“
+- [ ] **Clean …** oben rechts fragt nach und räumt auf. Danach steht unter „Overview“ „Cleaned …“, in den Zeilen „… freed“, und der Knopf ist ausgegraut
 - [ ] „Recent clean-ups“: **Undo** holt die Dateien wirklich zurück (im Finder nachsehen)
 - [ ] Die Werte-Zeile unten (RAM, Akku, CPU, Netzwerk): Jeder Eintrag öffnet beim Klick ein kleines Fenster
 
