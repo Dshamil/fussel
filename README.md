@@ -4,7 +4,7 @@
 
 <h1 align="center">Fussel</h1>
 
-<p align="center">Free up your Mac, calmly. Fussel finds caches, logs and forgotten files, tells you what each one is, and moves what you choose to the Trash.<br><i>Public beta.</i></p>
+<p align="center">Free up your Mac, calmly. Fussel finds caches, logs and forgotten files, tells you what each one is, and moves what you choose to the Trash.<br><i>Public beta.</i> · <a href="https://dshamil.github.io/fussel/">dshamil.github.io/fussel</a></p>
 
 <p align="center"><img src="docs/screenshots/tour.gif" width="720" alt="Fussel scanning, showing what it found, explaining System Junk and cleaning up"></p>
 
