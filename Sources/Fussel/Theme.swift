@@ -51,6 +51,7 @@ struct ActionButtonStyle: ButtonStyle {
             .padding(.horizontal, 16)
             .frame(height: 30)
             .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(palette.buttonFill))
+            .modifier(HoverTint(color: palette.buttonText.opacity(0.1)))
             .opacity(isEnabled ? (configuration.isPressed ? 0.8 : 1) : 0.4)
             .scaleEffect(configuration.isPressed ? 0.97 : 1)
             .animation(.spring(duration: 0.2, bounce: 0.4), value: configuration.isPressed)
@@ -69,9 +70,24 @@ struct SecondaryButtonStyle: ButtonStyle {
             .padding(.horizontal, 16)
             .frame(height: 30)
             .cardSurface(palette, radius: 8)
+            .modifier(HoverTint(color: palette.text.opacity(0.06)))
             .opacity(isEnabled ? (configuration.isPressed ? 0.7 : 1) : 0.4)
             .scaleEffect(configuration.isPressed ? 0.97 : 1)
             .animation(.spring(duration: 0.2, bounce: 0.4), value: configuration.isPressed)
+    }
+}
+
+/// Under the pointer, a button lights up a touch. Nothing moves, so passing over it stays calm.
+struct HoverTint: ViewModifier {
+    let color: Color
+    @Environment(\.isEnabled) private var isEnabled
+    @State private var hovering = false
+
+    func body(content: Content) -> some View {
+        content
+            .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(hovering && isEnabled ? color : .clear))
+            .onHover { hovering = $0 }
+            .animation(.easeOut(duration: 0.12), value: hovering)
     }
 }
 
