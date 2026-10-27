@@ -2,9 +2,11 @@ import SwiftUI
 import AppKit
 import ImageIO
 import UniformTypeIdentifiers
+import AVFoundation
 
-/// Animated previews for the README, drawn the same way as the screenshots.
-/// Invoked with `Fussel --render-gifs <folder>`.
+/// Animated previews, drawn the same way as the screenshots: GIFs for the README (GitHub doesn't play
+/// videos there) and sharp MP4 videos at double resolution for the website, with a still image each
+/// for before they start. Invoked with `Fussel --render-gifs <folder>`.
 extension PreviewRenderer {
     static func renderGIFs(to folder: String) {
         _ = NSApplication.shared
@@ -17,17 +19,22 @@ extension PreviewRenderer {
 
         // A tour: scan, see what was found, look closer, clean.
         UserDefaults.standard.set(AppearanceChoice.system.rawValue, forKey: SettingsKey.appearance)
-        let tour = [("scanning", Page.overview), ("ready", .overview), ("ready", .tool(.junk)), ("done", .overview)]
-            .compactMap { window($0.0, scheme: .light, page: $0.1) }
+        let tourSteps = [("scanning", Page.overview), ("ready", .overview), ("ready", .tool(.junk)), ("done", .overview)]
+        let tour = tourSteps.compactMap { window($0.0, scheme: .light, page: $0.1) }
         writeGIF(crossfade(tour, hold: 1.8), to: dir.appendingPathComponent("tour.gif"))
+        let sharpTour = tourSteps.compactMap { window($0.0, scheme: .light, page: $0.1, scale: 2) }
+        writeVideo(crossfade(sharpTour, hold: 1.8, steps: 12, step: 1.0 / 30), to: dir.appendingPathComponent("tour.mp4"))
 
         // The looks: Light, Dark, Glass in both, and Oreo.
         var looks: [CGImage] = []
+        var sharpLooks: [CGImage] = []
         for (choice, scheme) in [(AppearanceChoice.light, ColorScheme.light), (.dark, .dark), (.glass, .light), (.glass, .dark), (.oreo, .dark)] {
             UserDefaults.standard.set(choice.rawValue, forKey: SettingsKey.appearance)
             if let image = window("ready", scheme: scheme, page: .overview) { looks.append(image) }
+            if let image = window("ready", scheme: scheme, page: .overview, scale: 2) { sharpLooks.append(image) }
         }
         writeGIF(crossfade(looks, hold: 1.6), to: dir.appendingPathComponent("styles.gif"))
+        writeVideo(crossfade(sharpLooks, hold: 1.6, steps: 12, step: 1.0 / 30), to: dir.appendingPathComponent("styles.mp4"))
 
         // Fussel himself: swinging his curl like while he scans, with a blink.
         let fps = 30.0
@@ -46,25 +53,25 @@ extension PreviewRenderer {
     }
 
     /// The window in one state.
-    private static func window(_ scenario: String, scheme: ColorScheme, page: Page) -> CGImage? {
+    private static func window(_ scenario: String, scheme: ColorScheme, page: Page, scale: CGFloat = 1) -> CGImage? {
         let view = StyledRoot { ContentView(page: page) }
             .environment(sampleModel(scenario))
             .environment(\.colorScheme, scheme)
             // A little taller than the default window, so the overview fits down to its last card.
             .frame(width: 960, height: 740)
         let renderer = ImageRenderer(content: view)
-        renderer.scale = 1
+        renderer.scale = scale
         return renderer.cgImage
     }
 
     /// Holds each image, then fades softly into the next one, and back to the first at the end.
-    private static func crossfade(_ images: [CGImage], hold: Double, steps: Int = 6) -> [(CGImage, Double)] {
+    private static func crossfade(_ images: [CGImage], hold: Double, steps: Int = 6, step: Double = 0.04) -> [(CGImage, Double)] {
         var frames: [(CGImage, Double)] = []
         for (i, image) in images.enumerated() {
             frames.append((image, hold))
             let next = images[(i + 1) % images.count]
-            for step in 1..<steps {
-                if let mix = blend(image, next, Double(step) / Double(steps)) { frames.append((mix, 0.04)) }
+            for i in 1..<steps {
+                if let mix = blend(image, next, Double(i) / Double(steps)) { frames.append((mix, step)) }
             }
         }
         return frames
@@ -91,5 +98,60 @@ extension PreviewRenderer {
             ]] as CFDictionary)
         }
         print(CGImageDestinationFinalize(dest) ? "Rendered \(url.lastPathComponent)" : "Could not write \(url.lastPathComponent)")
+    }
+
+    /// An H.264 video: each image shown for its time, looping is up to the page that plays it.
+    /// Also writes the first image as a JPEG next to it, shown until the video starts.
+    private static func writeVideo(_ frames: [(CGImage, Double)], to url: URL) {
+        guard let first = frames.first?.0 else { return }
+        try? FileManager.default.removeItem(at: url)
+        guard let writer = try? AVAssetWriter(outputURL: url, fileType: .mp4) else { return }
+        let input = AVAssetWriterInput(mediaType: .video, outputSettings: [
+            AVVideoCodecKey: AVVideoCodecType.h264,
+            AVVideoWidthKey: first.width, AVVideoHeightKey: first.height,
+            AVVideoCompressionPropertiesKey: [AVVideoAverageBitRateKey: 6_000_000,
+                                              AVVideoProfileLevelKey: AVVideoProfileLevelH264HighAutoLevel],
+        ])
+        let adaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: input, sourcePixelBufferAttributes: [
+            kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32ARGB,
+            kCVPixelBufferWidthKey as String: first.width, kCVPixelBufferHeightKey as String: first.height,
+        ])
+        writer.add(input)
+        writer.startWriting()
+        writer.startSession(atSourceTime: .zero)
+        var time = 0.0
+        for (image, duration) in frames {
+            while !input.isReadyForMoreMediaData { Thread.sleep(forTimeInterval: 0.01) }
+            if let buffer = pixelBuffer(image) {
+                adaptor.append(buffer, withPresentationTime: CMTime(seconds: time, preferredTimescale: 600))
+            }
+            time += duration
+        }
+        input.markAsFinished()
+        writer.endSession(atSourceTime: CMTime(seconds: time, preferredTimescale: 600))
+        let done = DispatchSemaphore(value: 0)
+        writer.finishWriting { done.signal() }
+        done.wait()
+        print(writer.status == .completed ? "Rendered \(url.lastPathComponent)" : "Could not write \(url.lastPathComponent)")
+
+        let poster = url.deletingPathExtension().appendingPathExtension("jpg")
+        if let dest = CGImageDestinationCreateWithURL(poster as CFURL, UTType.jpeg.identifier as CFString, 1, nil) {
+            CGImageDestinationAddImage(dest, first, [kCGImageDestinationLossyCompressionQuality: 0.82] as CFDictionary)
+            CGImageDestinationFinalize(dest)
+        }
+    }
+
+    private static func pixelBuffer(_ image: CGImage) -> CVPixelBuffer? {
+        var buffer: CVPixelBuffer?
+        CVPixelBufferCreate(nil, image.width, image.height, kCVPixelFormatType_32ARGB, nil, &buffer)
+        guard let buffer else { return nil }
+        CVPixelBufferLockBaseAddress(buffer, [])
+        defer { CVPixelBufferUnlockBaseAddress(buffer, []) }
+        guard let ctx = CGContext(data: CVPixelBufferGetBaseAddress(buffer), width: image.width, height: image.height,
+                                  bitsPerComponent: 8, bytesPerRow: CVPixelBufferGetBytesPerRow(buffer),
+                                  space: CGColorSpaceCreateDeviceRGB(),
+                                  bitmapInfo: CGImageAlphaInfo.noneSkipFirst.rawValue) else { return nil }
+        ctx.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
+        return buffer
     }
 }

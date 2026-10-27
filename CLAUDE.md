@@ -22,7 +22,7 @@ open dist/Fussel.app            # starten
 ```
 
 Fussel ist eine Menüleisten-App (keine Dock-Icon, `LSUIElement`). Läuft schon eine Version, vorher beenden: `pkill -x Fussel`.
-`Fussel --render-gifs docs/screenshots` erneuert die README-GIFs (tour, styles, fussel). In Release-Notes GIFs immer über eine feste Commit-Adresse einbinden (`raw.githubusercontent.com/Dshamil/fussel/<commit>/docs/screenshots/…`), sonst zeigt GitHub alte Bilder aus dem Zwischenspeicher. `Fussel --render-previews <ordner>` rendert Screenshots aller Stile (ImageRenderer kann keine AppKit-Views wie native Buttons zeichnen; die erscheinen dort als gelbe Platzhalter).
+`Fussel --render-gifs docs/screenshots` erneuert die README-GIFs (tour, styles, fussel) und die scharfen Website-Videos (tour.mp4, styles.mp4 in doppelter Auflösung, mit Standbild .jpg). In Release-Notes GIFs immer über eine feste Commit-Adresse einbinden (`raw.githubusercontent.com/Dshamil/fussel/<commit>/docs/screenshots/…`), sonst zeigt GitHub alte Bilder aus dem Zwischenspeicher. `Fussel --render-previews <ordner>` rendert Screenshots aller Stile (ImageRenderer kann keine AppKit-Views wie native Buttons zeichnen; die erscheinen dort als gelbe Platzhalter).
 
 ## Release
 

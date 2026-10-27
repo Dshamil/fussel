@@ -106,7 +106,7 @@ nav { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(
 
 .shot { margin: clamp(40px, 7vw, 72px) auto 0; max-width: 980px; border-radius: 14px; overflow: hidden;
   border: 1px solid var(--line); box-shadow: var(--shadow); background: var(--surface); }
-.shot img { width: 100%; height: auto; }
+.shot img, .shot video { width: 100%; height: auto; display: block; }
 
 /* ---------- Sections ---------- */
 section { padding-block: clamp(56px, 9vw, 104px); border-top: 1px solid var(--line); }
@@ -228,7 +228,11 @@ footer { border-top: 1px solid var(--line); padding-block: 32px 48px; color: var
       <span>Public beta</span>
     </div>
     <div class="shot">
-      <img src="screenshots/tour.gif" alt="Fussel scanning the Mac, showing what it found, its biggest folders and recent clean-ups" width="960" height="740" loading="eager">
+      <video autoplay muted loop playsinline preload="auto" poster="screenshots/tour.jpg" width="960" height="740"
+             aria-label="Fussel scanning the Mac, showing what it found, its biggest folders and recent clean-ups">
+        <source src="screenshots/tour.mp4" type="video/mp4">
+        <img src="screenshots/tour.gif" alt="Fussel scanning the Mac, showing what it found, its biggest folders and recent clean-ups" width="960" height="740">
+      </video>
     </div>
   </div>
 </header>
@@ -298,7 +302,13 @@ footer { border-top: 1px solid var(--line); padding-block: 32px 48px; color: var
 
   <section>
     <div class="wrap looks">
-      <div class="shot"><img src="screenshots/styles.gif" alt="Fussel in Light, Dark, Glass and Oreo" width="960" height="740" loading="lazy"></div>
+      <div class="shot">
+        <video autoplay muted loop playsinline preload="metadata" poster="screenshots/styles.jpg" width="960" height="740"
+               aria-label="Fussel in Light, Dark, Glass and Oreo">
+          <source src="screenshots/styles.mp4" type="video/mp4">
+          <img src="screenshots/styles.gif" alt="Fussel in Light, Dark, Glass and Oreo" width="960" height="740">
+        </video>
+      </div>
       <div class="head" style="margin:0">
         <span class="label">Your look</span>
         <h2>Light, Dark, Glass or Oreo.</h2>
@@ -404,6 +414,11 @@ footer { border-top: 1px solid var(--line); padding-block: 32px 48px; color: var
   const apple = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
   document.querySelectorAll("[data-apple]").forEach(el => { if (apple) el.textContent = ""; else el.remove(); });
   document.querySelectorAll("[data-arrow]").forEach(el => { if (apple) el.setAttribute("hidden", ""); else el.removeAttribute("hidden"); });
+
+  // With reduced motion, the videos stay on their first picture.
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    document.querySelectorAll("video").forEach(v => { v.removeAttribute("autoplay"); v.pause(); });
+  }
 
   // The newest version number, straight from GitHub; the page keeps its built-in one if that fails.
   fetch("https://api.github.com/repos/Dshamil/fussel/releases/latest")
