@@ -132,10 +132,7 @@ struct SettingsView: View {
                         .fixedSize(horizontal: false, vertical: true)
                     Spacer()
                     Button("Show Example") {
-                        Task {
-                            // With banners set to None, there'd be nothing to see: show where to switch them on.
-                            if await Notifier.bannersOff { Notifier.openSettings() } else { await Notifier.weeklyReminder() }
-                        }
+                        Task { await Notifier.showExample() }
                     }
                         .controlSize(.small)
                 }

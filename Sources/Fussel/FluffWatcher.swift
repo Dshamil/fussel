@@ -1,4 +1,5 @@
 import AppKit
+import os
 import UserNotifications
 
 /// The weekly reminder: if nobody has scanned for a week, Fussel quietly checks caches and logs in
@@ -63,9 +64,33 @@ final class FluffWatcher {
 }
 
 enum Notifier {
+    /// Why a reminder didn't show, readable with `log show --predicate 'subsystem == "app.fussel.Fussel"'`.
+    private static let log = Logger(subsystem: "app.fussel.Fussel", category: "notifications")
+
+    /// The Show Example button. It never just does nothing: if macOS won't show Fussel's reminders,
+    /// it opens the place in System Settings where they're switched on.
+    static func showExample() async {
+        let settings = await UNUserNotificationCenter.current().notificationSettings()
+        log.notice("example: status \(settings.authorizationStatus.rawValue), style \(settings.alertStyle.rawValue)")
+        switch settings.authorizationStatus {
+        case .notDetermined:
+            guard await requestPermission() else { return openSettings() }
+            await weeklyReminder()
+        case .authorized, .provisional, .ephemeral:
+            if settings.alertStyle == .none { return openSettings() }
+            await weeklyReminder()
+        default:
+            openSettings()
+        }
+    }
     static func requestPermission() async -> Bool {
         let center = UNUserNotificationCenter.current()
-        return (try? await center.requestAuthorization(options: [.alert])) ?? false
+        do {
+            return try await center.requestAuthorization(options: [.alert])
+        } catch {
+            log.error("asking for permission failed: \(error.localizedDescription, privacy: .public)")
+            return false
+        }
     }
 
     /// Allowed, but set to "None" in System Settings: the reminder arrives without anything to see.
@@ -87,8 +112,19 @@ enum Notifier {
         let content = UNMutableNotificationContent()
         content.title = "Time for a quick tidy-up"
         content.body = "It's been a week since your last scan. Want me to take a quick look?"
-        let request = UNNotificationRequest(identifier: "weekly-reminder", content: content, trigger: nil)
-        try? await UNUserNotificationCenter.current().add(request)
+        await post(content, id: "weekly-reminder")
+    }
+
+    /// An older reminder with the same ID still in Notification Center would only be swapped quietly,
+    /// without a new banner; so it goes first.
+    private static func post(_ content: UNMutableNotificationContent, id: String) async {
+        let center = UNUserNotificationCenter.current()
+        center.removeDeliveredNotifications(withIdentifiers: [id])
+        do {
+            try await center.add(UNNotificationRequest(identifier: id, content: content, trigger: nil))
+        } catch {
+            log.error("reminder not sent: \(error.localizedDescription, privacy: .public)")
+        }
     }
 
     static func fluffFound(_ bytes: Int64) async {
@@ -96,7 +132,6 @@ enum Notifier {
         let content = UNMutableNotificationContent()
         content.title = "Fussel found some fluff"
         content.body = "About \(bytes.byteString) of caches and logs are piling up. Click to tidy up."
-        let request = UNNotificationRequest(identifier: "weekly-fluff", content: content, trigger: nil)
-        try? await UNUserNotificationCenter.current().add(request)
+        await post(content, id: "weekly-fluff")
     }
 }
