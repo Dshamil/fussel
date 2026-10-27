@@ -9,6 +9,45 @@ enum SettingsKey {
     static let appearance = "appearance"
 }
 
+/// What Fussel calls you. Suggested from the Mac account's first name; changed in the tour or in Settings,
+/// and an empty name means none. Only ever kept on this Mac.
+enum UserName {
+    static let key = "userName"
+    static let limit = 20
+    private static let rendering = CommandLine.arguments.contains { $0.hasPrefix("--render-") }
+
+    static var suggested: String {
+        if rendering { return "Alex" }
+        return String(NSFullUserName().split(separator: " ").first ?? "").prefix(limit).description
+    }
+
+    static var current: String {
+        // Screenshots and website videos are public: they show a sample name, never the real one.
+        if rendering { return "Alex" }
+        let stored = UserDefaults.standard.string(forKey: key) ?? suggested
+        return String(stored.trimmingCharacters(in: .whitespacesAndNewlines).prefix(limit))
+    }
+
+    /// "Hi Dshamil, it's…" with a name, "It's…" without: the sentence still reads well either way.
+    static func greet(_ greeting: String, then rest: String) -> String {
+        current.isEmpty ? rest.prefix(1).uppercased() + rest.dropFirst() : "\(greeting) \(current), \(rest)"
+    }
+
+    /// "All tidy, Dshamil. 433 MB freed." after cleaning.
+    static func allTidy(_ freed: Int64) -> String {
+        current.isEmpty ? "All tidy. \(freed.byteString) freed." : "All tidy, \(current). \(freed.byteString) freed."
+    }
+
+    /// Good morning / afternoon / evening, by the clock.
+    static var timeOfDay: String {
+        switch Calendar.current.component(.hour, from: Date()) {
+        case 5..<12: return "Good morning"
+        case 12..<18: return "Good afternoon"
+        default: return "Good evening"
+        }
+    }
+}
+
 extension ScanOptions {
     static var current: ScanOptions {
         let d = UserDefaults.standard
@@ -29,9 +68,17 @@ struct SettingsView: View {
     @AppStorage(FusselUpdater.autoKey) private var autoUpdate = true
     @AppStorage(SettingsKey.sounds) private var playSounds = false
     @AppStorage(SettingsKey.appearance) private var appearance = AppearanceChoice.system.rawValue
+    @AppStorage(UserName.key) private var name = UserName.suggested
 
     var body: some View {
         Form {
+            Section("You") {
+                TextField("Your name", text: $name, prompt: Text("What should I call you?"))
+                    .onChange(of: name) { _, new in if new.count > UserName.limit { name = String(new.prefix(UserName.limit)) } }
+                Text("Fussel greets you with it now and then. It stays on this Mac.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            }
             Section("Appearance") {
                 Picker("Style", selection: $appearance) {
                     Text("Match Mac").tag(AppearanceChoice.system.rawValue)

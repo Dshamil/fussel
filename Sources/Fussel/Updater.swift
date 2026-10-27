@@ -47,6 +47,8 @@ final class FusselUpdater {
     nonisolated static let repo = "fussel"
     static let autoKey = "autoCheckUpdates"
     private static let lastCheckKey = "lastUpdateCheck"
+    /// The newest version Fussel already told about, so each one is announced only once.
+    private static let announcedKey = "announcedUpdate"
 
     struct Release: Equatable {
         let version: String
@@ -103,6 +105,11 @@ final class FusselUpdater {
         case .success(let found?):
             release = found
             state = .available(found)
+            // The automatic check runs while the window is usually closed: say so once per version.
+            if quietly, UserDefaults.standard.string(forKey: Self.announcedKey) != found.version {
+                UserDefaults.standard.set(found.version, forKey: Self.announcedKey)
+                await Notifier.updateAvailable(found.version)
+            }
         case .success(nil):
             state = quietly ? .idle : .upToDate
         case .failure(let error):

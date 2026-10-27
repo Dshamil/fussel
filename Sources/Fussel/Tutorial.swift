@@ -8,6 +8,7 @@ struct Tutorial: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var step = 0
     @State private var blink = false
+    @AppStorage(UserName.key) private var name = UserName.suggested
 
     private struct Card {
         let title: String
@@ -72,6 +73,21 @@ struct Tutorial: View {
                         .multilineTextAlignment(.center)
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: 340)
+                    if step == 0 {
+                        VStack(spacing: 6) {
+                            Text("What should I call you?")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(palette.text)
+                            TextField("", text: $name, prompt: Text("Your name (optional)"))
+                                .textFieldStyle(.roundedBorder)
+                                .multilineTextAlignment(.center)
+                                .frame(width: 200)
+                                .onChange(of: name) { _, new in
+                                    if new.count > UserName.limit { name = String(new.prefix(UserName.limit)) }
+                                }
+                        }
+                        .padding(.top, 4)
+                    }
                     if step == 2 {
                         HStack(spacing: 8) {
                             SafetyLabel(safe: true)

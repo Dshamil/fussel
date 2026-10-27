@@ -111,8 +111,19 @@ enum Notifier {
         guard await requestPermission() else { return }
         let content = UNMutableNotificationContent()
         content.title = "Time for a quick tidy-up"
-        content.body = "It's been a week since your last scan. Want me to take a quick look?"
+        content.body = UserName.greet("Hi", then: "it's been a week since your last scan. Want me to take a quick look?")
         await post(content, id: "weekly-reminder")
+    }
+
+    /// A new Fussel is out. Only if reminders are already allowed: this never asks for permission.
+    /// Clicking it opens the window, where the banner offers Update Now.
+    static func updateAvailable(_ version: String) async {
+        let status = await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
+        guard status == .authorized || status == .provisional else { return }
+        let content = UNMutableNotificationContent()
+        content.title = "Fussel \(version) is here"
+        content.body = "Click to see what's new and update in one go."
+        await post(content, id: "update-available")
     }
 
     /// An older reminder with the same ID still in Notification Center would only be swapped quietly,

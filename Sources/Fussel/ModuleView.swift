@@ -144,7 +144,7 @@ private struct DoneState: View {
     @State private var showFailures = false
 
     var body: some View {
-        EmptyState(symbol: "checkmark", celebrate: true, title: freed > 0 ? "All tidy. \(freed.byteString) freed." : "All tidy",
+        EmptyState(symbol: "checkmark", celebrate: true, title: freed > 0 ? UserName.allTidy(freed) : "All tidy",
                    detail: freed > 0 ? "Moved to Trash, so you can put it back anytime." : "Nothing was removed.") {
             VStack(spacing: 10) {
                 if freed > 0, let record = model.lastRecord {

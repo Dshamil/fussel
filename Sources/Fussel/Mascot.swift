@@ -46,6 +46,8 @@ struct FusselBody: View, Equatable {
     var eyeColor: Color = Theme.graphite
     var blink = false
     var curlTilt: Double = 0
+    /// Eyes looking to the side, in design units (about ±3 looks around without leaving the face).
+    var look: CGFloat = 0
 
     var body: some View {
         Canvas { ctx, size in
@@ -67,7 +69,8 @@ struct FusselBody: View, Equatable {
                      with: .color(color))
 
             let w = g.eyeSize.width, h = g.eyeSize.height
-            for eye in g.eyes {
+            for base in g.eyes {
+                let eye = CGPoint(x: base.x + look, y: base.y)
                 if mood == .happy || mood == .sleepy || blink {
                     // Closed: smiling for happy, drooping for sleepy, flat for a blink.
                     var lid = Path()

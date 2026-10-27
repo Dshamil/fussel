@@ -277,11 +277,16 @@ private struct SidebarFussel: View {
                 .fill(Theme.graphite)
                 .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .strokeBorder(Color.white.opacity(palette.isDark ? 0.14 : 0), lineWidth: 1))
-            // While scanning the curl swings ±16° every 1.1 s; frames only run during the scan.
+            // While scanning the curl swings ±16° every 1.1 s and the eyes look slowly from side to side,
+            // resting a moment at each side; frames only run during the scan.
             TimelineView(.animation(minimumInterval: 1.0 / 30, paused: !busy || reduceMotion || paused)) { timeline in
-                let swing = 16 * sin(timeline.date.timeIntervalSinceReferenceDate * 2 * .pi / 1.1)
+                let t = timeline.date.timeIntervalSinceReferenceDate
+                let swing = 16 * sin(t * 2 * .pi / 1.1)
+                let glance = sin(t * 2 * .pi / 2.8)
+                let look = 3.2 * CGFloat(glance.sign == .minus ? -1 : 1) * CGFloat(pow(abs(glance), 0.45))
                 FusselBody(mood: mood, blink: blink && !cheering,
-                           curlTilt: busy && !reduceMotion ? swing : (hovering ? -18 : 0))
+                           curlTilt: busy && !reduceMotion ? swing : (hovering ? -18 : 0),
+                           look: busy && !reduceMotion ? look : 0)
                     .equatable()
                     .frame(width: 28, height: 28)
             }
@@ -295,8 +300,10 @@ private struct SidebarFussel: View {
             Sounds.play("Pop")
             cheer(for: 1.2)
         }
-        .onChange(of: app.stage) { _, stage in
+        .onChange(of: app.stage) { old, stage in
             if case .done(let freed, _) = stage, freed > 0 { cheer(for: 2.4) }
+            // Done looking: one happy hop.
+            if old == .scanning, stage == .ready { cheer(for: 1.0) }
         }
         .task {
             while !Task.isCancelled {
@@ -431,6 +438,8 @@ struct PageHeader<Actions: View>: View {
                 Text(subtitle)
                     .font(.system(size: 12))
                     .foregroundStyle(palette.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
                     .contentTransition(.opacity)
             }
             Spacer(minLength: 16)
@@ -452,12 +461,17 @@ private struct OverviewPage: View {
     /// Screenshots show the finished state right away; the app animates into it.
     @State private var shown = PreviewRenderer.isRendering
     @State private var celebrations = 0
+    /// While set, the line under the title shows this instead of the found total: it counts up to it.
+    @State private var countingFound: Int64?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         let s = app.monitor.sample
         let usedBytes = max(0, s.diskTotal - s.diskFree)
         PreviewSafeScroll {
             VStack(alignment: .leading, spacing: 0) {
+                // While scanning, the line under the title counts what's found so far, four times a second.
+                TimelineView(.animation(minimumInterval: 0.25, paused: app.stage != .scanning)) { _ in
                 PageHeader(title: "Overview", subtitle: status) {
                     Button { Task { await app.smartScan() } } label: {
                         Label("Scan", systemImage: "arrow.clockwise")
@@ -470,6 +484,7 @@ private struct OverviewPage: View {
                     }
                     .buttonStyle(ActionButtonStyle())
                     .disabled(app.selectedTotal == 0 || app.stage == .cleaning)
+                }
                 }
 
                 VStack(alignment: .leading, spacing: 18) {
@@ -523,19 +538,43 @@ private struct OverviewPage: View {
         .onChange(of: app.hasFullDiskAccess) { _, allowed in
             if allowed { Task { await app.measureFolders() } }
         }
-        .onChange(of: app.stage) { _, stage in
+        .onChange(of: app.stage) { old, stage in
             if case .done(let freed, _) = stage, freed > 0 { celebrations += 1 }
+            if old == .scanning, stage == .ready, !reduceMotion { countUpFound() }
         }
         .cleanConfirmation(isPresented: $confirming)
     }
 
+    /// From what the live counter showed up to the final total, easing out over about half a second.
+    private func countUpFound() {
+        let start = Double(min(ScanProgress.shared.snapshot.bytes, app.foundTotal))
+        let end = Double(app.foundTotal)
+        guard end > start else { return }
+        Task { @MainActor in
+            for step in 1...14 {
+                let t = Double(step) / 14
+                countingFound = Int64(start + (end - start) * (1 - pow(1 - t, 3)))
+                try? await Task.sleep(for: .milliseconds(40))
+            }
+            countingFound = nil
+        }
+    }
+
     private var status: String {
         switch app.stage {
-        case .idle: return "Not scanned yet"
-        case .scanning: return "Scanning…"
+        case .idle: return UserName.current.isEmpty ? "Not scanned yet" : "\(UserName.timeOfDay), \(UserName.current)"
+        case .scanning:
+            let found = ScanProgress.shared.snapshot
+            guard found.bytes > 0 else { return "Looking around…" }
+            // Just the last two folders of where Fussel is looking, like "Caches/com.spotify.client".
+            let place = found.path.split(separator: "/").suffix(2).joined(separator: "/")
+            return place.isEmpty ? "\(found.bytes.byteString) found so far"
+                                 : "\(found.bytes.byteString) found so far · \(place)"
         case .cleaning: return "Cleaning…"
-        case .ready: return app.foundTotal > 0 ? "Scanned just now · \(app.foundTotal.byteString) found" : "Scanned just now · all clean"
-        case .done(let freed, _): return freed > 0 ? "Cleaned \(freed.byteString)" : "All tidy"
+        case .ready:
+            let found = countingFound ?? app.foundTotal
+            return app.foundTotal > 0 ? "Scanned just now · \(found.byteString) found" : "Scanned just now · all clean"
+        case .done(let freed, _): return freed > 0 ? UserName.allTidy(freed) : "All tidy"
         }
     }
 }
@@ -604,6 +643,7 @@ private struct StorageBar: View {
                             .fill(palette.accent(module))
                             .frame(width: max(3, w * bytes / total))
                             .help("\(module.title): \(Int64(bytes).byteString)")
+                            .transition(.scale(scale: 0, anchor: .leading).combined(with: .opacity))
                     }
                 }
                 Rectangle()
@@ -626,14 +666,17 @@ private struct StorageBar: View {
     }
 }
 
-/// A soft band of light sweeping across, while Fussel is still looking.
+/// A soft band sweeping across the bar while Fussel is still looking.
 private struct Shimmer: View {
+    @Environment(\.palette) private var palette
     @State private var phase: CGFloat = -1
 
     var body: some View {
+        // A soft band in the five tool colours, the places Fussel is looking through.
+        let colors = [Color.clear] + Module.allCases.map { palette.accent($0).opacity(0.6) } + [.clear]
         GeometryReader { geo in
-            LinearGradient(colors: [.clear, .white.opacity(0.45), .clear], startPoint: .leading, endPoint: .trailing)
-                .frame(width: geo.size.width * 0.3)
+            LinearGradient(colors: colors, startPoint: .leading, endPoint: .trailing)
+                .frame(width: geo.size.width * 0.4)
                 .offset(x: phase * geo.size.width)
         }
         .allowsHitTesting(false)
