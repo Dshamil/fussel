@@ -4,11 +4,35 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Fussel – Free up your Mac, calmly</title>
-<meta name="description" content="Fussel is a calm, honest Mac cleaner. It finds caches, logs and forgotten files, tells you what each one is, and moves what you choose to the Trash. Free and open source.">
+<meta name="description" content="Fussel is a calm, honest Mac cleaner. It finds caches, logs and forgotten files, explains each one and moves what you pick to the Trash. Free.">
+<link rel="canonical" href="https://dshamil.github.io/fussel/">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://dshamil.github.io/fussel/">
 <meta property="og:title" content="Fussel – Free up your Mac, calmly">
 <meta property="og:description" content="A calm, honest Mac cleaner. Everything goes to the Trash first, and Undo is always right there.">
-<meta property="og:image" content="https://dshamil.github.io/fussel/logo.png">
+<meta property="og:image" content="https://dshamil.github.io/fussel/social.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="The Fussel app icon, the name Fussel and the line “Free up your Mac, calmly.”">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Fussel",
+  "description": "A calm, honest Mac cleaner. Everything goes to the Trash first, and Undo is always right there.",
+  "operatingSystem": "macOS 14 or later",
+  "applicationCategory": "UtilitiesApplication",
+  "url": "https://dshamil.github.io/fussel/",
+  "downloadUrl": "https://github.com/Dshamil/fussel/releases/latest/download/Fussel-Installer.zip",
+  "image": "https://dshamil.github.io/fussel/logo.png",
+  "license": "https://opensource.org/licenses/MIT",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+}
+</script>
 <link rel="icon" href="logo.png">
+<meta name="theme-color" content="#F3F3F5" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#161618" media="(prefers-color-scheme: dark)">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&display=swap">
@@ -61,8 +85,12 @@ h2 { font-size: clamp(30px, 4.4vw, 44px); font-weight: 800; line-height: 1.08; }
 h3 { font-size: 19px; font-weight: 800; }
 p { margin: 0; }
 .lede { color: var(--muted); font-size: 18px; max-width: 58ch; }
-.label { font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
-a:focus-visible, button:focus-visible { outline: 2px solid var(--updates); outline-offset: 3px; border-radius: 8px; }
+/* Jumping to a section keeps its heading clear of the sticky bar. */
+section[id], header[id], main[id] { scroll-margin-top: 76px; }
+.skip { position: absolute; left: 12px; top: -60px; z-index: 20; background: var(--strong); color: var(--on-strong);
+  padding: 10px 16px; border-radius: 10px; font-weight: 600; text-decoration: none; }
+.skip:focus { top: 12px; }
+a:focus-visible, button:focus-visible, video:focus-visible { outline: 2px solid var(--updates); outline-offset: 3px; border-radius: 8px; }
 
 /* ---------- Navigation ---------- */
 nav { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--bg) 82%, transparent);
@@ -107,6 +135,7 @@ nav { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(
 .shot { margin: clamp(40px, 7vw, 72px) auto 0; max-width: 980px; border-radius: 14px; overflow: hidden;
   border: 1px solid var(--line); box-shadow: var(--shadow); background: var(--surface); }
 .shot img, .shot video { width: 100%; height: auto; display: block; }
+.shot video { cursor: pointer; }
 
 /* ---------- Sections ---------- */
 section { padding-block: clamp(56px, 9vw, 104px); border-top: 1px solid var(--line); }
@@ -116,6 +145,9 @@ section { padding-block: clamp(56px, 9vw, 104px); border-top: 1px solid var(--li
 .g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .tile { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 22px; display: grid; gap: 10px; align-content: start; min-width: 0; }
 .tile p { color: var(--muted); font-size: 15px; }
+.principles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px 40px; padding-top: 28px; border-top: 1px solid var(--line); }
+.principles div { display: grid; gap: 6px; align-content: start; }
+.principles p { color: var(--muted); font-size: 15px; }
 
 .tools { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
 .tool { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px 16px; display: grid; gap: 10px; align-content: start; min-width: 0; }
@@ -176,7 +208,7 @@ footer { border-top: 1px solid var(--line); padding-block: 32px 48px; color: var
 @media (max-width: 900px) {
   .tools { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .looks { grid-template-columns: minmax(0, 1fr); }
-  .g3, .steps { grid-template-columns: minmax(0, 1fr); }
+  .g3, .steps, .principles { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 640px) {
   .links a:not(.small-dl) { display: none; }
@@ -193,12 +225,13 @@ footer { border-top: 1px solid var(--line); padding-block: 32px 48px; color: var
 </style>
 </head>
 <body>
+<a class="skip" href="#main">Skip to content</a>
 
 <nav>
   <div class="wrap nav">
     <a class="brand" href="#top" aria-label="Fussel home">
-      <img src="logo.png" alt="">
-      <b>Fussel</b>
+      <img src="logo.png" alt="" width="34" height="34">
+      <b translate="no">Fussel</b>
       <span class="chip" data-version>v0.9.9</span>
     </a>
     <div class="links">
@@ -213,7 +246,7 @@ footer { border-top: 1px solid var(--line); padding-block: 32px 48px; color: var
 
 <header class="hero" id="top">
   <div class="wrap">
-    <img class="icon" src="logo.png" alt="Fussel app icon: a white fluff ball with a curl on a graphite tile" width="168" height="168">
+    <img class="icon" src="logo.png" fetchpriority="high" alt="Fussel app icon: a white fluff ball with a curl on a graphite tile" width="168" height="168">
     <h1>Free up your Mac,<br><span class="calmly">calmly.</span></h1>
     <p class="lede">Fussel finds caches, logs and forgotten files, tells you what each one is, and moves only what you choose to the Trash. No scare screens, no subscription.</p>
     <a class="download" href="https://github.com/Dshamil/fussel/releases/latest/download/Fussel-Installer.zip" data-download>
@@ -237,25 +270,24 @@ footer { border-top: 1px solid var(--line); padding-block: 32px 48px; color: var
   </div>
 </header>
 
-<main>
+<main id="main">
   <section>
     <div class="wrap">
       <div class="intro">
         <div class="buddy" aria-hidden="true">
-          <div class="bubble">Hi, I'm Fussel.</div>
+          <div class="bubble">Hi, I’m Fussel.</div>
           <div class="tile-art" data-art="idle"></div>
         </div>
         <div class="head" style="margin:0">
-          <span class="label">Meet Fussel</span>
           <h2>A little fluff ball that tidies up behind you.</h2>
-          <p class="lede">Most Mac cleaners run on fear: red warnings, huge numbers, "your Mac is at risk". Fussel does the opposite. He looks around quietly, explains every file and never throws anything away without you.</p>
+          <p class="lede">Most Mac cleaners run on fear: red warnings, huge numbers, “your Mac is at risk”. Fussel does the opposite. He looks around quietly, explains every file and never throws anything away without you.</p>
           <p class="lede">He lives in your menu bar, blinks now and then, and once a week he lets you know if fluff is piling up.</p>
         </div>
       </div>
-      <div class="grid g3">
-        <div class="tile"><h3>Calm</h3><p>No alarm colours, no exclamation marks. Just sizes in GB and plain words.</p></div>
-        <div class="tile"><h3>Honest</h3><p>Every item says what it is and carries a clear label: Safe to Clean, or Check First.</p></div>
-        <div class="tile"><h3>Forgiving</h3><p>Everything goes to the Trash first. Undo is always right there.</p></div>
+      <div class="principles">
+        <div><h3>Calm</h3><p>No alarm colours, no exclamation marks. Just sizes in GB and plain words.</p></div>
+        <div><h3>Honest</h3><p>Every item says what it is and carries a clear label: Safe to Clean, or Check First.</p></div>
+        <div><h3>Forgiving</h3><p>Everything goes to the Trash first. Undo is always right there.</p></div>
       </div>
     </div>
   </section>
@@ -263,14 +295,13 @@ footer { border-top: 1px solid var(--line); padding-block: 32px 48px; color: var
   <section id="tools">
     <div class="wrap">
       <div class="head">
-        <span class="label">Five tools</span>
         <h2>One scan, five places where space hides.</h2>
         <p class="lede">The overview shows how much is used, where it goes, and what each tool found. Your four biggest folders and your last clean-ups sit right below.</p>
       </div>
       <div class="tools">
         <div class="tool"><div class="ic" style="background:var(--junk)" data-glyph="sparkle"></div><b>System Junk</b><span>App caches, logs and Xcode build data.</span></div>
         <div class="tool"><div class="ic" style="background:var(--tidy)" data-glyph="tray"></div><b>Trash &amp; Downloads</b><span>Empty the Trash, sweep out old downloads.</span></div>
-        <div class="tool"><div class="ic" style="background:var(--large)" data-glyph="drive"></div><b>Large Files</b><span>Big files and things you haven't opened in ages.</span></div>
+        <div class="tool"><div class="ic" style="background:var(--large)" data-glyph="drive"></div><b>Large Files</b><span>Big files and things you haven’t opened in ages.</span></div>
         <div class="tool"><div class="ic" style="background:var(--uninst)" data-glyph="box"></div><b>Uninstaller</b><span>Apps together with their leftovers.</span></div>
         <div class="tool"><div class="ic" style="background:var(--updates)" data-glyph="down"></div><b>App Updates</b><span>From the App Store and the web.</span></div>
       </div>
@@ -280,9 +311,8 @@ footer { border-top: 1px solid var(--line); padding-block: 32px 48px; color: var
   <section id="safety">
     <div class="wrap">
       <div class="head">
-        <span class="label">Safety first</span>
         <h2>Nothing goes without you.</h2>
-        <p class="lede">Fussel never touches system files, Apple's apps, your keychains or your own folders. A last check guards every single item, and automatic tests guard that check.</p>
+        <p class="lede">Fussel never touches system files, Apple’s apps, your keychains or your own folders. A last check guards every single item, and automatic tests guard that check.</p>
       </div>
       <div class="grid g2">
         <div class="tile">
@@ -310,7 +340,6 @@ footer { border-top: 1px solid var(--line); padding-block: 32px 48px; color: var
         </video>
       </div>
       <div class="head" style="margin:0">
-        <span class="label">Your look</span>
         <h2>Light, Dark, Glass or Oreo.</h2>
         <p class="lede">Follow your Mac, or pick one. Glass lets your desktop shine through, softly blurred. Oreo pairs a white sidebar with a dark main area.</p>
         <div class="swatches">
@@ -326,14 +355,13 @@ footer { border-top: 1px solid var(--line); padding-block: 32px 48px; color: var
   <section id="privacy">
     <div class="wrap">
       <div class="head">
-        <span class="label">Privacy</span>
         <h2>What it finds stays on your Mac.</h2>
         <p class="lede">No accounts, no analytics, no tracking. Fussel only goes online for these, each only for its own job:</p>
       </div>
       <div class="privacy">
         <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 20h14"/></svg><span><b>Its own updates</b><p>Asks GitHub at most once a day whether a new Fussel is out. You can turn that off.</p></span></div>
-        <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M8 13l4 4 4-4"/></svg><span><b>Updates for your apps</b><p>Only when you check: the App Store, and each app's own update feed.</p></span></div>
-        <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17a8 8 0 1 1 16 0"/><path d="M12 17l4-5"/></svg><span><b>The speed test</b><p>Only when you start it, with macOS's own tool and Apple's servers.</p></span></div>
+        <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M8 13l4 4 4-4"/></svg><span><b>Updates for your apps</b><p>Only when you check: the App Store, and each app’s own update feed.</p></span></div>
+        <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17a8 8 0 1 1 16 0"/><path d="M12 17l4-5"/></svg><span><b>The speed test</b><p>Only when you start it, with macOS’s own tool and Apple’s servers.</p></span></div>
         <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><span><b>Everything else</b><p>Scan results, file lists and your clean-up history never leave your Mac.</p></span></div>
       </div>
     </div>
@@ -342,12 +370,11 @@ footer { border-top: 1px solid var(--line); padding-block: 32px 48px; color: var
   <section id="install">
     <div class="wrap">
       <div class="head">
-        <span class="label">Install</span>
         <h2>Three steps, about a minute.</h2>
       </div>
       <div class="steps">
         <div class="tile"><h3>Download</h3><p><b>Fussel-Installer.zip</b>. Your Mac unpacks it to Fussel-Installer.pkg; open that.</p></div>
-        <div class="tile"><h3>Open Anyway</h3><p>Fussel isn't notarized by Apple yet, so macOS asks once. In <b>System Settings › Privacy &amp; Security</b>, click <b>Open Anyway</b>.</p></div>
+        <div class="tile"><h3>Open Anyway</h3><p>Fussel isn’t notarized by Apple yet, so macOS asks once. In <b>System Settings › Privacy &amp; Security</b>, click <b>Open Anyway</b>.</p></div>
         <div class="tile"><h3>Say hi</h3><p>Click through the installer. Fussel greets you with a short tour and asks for Full Disk Access, so it can see everything.</p></div>
       </div>
       <p class="note">From then on, Fussel updates itself with one click. Prefer drag and drop? The <a href="https://github.com/Dshamil/fussel/releases/latest">release page</a> also has a disk image.</p>
@@ -370,7 +397,7 @@ footer { border-top: 1px solid var(--line); padding-block: 32px 48px; color: var
 
 <footer>
   <div class="wrap foot">
-    <span>Fussel · MIT license · Made with care</span>
+    <span>Fussel is free and open source, under the MIT license.</span>
     <div>
       <a href="https://github.com/Dshamil/fussel">GitHub</a>
       <a href="https://github.com/Dshamil/fussel/releases">Release notes</a>
@@ -414,6 +441,15 @@ footer { border-top: 1px solid var(--line); padding-block: 32px 48px; color: var
   const apple = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
   document.querySelectorAll("[data-apple]").forEach(el => { if (apple) el.textContent = ""; else el.remove(); });
   document.querySelectorAll("[data-arrow]").forEach(el => { if (apple) el.setAttribute("hidden", ""); else el.removeAttribute("hidden"); });
+
+  // A click or Space pauses and resumes a video.
+  document.querySelectorAll("video").forEach(v => {
+    v.tabIndex = 0;
+    v.title = "Click to pause or play";
+    const toggle = () => (v.paused ? v.play() : v.pause());
+    v.addEventListener("click", toggle);
+    v.addEventListener("keydown", e => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); toggle(); } });
+  });
 
   // With reduced motion, the videos stay on their first picture.
   if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
