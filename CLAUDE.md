@@ -15,7 +15,7 @@ Fussel ist eine minimalistische, verspielte Mac-Aufräum-App (ähnlich CleanMyMa
 
 ```
 swift build                     # Debug-Build
-swift test                      # 17 Tests: Schutzregel (Groß/klein, Pfad-Tricks, Schlüsselbund, Apple-Apps, eigene Ordner), Aufräumen + Undo, Scanner, Versionsvergleich, Appcast, Update-Signatur
+swift test                      # 20 Tests: Schutzregel (Groß/klein, Pfad-Tricks, Schlüsselbund, Apple-Apps, eigene Ordner), Aufräumen + Undo, Scanner, Uninstaller (keine Pfade aus App-Namen), Update-Befehl, Versionsvergleich, Appcast, Update-Signatur
 scripts/build.sh 0.8.1          # Universal-Build → dist/Fussel.app (ad-hoc signiert)
 scripts/package.sh 0.8.1        # Installer dist/Fussel-Installer.pkg + dist/Fussel.dmg
 open dist/Fussel.app            # starten
@@ -49,7 +49,7 @@ Fussel ist eine Menüleisten-App (keine Dock-Icon, `LSUIElement`). Läuft schon 
 - `PermissionsView.swift` – eigener Bildschirm für die Rechte (Festplattenvollzugriff = nötig, Mitteilungen, Start mit dem Mac), zeigt live „Allowed“. Kommt beim ersten Start direkt nach der Tour (auch nach Skip), sonst über „Check Permissions“ in den Einstellungen.
 - `UpdatedView.swift` – Pop-up einmal nach einem Update („Updated to Fussel X“, What's New, Hinweis auf Festplattenvollzugriff, falls macOS ihn vergessen hat); erkannt über `lastRunVersion`.
 - `Tutorial.swift` – kurze Willkommens-Tour (4 Karten, Skip/Esc), von selbst nur beim allerersten Start nach der Installation (`FirstLaunch.seen`), sonst über „Show Tour“ in den Einstellungen. Die Seitenleiste ist per Ziehen am Trennstrich 200–340 pt breit (Doppelklick: zurück auf 248).
-- `Updater.swift` – Selbst-Updater über GitHub Releases, prüft die Ed25519-Signatur (`UpdateSignature`) vor dem Installieren. „Update Now“ (Übersicht-Banner, Einstellungen, Menü) installiert still über `installer` mit einer macOS-Passwortabfrage; das pkg beendet Fussel (preinstall) und startet es neu (postinstall). Abbrechen → zurück zu „Update Now“, anderer Fehler → normales Installer-Fenster.
+- `Updater.swift` – Selbst-Updater über GitHub Releases, prüft die Ed25519-Signatur (`UpdateSignature`) vor dem Installieren. „Update Now“ (Übersicht-Banner, Einstellungen, Menü) installiert still über `installer` mit einer macOS-Passwortabfrage; das pkg beendet Fussel (preinstall) und startet es neu (postinstall). Abbrechen → zurück zu „Update Now“, anderer Fehler → normales Installer-Fenster. Der Admin-Befehl kopiert das geprüfte pkg in einen eigenen Ordner, vergleicht dort den SHA-256-Fingerabdruck und schreibt nichts nach /tmp (`installCommand`).
 - `AppUpdates.swift` – Updates anderer Apps (App Store + Sparkle-Feeds).
 - `FluffWatcher.swift` – wöchentliche Erinnerung.
 

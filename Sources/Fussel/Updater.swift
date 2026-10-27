@@ -126,8 +126,9 @@ final class FusselUpdater {
             }
             let (signatureData, signatureResponse) = try await URLSession.shared.data(from: signatureURL)
             let signature = String(decoding: signatureData, as: UTF8.self)
+            let package = try Data(contentsOf: temp)
             guard (signatureResponse as? HTTPURLResponse)?.statusCode == 200,
-                  UpdateSignature.isValid(try Data(contentsOf: temp), signature: signature) else {
+                  UpdateSignature.isValid(package, signature: signature) else {
                 try? FileManager.default.removeItem(at: temp)
                 state = .failed("This update couldn't be verified, so Fussel won't install it.")
                 return
@@ -138,9 +139,12 @@ final class FusselUpdater {
             let target = folder.appendingPathComponent("Fussel-\(release.version)-Installer.pkg")
             try? FileManager.default.removeItem(at: target)
             try FileManager.default.moveItem(at: temp, to: target)
+            // The fingerprint of exactly the bytes that passed the check. The file waits in a folder
+            // other programs of this user could reach, so it's compared again before anything installs it.
+            let fingerprint = Self.sha256(package)
             state = .installing
             note = nil
-            switch Self.installInBackground(target) {
+            switch Self.installInBackground(target, sha256: fingerprint) {
             case .started:
                 // The package quits this Fussel (preinstall) and starts the new one (postinstall).
                 // If that hasn't happened after two minutes, the quiet route didn't work: show the
@@ -150,37 +154,66 @@ final class FusselUpdater {
                     guard let self, self.state == .installing else { return }
                     self.state = .available(release)
                     self.note = "The update didn't finish on its own, so the installer opened instead."
-                    NSWorkspace.shared.open(target)
+                    self.openInstaller(target, sha256: fingerprint)
                 }
             case .cancelled:
                 state = .available(release)
                 note = "The update was cancelled. Click Update Now to try again."
+            case .changed:
+                state = .failed("The update changed after it was checked, so Fussel won't install it.")
             case .failed:
                 // Something odd with the quiet route: fall back to the regular installer window.
-                NSWorkspace.shared.open(target)
+                openInstaller(target, sha256: fingerprint)
             }
         } catch {
             state = .failed("The download didn't work: \(error.localizedDescription)")
         }
     }
 
-    enum InstallStart { case started, cancelled, failed }
+    enum InstallStart { case started, cancelled, changed, failed }
+
+    /// Opens the regular installer window, but only for the very file that was checked.
+    private func openInstaller(_ package: URL, sha256: String) {
+        guard let data = try? Data(contentsOf: package), Self.sha256(data) == sha256 else {
+            state = .failed("The update changed after it was checked, so Fussel won't install it.")
+            return
+        }
+        NSWorkspace.shared.open(package)
+    }
+
+    nonisolated static func sha256(_ data: Data) -> String {
+        SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+    }
+
+    /// The shell command that runs as administrator. It copies the package into a fresh folder only the
+    /// administrator can reach, installs it only if the copy still has the checked fingerprint (else it
+    /// stops with code 3), and leaves no files in shared places like /tmp, where another program could
+    /// have laid a trap for a file written with administrator rights.
+    nonisolated static func installCommand(package: String, sha256: String) -> String {
+        let quoted = "'" + package.replacingOccurrences(of: "'", with: "'\\''") + "'"
+        return "D=$(/usr/bin/mktemp -d) && /bin/cp \(quoted) \"$D/update.pkg\" && "
+            + "[ \"$(/usr/bin/shasum -a 256 \"$D/update.pkg\" | /usr/bin/cut -d ' ' -f 1)\" = \(sha256) ] "
+            + "|| { /bin/rm -rf \"$D\"; exit 3; }; "
+            + "(/usr/sbin/installer -pkg \"$D/update.pkg\" -target /; /bin/rm -rf \"$D\") > /dev/null 2>&1 &"
+    }
 
     /// Runs macOS's `installer` for the package with administrator rights, so the update goes in
     /// without clicking through the installer window. macOS asks for the password itself; Fussel never
     /// sees it. The install runs in the background, because the package quits this very app halfway
     /// through. (No `nohup`: launched this way it refuses with "can't detach from console".)
-    private static func installInBackground(_ package: URL) -> InstallStart {
-        // AppleScript quotes the path for the shell itself; only its own string needs escaping.
-        let path = package.path.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
-        let script = "do shell script \"/usr/sbin/installer -pkg \" & quoted form of \"\(path)\" & "
-            + "\" -target / > /tmp/fussel-update.log 2>&1 &\" with administrator privileges "
+    private static func installInBackground(_ package: URL, sha256: String) -> InstallStart {
+        let command = installCommand(package: package.path, sha256: sha256)
+            .replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
+        let script = "do shell script \"\(command)\" with administrator privileges "
             + "with prompt \"Fussel wants to install its update.\""
         var error: NSDictionary?
         NSAppleScript(source: script)?.executeAndReturnError(&error)
         guard let error else { return .started }
-        // -128 is "User canceled" in AppleScript.
-        return (error[NSAppleScript.errorNumber] as? Int) == -128 ? .cancelled : .failed
+        switch error[NSAppleScript.errorNumber] as? Int {
+        case -128: return .cancelled  // "User canceled"
+        case 3: return .changed
+        default: return .failed
+        }
     }
 
     // MARK: GitHub

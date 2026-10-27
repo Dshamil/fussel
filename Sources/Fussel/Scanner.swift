@@ -199,12 +199,22 @@ enum Scanner {
             .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 
+    /// An app chooses its own name and ID. Only a plain name may become part of a path: no "/", no
+    /// ":" (shown as "/" in Finder), not empty and not "." or "..", so it can't point anywhere else.
+    static func isPlainName(_ text: String) -> Bool {
+        !text.isEmpty && text != "." && text != ".." && !text.contains("/") && !text.contains(":")
+    }
+
     /// The app bundle itself plus every support file Fussel can attribute to it.
     static func leftovers(for app: InstalledApp) -> [CleanupItem] {
-        let id = app.bundleID
-        let name = app.name
+        let id = isPlainName(app.bundleID) ? app.bundleID : ""
+        let name = isPlainName(app.name) ? app.name : ""
         var candidates: [URL] = []
-        func add(_ path: String) { candidates.append(library.appendingPathComponent(path)) }
+        func add(_ path: String) {
+            // Paths built from a name that wasn't plain are left out; so are the prefix matches below.
+            guard !path.hasSuffix("/"), !path.contains("/."), !path.hasPrefix(".") else { return }
+            candidates.append(library.appendingPathComponent(path))
+        }
 
         add("Application Support/\(id)")
         add("Application Support/\(name)")
@@ -226,7 +236,7 @@ enum Scanner {
             ("Group Containers", { $0.hasSuffix("." + id) || $0 == id }),
             ("Application Scripts", { $0 == id }),
         ]
-        for (folder, matches) in prefixMatches {
+        for (folder, matches) in prefixMatches where !id.isEmpty {
             for child in children(of: library.appendingPathComponent(folder)) where matches(child.lastPathComponent) {
                 candidates.append(child)
             }

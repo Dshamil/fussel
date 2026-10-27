@@ -157,4 +157,38 @@ final class CleaningTests: XCTestCase {
             }
         }
     }
+
+    // MARK: Uninstaller
+
+    /// An app picks its own name and ID. With "../" in them it must not steer the uninstaller to
+    /// files that belong to someone else, here a folder next to the app's caches.
+    func testAnAppsNameCantPointTheUninstallerElsewhere() throws {
+        let target = home.appendingPathComponent("Library/Caches/FusselTest-\(UUID().uuidString)")
+        try fm.createDirectory(at: target, withIntermediateDirectories: true)
+        defer { try? fm.removeItem(at: target) }
+        let app = InstalledApp(url: URL(fileURLWithPath: "/Applications/Sneaky.app"),
+                               name: "../Caches/\(target.lastPathComponent)",
+                               bundleID: "../Caches/\(target.lastPathComponent)")
+        let paths = Scanner.leftovers(for: app).map { $0.url.standardizedFileURL.path }
+        XCTAssertFalse(paths.contains(target.path), "a crafted name reached \(target.path)")
+    }
+
+    func testAnEmptyAppIDDoesntMatchEveryLaunchAgent() {
+        let app = InstalledApp(url: URL(fileURLWithPath: "/Applications/Empty.app"), name: "Empty", bundleID: "")
+        let others = Scanner.leftovers(for: app).filter { $0.url.path.contains("/LaunchAgents/") }
+        XCTAssertTrue(others.isEmpty, "an empty ID offered \(others.map(\.name))")
+    }
+
+    // MARK: Self-update
+
+    /// The update runs as administrator, so it must not write to shared places like /tmp, and it must
+    /// install exactly the file Fussel checked: copied somewhere only the administrator can reach,
+    /// then compared with the checked file's fingerprint.
+    func testTheUpdateInstallsOnlyTheCheckedFile() {
+        let script = FusselUpdater.installCommand(package: "/Users/me/Library/Caches/it's.pkg", sha256: "abc123")
+        XCTAssertFalse(script.contains("/tmp/"), script)
+        XCTAssertTrue(script.contains("mktemp -d"), script)
+        XCTAssertTrue(script.contains("abc123"), script)
+        XCTAssertTrue(script.contains("'/Users/me/Library/Caches/it'\\''s.pkg'"), script)
+    }
 }
