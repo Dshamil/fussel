@@ -8,23 +8,22 @@ enum FusselGeometry {
     static let radius: CGFloat = 25.4
     /// The curl swings around this point, where it grows out of the ball.
     static let curlBase = CGPoint(x: 51.5, y: 30)
-    /// The curl: a loop and a short strand, both starting inside the ball. Small drawings (menu bar,
-    /// sidebar badge) end the loop a bit earlier and let the strand lean further out, so the two
-    /// don't melt into one blob.
-    static func curl(small: Bool = false, _ p: (CGFloat, CGFloat) -> CGPoint) -> (loop: Path, strand: Path) {
+    /// The curl: a loop and a short strand, both starting inside the ball.
+    static func curl(_ p: (CGFloat, CGFloat) -> CGPoint) -> (loop: Path, strand: Path) {
         var loop = Path()
         loop.move(to: p(50, 30))
         loop.addQuadCurve(to: p(50, 12.7), control: p(42, 18))
-        if small { loop.addQuadCurve(to: p(57, 15.5), control: p(58.3, 9.8)) }
-        else { loop.addQuadCurve(to: p(58.7, 18.7), control: p(58.7, 9.4)) }
+        loop.addQuadCurve(to: p(58.7, 18.7), control: p(58.7, 9.4))
         var strand = Path()
         strand.move(to: p(53.3, 30))
-        if small { strand.addQuadCurve(to: p(71, 31), control: p(63, 27)) }
-        else { strand.addQuadCurve(to: p(66.7, 23.3), control: p(60, 22)) }
+        strand.addQuadCurve(to: p(66.7, 23.3), control: p(60, 22))
         return (loop, strand)
     }
     static let loopWidth: CGFloat = 4.7
     static let strandWidth: CGFloat = 4.0
+    /// Small drawings (menu bar, sidebar badge) keep the exact shape but draw the curl a little thinner:
+    /// the gap between loop and strand is under 2 % of the drawing and would close up otherwise.
+    static let smallWeight: CGFloat = 0.8
     static let eyes: [CGPoint] = [CGPoint(x: 42.7, y: 55.4), CGPoint(x: 57.3, y: 55.4)]
     static let eyeSize = CGSize(width: 6.6, height: 10.8)
 }
@@ -58,11 +57,10 @@ struct FusselBody: View, Equatable {
             curl.translateBy(x: g.curlBase.x * s, y: g.curlBase.y * s)
             curl.rotate(by: .degrees(curlTilt))
             curl.translateBy(x: -g.curlBase.x * s, y: -g.curlBase.y * s)
-            let small = s < 0.48
-            let (loop, strand) = g.curl(small: small, p)
-            // Small sizes get a little extra weight, so the curl doesn't turn into a hairline.
-            curl.stroke(loop, with: .color(color), style: StrokeStyle(lineWidth: max(g.loopWidth * s, 1.5), lineCap: .round))
-            curl.stroke(strand, with: .color(color), style: StrokeStyle(lineWidth: max(g.strandWidth * s, 1.35), lineCap: .round))
+            let weight = s < 0.48 ? g.smallWeight : 1
+            let (loop, strand) = g.curl(p)
+            curl.stroke(loop, with: .color(color), style: StrokeStyle(lineWidth: g.loopWidth * s * weight, lineCap: .round))
+            curl.stroke(strand, with: .color(color), style: StrokeStyle(lineWidth: g.strandWidth * s * weight, lineCap: .round))
 
             let r = g.radius
             ctx.fill(Path(ellipseIn: CGRect(x: (g.ball.x - r) * s, y: (g.ball.y - r) * s, width: 2 * r * s, height: 2 * r * s)),
@@ -113,11 +111,11 @@ enum MenuBarIcon {
             cg.translateBy(x: g.curlBase.x, y: g.curlBase.y)
             cg.rotate(by: curlTilt * .pi / 180)
             cg.translateBy(x: -g.curlBase.x, y: -g.curlBase.y)
-            let (loop, strand) = g.curl(small: true) { CGPoint(x: $0, y: $1) }
-            cg.setLineWidth(g.loopWidth)
+            let (loop, strand) = g.curl { CGPoint(x: $0, y: $1) }
+            cg.setLineWidth(g.loopWidth * g.smallWeight)
             cg.addPath(loop.cgPath)
             cg.strokePath()
-            cg.setLineWidth(g.strandWidth)
+            cg.setLineWidth(g.strandWidth * g.smallWeight)
             cg.addPath(strand.cgPath)
             cg.strokePath()
             cg.restoreGState()
