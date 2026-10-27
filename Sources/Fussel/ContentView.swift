@@ -623,6 +623,8 @@ private struct StorageBar: View {
     @Environment(AppModel.self) private var app
     @Environment(\.palette) private var palette
     let grown: Bool
+    /// Where the pointer is over the bar, for the little label saying what that part is.
+    @State private var pointer: CGFloat?
 
     var body: some View {
         let s = app.monitor.sample
@@ -642,14 +644,11 @@ private struct StorageBar: View {
                         Rectangle()
                             .fill(palette.accent(module))
                             .frame(width: max(3, w * bytes / total))
-                            .help("\(module.title): \(Int64(bytes).byteString)")
-                            .transition(.scale(scale: 0, anchor: .leading).combined(with: .opacity))
                     }
                 }
                 Rectangle()
                     .fill(palette.secondary.opacity(0.55))
                     .frame(width: max(0, w * (used - known) / total))
-                    .help("Everything else: \(Int64(max(0, used - known)).byteString)")
                 Spacer(minLength: 0)
             }
             .frame(width: grown ? w : 0, alignment: .leading)
@@ -658,6 +657,29 @@ private struct StorageBar: View {
             .background(palette.text.opacity(0.08))
             .overlay { if app.stage == .scanning { Shimmer() } }
             .clipShape(Capsule())
+            // macOS tooltips don't stay up on a bar that redraws every two seconds, so Fussel shows its own.
+            .contentShape(Rectangle())
+            .onContinuousHover { phase in
+                if case .active(let point) = phase { pointer = point.x } else { pointer = nil }
+            }
+            .overlay(alignment: .topLeading) {
+                if let x = pointer, grown {
+                    Text(part(at: x, width: w, total: total, used: used, slices: slices))
+                        .font(.system(size: 11, weight: .semibold))
+                        .monospacedDigit()
+                        .foregroundStyle(palette.text)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Capsule().fill(palette.sheet))
+                        .overlay(Capsule().strokeBorder(palette.cardStroke, lineWidth: 1))
+                        .shadow(color: .black.opacity(0.12), radius: 6, y: 2)
+                        .fixedSize()
+                        .position(x: min(max(x, 70), max(70, w - 70)), y: -16)
+                        .allowsHitTesting(false)
+                        .transition(.opacity)
+                }
+            }
+            .animation(.easeOut(duration: 0.12), value: pointer == nil)
         }
         .frame(height: 10)
         .animation(.spring(duration: 0.8), value: known)
@@ -666,17 +688,31 @@ private struct StorageBar: View {
     }
 }
 
-/// A soft band sweeping across the bar while Fussel is still looking.
+extension StorageBar {
+    /// What lies under the pointer: a tool's find, everything else that's used, or free space.
+    fileprivate func part(at x: CGFloat, width w: CGFloat, total: Double, used: Double,
+                          slices: [(Module, Double)]) -> String {
+        var edge: CGFloat = 0
+        for (module, bytes) in slices where bytes > 0 {
+            edge += max(3, w * bytes / total) + 1.5
+            if x < edge { return "\(module.title): \(Int64(bytes).byteString)" }
+        }
+        let known = slices.reduce(0) { $0 + $1.1 }
+        let other = max(0, used - known)
+        edge += w * other / total
+        if x < edge { return "Apps, documents and macOS: \(Int64(other).byteString)" }
+        return "Free: \(Int64(max(0, total - used)).byteString)"
+    }
+}
+
+/// A soft band of light sweeping across, while Fussel is still looking.
 private struct Shimmer: View {
-    @Environment(\.palette) private var palette
     @State private var phase: CGFloat = -1
 
     var body: some View {
-        // A soft band in the five tool colours, the places Fussel is looking through.
-        let colors = [Color.clear] + Module.allCases.map { palette.accent($0).opacity(0.6) } + [.clear]
         GeometryReader { geo in
-            LinearGradient(colors: colors, startPoint: .leading, endPoint: .trailing)
-                .frame(width: geo.size.width * 0.4)
+            LinearGradient(colors: [.clear, .white.opacity(0.45), .clear], startPoint: .leading, endPoint: .trailing)
+                .frame(width: geo.size.width * 0.3)
                 .offset(x: phase * geo.size.width)
         }
         .allowsHitTesting(false)
