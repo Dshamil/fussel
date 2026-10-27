@@ -104,16 +104,19 @@ nav { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(
 .links { display: flex; align-items: center; gap: 22px; font-size: 14px; color: var(--muted); }
 .links a { text-decoration: none; }
 .links a:hover { color: var(--fg); }
-.small-dl { color: var(--on-strong) !important; background: var(--strong); padding: 7px 14px; border-radius: 9px; font-weight: 600; }
+.small-dl { color: var(--on-strong) !important; background: var(--strong); padding: 7px 14px; border-radius: 9px; font-weight: 600;
+  display: inline-block; transition: transform .35s cubic-bezier(.3,.7,.4,1.6); }
+.small-dl:active { transform: scale(.94); transition-duration: .08s; }
 
 /* ---------- The big button ---------- */
 .download { display: inline-flex; align-items: center; gap: 12px; text-decoration: none;
   background: var(--strong); color: var(--on-strong); border-radius: 16px; padding: 17px 28px 17px 24px;
   font: 700 19px/1 var(--text); letter-spacing: -0.01em;
   box-shadow: 0 10px 30px rgb(0 0 0 / 0.18), inset 0 1px 0 rgb(255 255 255 / 0.12);
-  transition: transform .2s cubic-bezier(.3,.7,.4,1.4), box-shadow .2s; }
+  transition: transform .4s cubic-bezier(.3,.7,.4,1.5), box-shadow .3s; }
 .download:hover { transform: translateY(-2px); box-shadow: 0 16px 36px rgb(0 0 0 / 0.24), inset 0 1px 0 rgb(255 255 255 / 0.12); }
-.download:active { transform: translateY(0) scale(.98); }
+.download:active { transform: translateY(1px) scale(.96); box-shadow: 0 4px 14px rgb(0 0 0 / 0.18), inset 0 1px 0 rgb(255 255 255 / 0.12);
+  transition-duration: .08s; }
 .download .apple { font-size: 22px; line-height: 1; margin-top: -3px; }
 .download svg { width: 20px; height: 20px; }
 .download svg[hidden] { display: none; }
@@ -165,8 +168,14 @@ section { padding-block: clamp(56px, 9vw, 104px); border-top: 1px solid var(--li
 .looks { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 32px; align-items: center; }
 .looks .shot { margin: 0; }
 .swatches { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
-.swatches span { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; border: 1px solid var(--line); background: var(--surface); padding: 6px 12px 6px 8px; border-radius: 99px; }
-.swatches i { width: 16px; height: 16px; border-radius: 50%; border: 1px solid var(--line); }
+.swatches button { display: inline-flex; align-items: center; gap: 8px; font: 14px var(--text); color: var(--fg); cursor: pointer;
+  border: 1px solid var(--line); background: var(--surface); padding: 6px 12px 6px 8px; border-radius: 99px;
+  transition: transform .35s cubic-bezier(.3,.7,.4,1.6), background .25s, color .25s, border-color .25s; }
+.swatches button:hover { border-color: color-mix(in srgb, var(--fg) 30%, transparent); }
+.swatches button:active { transform: scale(.92); transition-duration: .08s; }
+.swatches button[aria-pressed="true"] { background: var(--strong); color: var(--on-strong); border-color: var(--strong); }
+.swatches i { width: 16px; height: 16px; border-radius: 50%; border: 1px solid var(--line); transition: transform .35s cubic-bezier(.3,.7,.4,1.8); }
+.swatches button[aria-pressed="true"] i { transform: scale(1.15); }
 
 /* Fussel introduces himself: big on his graphite tile, blinking, and now and then a little wave of the curl. */
 .intro { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); gap: clamp(28px, 6vw, 72px); align-items: center; margin-bottom: 48px; }
@@ -220,7 +229,7 @@ footer { border-top: 1px solid var(--line); padding-block: 32px 48px; color: var
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   .buddy .curl, .buddy .eye, .bubble { animation: none; }
-  .download { transition: none; }
+  .download, .small-dl, .swatches button, .swatches i { transition: none; }
 }
 </style>
 </head>
@@ -333,7 +342,7 @@ footer { border-top: 1px solid var(--line); padding-block: 32px 48px; color: var
   <section>
     <div class="wrap looks">
       <div class="shot">
-        <video autoplay muted loop playsinline preload="metadata" poster="screenshots/styles.jpg" width="960" height="740"
+        <video id="looks" autoplay muted loop playsinline preload="metadata" poster="screenshots/styles.jpg" width="960" height="740"
                aria-label="Fussel in Light, Dark, Glass and Oreo">
           <source src="screenshots/styles.mp4" type="video/mp4">
           <img src="screenshots/styles.gif" alt="Fussel in Light, Dark, Glass and Oreo" width="960" height="740">
@@ -343,10 +352,10 @@ footer { border-top: 1px solid var(--line); padding-block: 32px 48px; color: var
         <h2>Light, Dark, Glass or Oreo.</h2>
         <p class="lede">Follow your Mac, or pick one. Glass lets your desktop shine through, softly blurred. Oreo pairs a white sidebar with a dark main area.</p>
         <div class="swatches">
-          <span><i style="background:#FFFFFF"></i>Light</span>
-          <span><i style="background:#1E1E20"></i>Dark</span>
-          <span><i style="background:linear-gradient(135deg,#E4E4E7,#BFC0C6)"></i>Glass</span>
-          <span><i style="background:linear-gradient(90deg,#FFFFFF 50%,#1E1E20 50%)"></i>Oreo</span>
+          <button type="button" data-look="0" aria-pressed="true"><i style="background:#FFFFFF"></i>Light</button>
+          <button type="button" data-look="1" aria-pressed="false"><i style="background:#1E1E20"></i>Dark</button>
+          <button type="button" data-look="2" aria-pressed="false"><i style="background:linear-gradient(135deg,#E4E4E7,#BFC0C6)"></i>Glass</button>
+          <button type="button" data-look="4" aria-pressed="false"><i style="background:linear-gradient(90deg,#FFFFFF 50%,#1E1E20 50%)"></i>Oreo</button>
         </div>
       </div>
     </div>
@@ -450,6 +459,18 @@ footer { border-top: 1px solid var(--line); padding-block: 32px 48px; color: var
     v.addEventListener("click", toggle);
     v.addEventListener("keydown", e => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); toggle(); } });
   });
+
+  // The style buttons follow the looks video, and a press jumps to that look. The video holds each of its
+  // five looks (Light, Dark, Glass light, Glass dark, Oreo) for 1.6 s, then wipes for 13 frames.
+  const looks = document.getElementById("looks");
+  const look = 1.6 + 13 / 30;
+  const buttons = [...document.querySelectorAll(".swatches button")];
+  const mark = n => buttons.forEach(b => b.setAttribute("aria-pressed", String(b === buttons.findLast(c => +c.dataset.look <= n))));
+  looks.addEventListener("timeupdate", () => mark(Math.floor((looks.currentTime + 0.2) / look) % 5));
+  buttons.forEach(b => b.addEventListener("click", () => {
+    looks.currentTime = +b.dataset.look * look;
+    mark(+b.dataset.look);
+  }));
 
   // With reduced motion, the videos stay on their first picture.
   if (matchMedia("(prefers-reduced-motion: reduce)").matches) {

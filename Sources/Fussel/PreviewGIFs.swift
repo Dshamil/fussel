@@ -33,8 +33,9 @@ extension PreviewRenderer {
             if let image = window("ready", scheme: scheme, page: .overview) { looks.append(image) }
             if let image = window("ready", scheme: scheme, page: .overview, scale: 2) { sharpLooks.append(image) }
         }
-        writeGIF(crossfade(looks, hold: 1.6), to: dir.appendingPathComponent("styles.gif"))
-        writeVideo(crossfade(sharpLooks, hold: 1.6, steps: 12, step: 1.0 / 30), to: dir.appendingPathComponent("styles.mp4"))
+        // Light and dark would wash each other out to grey halfway through a fade, so the looks wipe instead.
+        writeGIF(crossfade(looks, hold: 1.6, wipe: true), to: dir.appendingPathComponent("styles.gif"))
+        writeVideo(crossfade(sharpLooks, hold: 1.6, steps: 14, step: 1.0 / 30, wipe: true), to: dir.appendingPathComponent("styles.mp4"))
 
         // Fussel himself: swinging his curl like while he scans, with a blink.
         let fps = 30.0
@@ -64,26 +65,34 @@ extension PreviewRenderer {
         return renderer.cgImage
     }
 
-    /// Holds each image, then fades softly into the next one, and back to the first at the end.
-    private static func crossfade(_ images: [CGImage], hold: Double, steps: Int = 6, step: Double = 0.04) -> [(CGImage, Double)] {
+    /// Holds each image, then fades (or wipes) softly into the next one, and back to the first at the end.
+    private static func crossfade(_ images: [CGImage], hold: Double, steps: Int = 6, step: Double = 0.04,
+                                  wipe: Bool = false) -> [(CGImage, Double)] {
         var frames: [(CGImage, Double)] = []
         for (i, image) in images.enumerated() {
             frames.append((image, hold))
             let next = images[(i + 1) % images.count]
             for i in 1..<steps {
-                if let mix = blend(image, next, Double(i) / Double(steps)) { frames.append((mix, step)) }
+                let amount = Double(i) / Double(steps)
+                if let mix = blend(image, next, amount, wipe: wipe) { frames.append((mix, step)) }
             }
         }
         return frames
     }
 
-    private static func blend(_ a: CGImage, _ b: CGImage, _ amount: Double) -> CGImage? {
+    private static func blend(_ a: CGImage, _ b: CGImage, _ amount: Double, wipe: Bool = false) -> CGImage? {
         let rect = CGRect(x: 0, y: 0, width: a.width, height: a.height)
         guard let ctx = CGContext(data: nil, width: a.width, height: a.height, bitsPerComponent: 8, bytesPerRow: 0,
                                   space: CGColorSpaceCreateDeviceRGB(),
                                   bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
         ctx.draw(a, in: rect)
-        ctx.setAlpha(amount)
+        if wipe {
+            // Eased, so the edge starts and lands gently.
+            let eased = amount * amount * (3 - 2 * amount)
+            ctx.clip(to: CGRect(x: 0, y: 0, width: rect.width * eased, height: rect.height))
+        } else {
+            ctx.setAlpha(amount)
+        }
         ctx.draw(b, in: rect)
         return ctx.makeImage()
     }
