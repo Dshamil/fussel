@@ -524,8 +524,6 @@ private struct OverviewPage: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        let s = app.monitor.sample
-        let usedBytes = max(0, s.diskTotal - s.diskFree)
         PreviewSafeScroll {
             VStack(alignment: .leading, spacing: 0) {
                 // While scanning, the line under the title counts what's found so far, four times a second.
@@ -552,23 +550,7 @@ private struct OverviewPage: View {
                         AccessBanner()
                     }
 
-                    HStack(alignment: .firstTextBaseline) {
-                        CountingBytes(value: shown ? Double(usedBytes) : 0)
-                            .animation(.easeOut(duration: 1.0), value: shown)
-                            .animation(.easeOut(duration: 1.2), value: usedBytes)
-                            .font(.system(size: 30, weight: .bold))
-                            .tracking(-0.6)
-                            .foregroundStyle(palette.text)
-                            .overlay { SparkleBurst(trigger: celebrations) }
-                        Text("used of \(s.diskTotal.byteString)")
-                            .font(.system(size: 13))
-                            .foregroundStyle(palette.secondary)
-                        Spacer()
-                        Text("\(s.diskFree.byteString) free")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(palette.secondary)
-                    }
-                    .monospacedDigit()
+                    DiskHeadline(shown: shown, celebrations: celebrations)
 
                     StorageBar(grown: shown)
                         .padding(.top, 4)
@@ -634,6 +616,39 @@ private struct OverviewPage: View {
             return app.foundTotal > 0 ? "Scanned just now · \(found.byteString) found" : "Scanned just now · not a speck of fluff"
         case .done(let freed, _): return freed > 0 ? UserName.allTidy(freed) : "All tidy"
         }
+    }
+}
+
+/// The big "used" number with total and free space. It reads the live disk values itself, so their
+/// update every two seconds redraws only this line, not the whole overview.
+private struct DiskHeadline: View {
+    @Environment(AppModel.self) private var app
+    @Environment(\.palette) private var palette
+    let shown: Bool
+    let celebrations: Int
+
+    var body: some View {
+        let s = app.monitor.sample
+        let usedBytes = max(0, s.diskTotal - s.diskFree)
+        HStack(alignment: .firstTextBaseline) {
+            // Counts up once when the overview appears. Not on every new sample: free space wobbles by a
+            // few KB each time, and counting the big number up again and again kept the overview redrawing
+            // most of the time (and made the small windows in the stats line close unevenly).
+            CountingBytes(value: shown ? Double(usedBytes) : 0)
+                .animation(.easeOut(duration: 1.0), value: shown)
+                .font(.system(size: 30, weight: .bold))
+                .tracking(-0.6)
+                .foregroundStyle(palette.text)
+                .overlay { SparkleBurst(trigger: celebrations) }
+            Text("used of \(s.diskTotal.byteString)")
+                .font(.system(size: 13))
+                .foregroundStyle(palette.secondary)
+            Spacer()
+            Text("\(s.diskFree.byteString) free")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(palette.secondary)
+        }
+        .monospacedDigit()
     }
 }
 
@@ -895,8 +910,8 @@ private struct CategoryRow: View {
     }
 
     private var share: String? {
-        guard let model, model.phase == .results, app.monitor.sample.diskTotal > 0 else { return nil }
-        let percent = Double(model.totalSize) / Double(app.monitor.sample.diskTotal) * 100
+        guard let model, model.phase == .results, app.monitor.diskTotal > 0 else { return nil }
+        let percent = Double(model.totalSize) / Double(app.monitor.diskTotal) * 100
         return String(format: "%.1f %%", percent)
     }
 

@@ -102,6 +102,7 @@ enum PreviewRenderer {
             cpu: 0.12, temperature: 36, downBytesPerSecond: 3_200, upBytesPerSecond: 0
         )
         model.monitor.downHistory = (0..<30).map { Double(($0 * 37) % 11) * 900 }
+        model.monitor.diskTotal = model.monitor.sample.diskTotal
         model.monitor.hasSample = true
         switch scenario {
         case "stuffed":

@@ -52,6 +52,9 @@ enum SpeedTestState: Equatable {
 @MainActor
 final class SystemMonitor {
     var sample = SystemSample()
+    /// The disk's size on its own: it never changes, so views that only need it (like a tool's share of
+    /// the disk) aren't redrawn with every new sample.
+    var diskTotal: Int64 = 0
     var downHistory: [Double] = Array(repeating: 0, count: 30)
     var thermal: ProcessInfo.ThermalState = .nominal
     var speedTest: SpeedTestState = .idle
@@ -107,6 +110,7 @@ final class SystemMonitor {
         forceDisk = false
         let next = await Task.detached(priority: .utility) { sampler.sample(forceDisk: force) }.value
         sample = next
+        if next.diskTotal != diskTotal { diskTotal = next.diskTotal }
         hasSample = true
         thermal = ProcessInfo.processInfo.thermalState
         downHistory.append(next.downBytesPerSecond)
