@@ -134,7 +134,7 @@ jobs:
             echo "Release $TAG already exists, skipping."
           else
             NOTES="release-notes/$VERSION.md"
-            TITLE="Fussel $VERSION Beta"
+            TITLE="Fussel $VERSION"
             if [ -f "$NOTES" ]; then
               NOTES_ARG=(--notes-file "$NOTES")
               # An optional first line "<!-- title: ... -->" names the release.

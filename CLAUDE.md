@@ -1,6 +1,6 @@
 # Fussel
 
-Fussel ist eine minimalistische, verspielte Mac-Aufräum-App (ähnlich CleanMyMac), Beta. Der Besitzer (Dshamil) programmiert nicht selbst, sondern lässt Fussel komplett von Claude bauen ("vibe coding").
+Fussel ist eine minimalistische, verspielte Mac-Aufräum-App (ähnlich CleanMyMac), seit 1.0 keine Beta mehr. Der Besitzer (Dshamil) programmiert nicht selbst, sondern lässt Fussel komplett von Claude bauen ("vibe coding").
 
 ## So arbeiten wir
 

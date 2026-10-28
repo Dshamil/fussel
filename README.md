@@ -4,7 +4,7 @@
 
 <h1 align="center">Fussel</h1>
 
-<p align="center">Less fluff, more Mac. Fussel finds caches, logs and forgotten files, tells you what each one is, and moves what you choose to the Trash.<br><i>Public beta.</i> · <a href="https://dshamil.github.io/fussel/">dshamil.github.io/fussel</a></p>
+<p align="center">Less fluff, more Mac. Fussel finds caches, logs and forgotten files, tells you what each one is, and moves what you choose to the Trash.<br><a href="https://dshamil.github.io/fussel/">dshamil.github.io/fussel</a></p>
 
 <p align="center"><img src="docs/screenshots/tour.gif" width="720" alt="Fussel scanning, showing what it found, explaining System Junk and cleaning up"></p>
 
@@ -65,14 +65,14 @@ Requires macOS 14 Sonoma or later. Runs natively on Apple Silicon and Intel.
 ## Build it yourself
 
 ```sh
-scripts/build.sh 0.9.0      # builds dist/Fussel.app
-scripts/package.sh 0.9.0    # builds dist/Fussel-Installer.pkg and dist/Fussel.dmg
+scripts/build.sh 1.0.0      # builds dist/Fussel.app
+scripts/package.sh 1.0.0    # builds dist/Fussel-Installer.pkg and dist/Fussel.dmg
 ```
 
 Needs Xcode 15 or later (or the Swift toolchain that comes with it).
 
 Every push to `main` is built by GitHub Actions. To publish a new release, bump the
-number in `VERSION` (for example to `0.9.1`) and push: a beta release `v0.9.1` with the
+number in `VERSION` (for example to `1.0.1`) and push: a release `v1.0.1` with the
 installer, disk image and zip attached is created automatically. If `release-notes/<version>.md`
 exists, it becomes the release text (a first line `<!-- title: … -->` sets the release title);
 otherwise GitHub generates notes from the commits.
@@ -83,6 +83,10 @@ otherwise GitHub generates notes from the commits.
 - `Resources/`: Info.plist and the app icon
 - `design/`: icon artwork (light, dark, tinted) as SVG and PNG
 - `scripts/`: build and packaging scripts
+
+## Who makes Fussel
+
+Fussel is made by **Dshamil Meziane** and built with [Claude](https://claude.com/claude-code). Every safety rule is covered by tests, and the code is open for anyone to check.
 
 ## License
 
