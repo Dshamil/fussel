@@ -29,7 +29,7 @@ Was nicht klappt oder komisch aussieht: in Fussel **Settings › Feedback › Se
 
 ## 4. Werkzeuge
 
-- [ ] **System Junk** und **Trash & Downloads**: Liste, Filter (All / Safe to Clean / Check First), Sortierung, Lupe öffnet im Finder
+- [ ] **System Junk** und **Trash & Downloads**: Liste, Filter (All / Safe to Remove / Review First), Sortierung, Lupe öffnet im Finder
 - [ ] **Large Files**: nichts ist vorausgewählt
 - [ ] **Uninstaller**: App anklicken, mit ↑ und ↓ durch die Liste gehen, eine unwichtige App mit Resten entfernen
 - [ ] **App Updates**: Check for Updates findet etwas oder sagt „Everything's fresh“

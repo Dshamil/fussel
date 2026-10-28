@@ -46,7 +46,7 @@ enum PreviewRenderer {
 
     /// The menu bar icons, eight times their size: plain, with the dot, happy, and the busy frames.
     private static func renderMenuBar(to dir: URL) {
-        let icons = [MenuBarIcon.image, MenuBarIcon.imageWithDot, MenuBarIcon.happy] + MenuBarIcon.busy
+        let icons = [MenuBarIcon.image, MenuBarIcon.imageWithDot, MenuBarIcon.happy, MenuBarIcon.asleep] + MenuBarIcon.busy
         let cell: CGFloat = 18 * 8, pad: CGFloat = 16
         let strip = NSImage(size: NSSize(width: (cell + pad) * CGFloat(icons.count) + pad, height: cell + 2 * pad))
         strip.lockFocus()

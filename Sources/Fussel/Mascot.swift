@@ -28,6 +28,15 @@ enum FusselGeometry {
     static let eyeSize = CGSize(width: 6.6, height: 10.8)
 }
 
+/// Fussel's bedtime: from 23:00 to 6:00 he dozes, with his eyes closed.
+enum Bedtime {
+    static var now: Bool { isNight(Date()) }
+    static func isNight(_ date: Date) -> Bool {
+        let hour = Calendar.current.component(.hour, from: date)
+        return hour >= 23 || hour < 6
+    }
+}
+
 enum MascotMood: Equatable {
     case idle, busy, happy
     /// Disk almost full.
@@ -94,10 +103,12 @@ enum MenuBarIcon {
     static let image: NSImage = make()
     static let imageWithDot: NSImage = make(dot: true)
     static let happy: NSImage = make(happy: true)
+    /// At night: eyes closed, drooping a little.
+    static let asleep: NSImage = make(asleep: true)
     /// Busy frames: the curl swings back and forth.
     static let busy: [NSImage] = [0.0, -16, 0, 16].map { make(curlTilt: $0) }
 
-    private static func make(dot: Bool = false, happy: Bool = false, curlTilt: Double = 0) -> NSImage {
+    private static func make(dot: Bool = false, happy: Bool = false, asleep: Bool = false, curlTilt: Double = 0) -> NSImage {
         let side: CGFloat = 18
         let img = NSImage(size: NSSize(width: side, height: side), flipped: true) { rect in
             guard let cg = NSGraphicsContext.current?.cgContext else { return false }
@@ -133,6 +144,11 @@ enum MenuBarIcon {
                     cg.move(to: CGPoint(x: eye.x - w / 2 - 0.5, y: eye.y + 1.5))
                     cg.addQuadCurve(to: CGPoint(x: eye.x + w / 2 + 0.5, y: eye.y + 1.5),
                                     control: CGPoint(x: eye.x, y: eye.y - 5))
+                    cg.strokePath()
+                } else if asleep {
+                    cg.setLineWidth(3.6)
+                    cg.move(to: CGPoint(x: eye.x - w / 2 - 0.5, y: eye.y))
+                    cg.addQuadCurve(to: CGPoint(x: eye.x + w / 2 + 0.5, y: eye.y), control: CGPoint(x: eye.x, y: eye.y + 4))
                     cg.strokePath()
                 } else {
                     cg.fillEllipse(in: CGRect(x: eye.x - w / 2, y: eye.y - h / 2, width: w, height: h))

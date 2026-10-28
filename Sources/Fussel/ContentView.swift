@@ -136,12 +136,13 @@ private struct Sidebar: View {
                 SidebarFussel(busy: app.stage == .scanning || app.stage == .cleaning)
                 // The wordmark: SF Pro Rounded Heavy, set a little tight.
                 Text("Fussel")
-                    .font(.system(size: 15, weight: .heavy, design: .rounded))
-                    .tracking(-0.6)
+                    .font(.system(size: 18, weight: .heavy, design: .rounded))
+                    .tracking(-0.7)
                     .foregroundStyle(palette.text)
             }
             .padding(.leading, 16)
-            .padding(.top, 40)
+            // Just under the window buttons, level with the page title.
+            .padding(.top, 14)
             .padding(.bottom, 16)
 
             row(.overview, title: "Overview", symbol: "square.grid.2x2", trailing: nil)
@@ -264,18 +265,36 @@ private struct SidebarFussel: View {
     @State private var blink = false
     @State private var hovering = false
     @State private var cheering = false
+    /// Woken up by a click at night, for a few seconds.
+    @State private var awake = false
+    /// One whole turn after a big clean-up.
+    @State private var spins = 0
 
-    private var mood: MascotMood {
+    private func mood(night: Bool) -> MascotMood {
         if busy { return .busy }
         if cheering { return .happy }
+        if night && !awake { return .sleepy }
         return app.healthMood == .sleepy ? .sleepy : .idle
     }
 
     var body: some View {
+        // Bedtime is checked once a minute; that's all this needs.
+        TimelineView(.everyMinute) { minute in
+            let night = Bedtime.isNight(minute.date) && !PreviewRenderer.isRendering
+            badge(mood: mood(night: night))
+                .overlay(alignment: .topTrailing) {
+                    if night && !awake && !busy && !reduceMotion && !paused { Snooze() }
+                }
+        }
+        .help("Hi, I'm Fussel!")
+        .accessibilityHidden(true)
+    }
+
+    private func badge(mood: MascotMood) -> some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
+            RoundedRectangle(cornerRadius: 9.5, style: .continuous)
                 .fill(Theme.graphite)
-                .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .overlay(RoundedRectangle(cornerRadius: 9.5, style: .continuous)
                     .strokeBorder(Color.white.opacity(palette.isDark ? 0.14 : 0), lineWidth: 1))
             // While scanning the curl swings ±16° every 1.1 s and the eyes look slowly from side to side,
             // resting a moment at each side; frames only run during the scan.
@@ -288,20 +307,27 @@ private struct SidebarFussel: View {
                            curlTilt: busy && !reduceMotion ? swing : (hovering ? -18 : 0),
                            look: busy && !reduceMotion ? look : 0)
                     .equatable()
-                    .frame(width: 28, height: 28)
+                    .frame(width: 34, height: 34)
             }
             .offset(y: cheering && !reduceMotion ? -3 : 0)
         }
-        .frame(width: 28, height: 28)
+        .frame(width: 34, height: 34)
+        .rotationEffect(.degrees(Double(spins) * 360))
         .scaleEffect(hovering ? 1.1 : 1)
         .contentShape(Rectangle())
         .onHover { inside in withAnimation(.spring(duration: 0.3, bounce: 0.5)) { hovering = inside } }
         .onTapGesture {
             Sounds.play("Pop")
-            cheer(for: 1.2)
+            if Bedtime.now && !awake { wake() } else { cheer(for: 1.2) }
         }
         .onChange(of: app.stage) { old, stage in
-            if case .done(let freed, _) = stage, freed > 0 { cheer(for: 2.4) }
+            if case .done(let freed, _) = stage, freed > 0 {
+                cheer(for: 2.4)
+                // A big clean-up (over 1 GB) earns a whole turn.
+                if freed > 1_000_000_000, !reduceMotion {
+                    withAnimation(.spring(duration: 0.9, bounce: 0.25)) { spins += 1 }
+                }
+            }
             // Done looking: one happy hop.
             if old == .scanning, stage == .ready { cheer(for: 1.0) }
         }
@@ -313,8 +339,15 @@ private struct SidebarFussel: View {
                 blink = false
             }
         }
-        .help("Hi, I'm Fussel!")
-        .accessibilityHidden(true)
+    }
+
+    /// Opens his eyes for a few seconds, then dozes off again.
+    private func wake() {
+        withAnimation(.spring(duration: 0.3)) { awake = true }
+        Task {
+            try? await Task.sleep(for: .seconds(5))
+            withAnimation(.easeInOut(duration: 0.6)) { awake = false }
+        }
     }
 
     private func cheer(for seconds: Double) {
@@ -323,6 +356,31 @@ private struct SidebarFussel: View {
             try? await Task.sleep(for: .seconds(seconds))
             withAnimation(.spring(duration: 0.4)) { cheering = false }
         }
+    }
+}
+
+/// Three little z's drifting up from a sleeping Fussel, one after another, fading as they rise.
+private struct Snooze: View {
+    @Environment(\.palette) private var palette
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 20)) { timeline in
+            let t = timeline.date.timeIntervalSinceReferenceDate
+            ZStack(alignment: .bottomLeading) {
+                ForEach(0..<3, id: \.self) { i in
+                    // Each z takes 3 s to rise, the next one starts a second later.
+                    let phase = (t / 3 + Double(i) / 3).truncatingRemainder(dividingBy: 1)
+                    Text("z")
+                        .font(.rounded(7 + 3 * phase, .heavy))
+                        .foregroundStyle(palette.secondary)
+                        .opacity(phase < 0.15 ? phase / 0.15 : 1 - (phase - 0.15) / 0.85)
+                        .offset(x: 4 + 8 * phase, y: -14 * phase)
+                }
+            }
+            .frame(width: 22, height: 18, alignment: .bottomLeading)
+        }
+        .offset(x: 14, y: -6)
+        .allowsHitTesting(false)
     }
 }
 
@@ -355,7 +413,7 @@ private struct DiskSummary: View {
             .monospacedDigit()
             if app.selectedTotal > 0 {
                 HStack {
-                    Label("Safe to clean", systemImage: "checkmark.circle.fill")
+                    Label("Safe to remove", systemImage: "checkmark.circle.fill")
                         .foregroundStyle(Palette.safe)
                     Spacer()
                     CountingBytes(value: Double(app.selectedTotal))
@@ -446,7 +504,7 @@ struct PageHeader<Actions: View>: View {
             HStack(spacing: 8) { actions }
         }
         .padding(.horizontal, 32)
-        .padding(.top, 32)
+        .padding(.top, 14)
         .padding(.bottom, 16)
     }
 }
@@ -573,7 +631,7 @@ private struct OverviewPage: View {
         case .cleaning: return "Cleaning…"
         case .ready:
             let found = countingFound ?? app.foundTotal
-            return app.foundTotal > 0 ? "Scanned just now · \(found.byteString) found" : "Scanned just now · all clean"
+            return app.foundTotal > 0 ? "Scanned just now · \(found.byteString) found" : "Scanned just now · not a speck of fluff"
         case .done(let freed, _): return freed > 0 ? UserName.allTidy(freed) : "All tidy"
         }
     }
@@ -762,7 +820,7 @@ private struct CategoryRow: View {
                     .scaleEffect(hovering ? 1.08 : 1)
                     .rotationEffect(.degrees(hovering ? -6 : 0))
                 VStack(alignment: .leading, spacing: 2) {
-                    // Safe to Clean / Check First belong to single files, so the tools themselves carry no label.
+                    // Safe to Remove / Review First belong to single files, so the tools themselves carry no label.
                     Text(module.title)
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(palette.text)
@@ -847,10 +905,10 @@ private struct CategoryRow: View {
         case .junk, .tidy:
             guard let model else { return "" }
             switch model.phase {
-            case .results: return model.items.isEmpty ? "Nothing to clean" : "\(model.selectedSize.byteString) safe to clean"
+            case .results: return model.items.isEmpty ? module.spotless : "\(model.selectedSize.byteString) safe to remove"
             case .scanning: return "Looking…"
             case .cleaning: return "Cleaning…"
-            case .done(let freed, _): return freed > 0 ? "\(freed.byteString) freed" : "Nothing to clean"
+            case .done(let freed, _): return freed > 0 ? "\(freed.byteString) freed" : module.spotless
             case .idle: return "Not scanned yet"
             }
         case .large:
@@ -913,16 +971,16 @@ struct Spinner: View {
     }
 }
 
-/// "Safe to Clean" or "Check First", so it's clear what can go without a second look.
+/// "Safe to Remove" or "Review First", so it's clear what can go without a second look.
 struct SafetyLabel: View {
     let safe: Bool
     @Environment(\.palette) private var palette
 
     var body: some View {
-        // Check First uses its own darker amber text on a pale amber chip, so it stays readable.
+        // Review First uses its own darker amber text on a pale amber chip, so it stays readable.
         let text = safe ? Palette.safe : Color(hex: palette.isDark ? 0xF0C15C : 0x9A6A0C)
         let fill = safe ? Palette.safe.opacity(0.14) : Color(hex: palette.isDark ? 0x3A2E14 : 0xFBF1DC)
-        Text(safe ? "Safe to Clean" : "Check First")
+        Text(safe ? "Safe to Remove" : "Review First")
             .font(.system(size: 11, weight: .semibold))
             .foregroundStyle(text)
             .padding(.horizontal, 8)

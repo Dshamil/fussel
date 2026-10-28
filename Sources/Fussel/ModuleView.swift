@@ -36,7 +36,7 @@ struct ModuleView: View {
                     BusyState(text: "Moving it to the Trash…")
                 case .results:
                     if model.items.isEmpty {
-                        EmptyState(symbol: "checkmark", celebrate: true, title: "Nothing to clean",
+                        EmptyState(symbol: "checkmark", celebrate: true, title: model.module.spotless + ".",
                                    detail: "This corner of your Mac is already tidy.") { EmptyView() }
                     } else {
                         ResultsList(model: model)
@@ -79,13 +79,15 @@ struct EmptyState<Action: View>: View {
     @Environment(\.palette) private var palette
     let symbol: String
     var celebrate = false
+    /// After a clean-up: the happy Fussel himself instead of a symbol.
+    var fussel = false
     let title: String
     let detail: String
     @ViewBuilder var action: Action
 
     var body: some View {
         VStack(spacing: 12) {
-            StateIcon(symbol: symbol, celebrate: celebrate)
+            if fussel { HappyFussel() } else { StateIcon(symbol: symbol, celebrate: celebrate) }
             Text(title)
                 .font(.rounded(22, .bold))
                 .foregroundStyle(palette.text)
@@ -98,6 +100,27 @@ struct EmptyState<Action: View>: View {
                 .padding(.top, 4)
         }
         .padding(40)
+    }
+}
+
+/// Fussel on his graphite tile, smiling, with one hop when he appears.
+private struct HappyFussel: View {
+    @Environment(\.palette) private var palette
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var hopped = PreviewRenderer.isRendering
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Theme.graphite)
+                .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .strokeBorder(Color.white.opacity(palette.isDark ? 0.14 : 0), lineWidth: 1))
+            FusselBody(mood: .happy).equatable().frame(width: 68, height: 68)
+        }
+        .frame(width: 76, height: 76)
+        .scaleEffect(hopped || reduceMotion ? 1 : 0.6)
+        .offset(y: hopped || reduceMotion ? 0 : 8)
+        .onAppear { withAnimation(.spring(duration: 0.5, bounce: 0.55).delay(0.1)) { hopped = true } }
+        .accessibilityHidden(true)
     }
 }
 
@@ -144,7 +167,7 @@ private struct DoneState: View {
     @State private var showFailures = false
 
     var body: some View {
-        EmptyState(symbol: "checkmark", celebrate: true, title: freed > 0 ? UserName.allTidy(freed) : "All tidy",
+        EmptyState(symbol: "checkmark", celebrate: true, fussel: freed > 0, title: freed > 0 ? UserName.allTidy(freed) : "All tidy",
                    detail: freed > 0 ? "Moved to Trash, so you can put it back anytime." : "Nothing was removed.") {
             VStack(spacing: 10) {
                 if freed > 0, let record = model.lastRecord {
@@ -206,8 +229,8 @@ private struct ResultsList: View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
                 chip(.all, "All", count: model.items.count, symbol: "square.grid.2x2")
-                chip(.safe, "Safe to Clean", count: model.items.filter(\.isSafe).count, symbol: "checkmark.circle.fill")
-                chip(.check, "Check First", count: model.items.filter { !$0.isSafe }.count, symbol: "exclamationmark.circle")
+                chip(.safe, "Safe to Remove", count: model.items.filter(\.isSafe).count, symbol: "checkmark.circle.fill")
+                chip(.check, "Review First", count: model.items.filter { !$0.isSafe }.count, symbol: "exclamationmark.circle")
                 Spacer()
                 Button {
                     let all = Sort.allCases

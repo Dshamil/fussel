@@ -29,7 +29,7 @@ logo.draw(in: NSRect(x: left - 30, y: 330, width: 260, height: 260))
 NSAttributedString(string: "Fussel", attributes: [
     .font: rounded(132, .heavy), .foregroundColor: color(0x2B2D33), .kern: -4.5,
 ]).draw(at: NSPoint(x: left - 6, y: 172))
-NSAttributedString(string: "Free up your Mac, calmly.", attributes: [
+NSAttributedString(string: "Less fluff, more Mac.", attributes: [
     .font: rounded(44, .bold), .foregroundColor: color(0x6E6E73),
 ]).draw(at: NSPoint(x: left, y: 116))
 

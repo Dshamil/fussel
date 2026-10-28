@@ -6,6 +6,9 @@ enum Module: String, CaseIterable, Identifiable, Hashable {
 
     var id: String { rawValue }
 
+    /// What Fussel says when this tool finds nothing at all.
+    var spotless: String { self == .tidy ? "Squeaky clean" : "Not a speck of fluff" }
+
     var title: String {
         switch self {
         case .junk: return "System Junk"

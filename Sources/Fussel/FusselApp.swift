@@ -41,6 +41,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
     private var wiggleFrame = 0
     private var happyUntil: Date?
     private var updateTimer: Timer?
+    private var bedtimeTimer: Timer?
     private var statusItem: NSStatusItem?
     private var mainWindow: NSWindow?
     private var settingsWindow: NSWindow?
@@ -187,7 +188,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         if let until = happyUntil, until > Date() {
             statusItem?.button?.image = MenuBarIcon.happy
         } else {
-            statusItem?.button?.image = model.pendingFluff > 0 ? MenuBarIcon.imageWithDot : MenuBarIcon.image
+            // Waiting fluff matters more than bedtime; otherwise he dozes at night.
+            statusItem?.button?.image = model.pendingFluff > 0 ? MenuBarIcon.imageWithDot
+                : (Bedtime.now ? MenuBarIcon.asleep : MenuBarIcon.image)
         }
     }
 
@@ -216,6 +219,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         }
         updateTimer = Timer.scheduledTimer(withTimeInterval: 6 * 3600, repeats: true) { [weak self] _ in
             Task { @MainActor in await self?.model.updater.checkIfDue() }
+        }
+        // Falls asleep at 23:00 and wakes at 6:00: a look every few minutes is plenty.
+        bedtimeTimer = Timer.scheduledTimer(withTimeInterval: 300, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.refreshStatusIcon() }
         }
     }
 

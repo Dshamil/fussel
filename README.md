@@ -4,7 +4,7 @@
 
 <h1 align="center">Fussel</h1>
 
-<p align="center">Free up your Mac, calmly. Fussel finds caches, logs and forgotten files, tells you what each one is, and moves what you choose to the Trash.<br><i>Public beta.</i> · <a href="https://dshamil.github.io/fussel/">dshamil.github.io/fussel</a></p>
+<p align="center">Less fluff, more Mac. Fussel finds caches, logs and forgotten files, tells you what each one is, and moves what you choose to the Trash.<br><i>Public beta.</i> · <a href="https://dshamil.github.io/fussel/">dshamil.github.io/fussel</a></p>
 
 <p align="center"><img src="docs/screenshots/tour.gif" width="720" alt="Fussel scanning, showing what it found, explaining System Junk and cleaning up"></p>
 
@@ -15,7 +15,7 @@
 - **Uninstaller**: remove apps together with their support files, caches and preferences
 - **App Updates**: updates for apps from the App Store and the web
 
-Every item comes with a plain-language explanation and a **Safe to Clean** or **Check First** label.
+Every item comes with a plain-language explanation and a **Safe to Remove** or **Review First** label.
 Plus memory, CPU, battery and network at a glance, and a menu bar helper.
 
 <p align="center"><img src="docs/screenshots/styles.gif" width="720" alt="Fussel in Light, Dark, Glass and Oreo"></p>

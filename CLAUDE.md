@@ -44,7 +44,7 @@ Fussel ist eine Menüleisten-App (keine Dock-Icon, `LSUIElement`). Läuft schon 
 - `Mascot.swift` – Fussel: graphitfarbenes Knäuel mit einer Locke, wie im App-Icon (`FusselGeometry`, `FusselBody`), Menüleisten-Symbole (normal, Punkt, fröhlich, wippende Locke beim Scannen). In der App nur als Abzeichen oben in der Seitenleiste; leere und fertige Zustände zeigen Symbole (`StateIcon`).
 - `Style.swift`, `Theme.swift` – Farben für Light/Dark und den Glass-Stil (unscharfer Schreibtisch dahinter, Karten aus Glas ab macOS 26), Wahl `AppearanceChoice` (Match Mac/Light/Dark/Glass/Oreo = weiße Seitenleiste + Hauptbereich wie Dark, in den Einstellungen), je Werkzeug eine Akzentfarbe, Knopf-Stile.
 - `OverviewExtras.swift` – unten auf der Übersicht: „Where your space goes“ (4 größte Ordner aus Benutzerordner, Library, Programme; misst nur mit Festplattenvollzugriff, im Hintergrund nach Scan/Aufräumen; Klick öffnet den Ordner) und „Recent clean-ups“ (letzte 3 mit Undo).
-- `ModuleView.swift` – Listen der Werkzeuge mit Filter (Safe to Clean / Check First), Sortierung, Erklärung je Eintrag.
+- `ModuleView.swift` – Listen der Werkzeuge mit Filter (Safe to Remove / Review First), Sortierung, Erklärung je Eintrag.
 - `StatsView.swift` (Werte-Zeile + Popovers), `SettingsView.swift`, `UninstallerView.swift`.
 - `PermissionsView.swift` – eigener Bildschirm für die Rechte (Festplattenvollzugriff = nötig, Mitteilungen, Start mit dem Mac), zeigt live „Allowed“. Kommt beim ersten Start direkt nach der Tour (auch nach Skip), sonst über „Check Permissions“ in den Einstellungen.
 - `UpdatedView.swift` – Pop-up einmal nach einem Update („Updated to Fussel X“, What's New, Hinweis auf Festplattenvollzugriff, falls macOS ihn vergessen hat); erkannt über `lastRunVersion`.

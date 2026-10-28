@@ -3,17 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Fussel – Free up your Mac, calmly</title>
+<title>Fussel – Less fluff, more Mac</title>
 <meta name="description" content="Fussel is a calm, honest Mac cleaner. It finds caches, logs and forgotten files, explains each one and moves what you pick to the Trash. Free.">
 <link rel="canonical" href="https://dshamil.github.io/fussel/">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://dshamil.github.io/fussel/">
-<meta property="og:title" content="Fussel – Free up your Mac, calmly">
+<meta property="og:title" content="Fussel – Less fluff, more Mac">
 <meta property="og:description" content="A calm, honest Mac cleaner. Everything goes to the Trash first, and Undo is always right there.">
 <meta property="og:image" content="https://dshamil.github.io/fussel/social.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="The Fussel app icon, the name Fussel and the line “Free up your Mac, calmly.”">
+<meta property="og:image:alt" content="The Fussel app icon, the name Fussel and the line “Less fluff, more Mac.”">
 <meta name="twitter:card" content="summary_large_image">
 <script type="application/ld+json">
 {
@@ -128,9 +128,9 @@ nav { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(
 .hero { text-align: center; padding-block: clamp(40px, 8vw, 88px) clamp(36px, 6vw, 56px); }
 .hero .icon { width: clamp(120px, 18vw, 168px); margin: 0 auto 28px; filter: drop-shadow(0 18px 30px rgb(0 0 0 / 0.18)); }
 .hero h1 { font-size: clamp(46px, 8.6vw, 92px); font-weight: 900; line-height: 0.98; letter-spacing: -0.035em; }
-.calmly { position: relative; white-space: nowrap; }
-/* The storage bar in the tool colours, underlining "calmly". */
-.calmly::after { content: ""; position: absolute; left: 0.04em; right: 0.04em; bottom: -0.02em; height: 0.11em; border-radius: 99px;
+.mark { position: relative; white-space: nowrap; }
+/* The storage bar in the tool colours, underlining "more Mac." */
+.mark::after { content: ""; position: absolute; left: 0.04em; right: 0.04em; bottom: -0.02em; height: 0.11em; border-radius: 99px;
   background: linear-gradient(90deg, var(--junk) 0 22%, transparent 22% 23%, var(--tidy) 23% 33%, transparent 33% 34%,
     var(--large) 34% 64%, transparent 64% 65%, var(--uninst) 65% 79%, transparent 79% 80%, var(--updates) 80% 88%, var(--line) 88%); }
 .hero .lede { margin: 34px auto 34px; text-align: center; }
@@ -256,7 +256,7 @@ footer { border-top: 1px solid var(--line); padding-block: 32px 48px; color: var
 <header class="hero" id="top">
   <div class="wrap">
     <img class="icon" src="logo.png" fetchpriority="high" alt="Fussel app icon: a white fluff ball with a curl on a graphite tile" width="168" height="168">
-    <h1>Free up your Mac,<br><span class="calmly">calmly.</span></h1>
+    <h1>Less fluff,<br><span class="mark">more Mac.</span></h1>
     <p class="lede">Fussel finds caches, logs and forgotten files, tells you what each one is, and moves only what you choose to the Trash. No scare screens, no subscription.</p>
     <a class="download" href="https://github.com/Dshamil/fussel/releases/latest/download/Fussel-Installer.zip" data-download>
       <span class="apple" aria-hidden="true" data-apple></span>
@@ -270,10 +270,10 @@ footer { border-top: 1px solid var(--line); padding-block: 32px 48px; color: var
       <span>Public beta</span>
     </div>
     <div class="shot">
-      <video autoplay muted loop playsinline preload="auto" poster="screenshots/tour.jpg?v=3" width="960" height="740"
+      <video autoplay muted loop playsinline preload="auto" poster="screenshots/tour.jpg?v=4" width="960" height="740"
              aria-label="Fussel scanning the Mac, showing what it found, its biggest folders and recent clean-ups">
-        <source src="screenshots/tour.mp4?v=3" type="video/mp4">
-        <img src="screenshots/tour.gif?v=3" alt="Fussel scanning the Mac, showing what it found, its biggest folders and recent clean-ups" width="960" height="740">
+        <source src="screenshots/tour.mp4?v=4" type="video/mp4">
+        <img src="screenshots/tour.gif?v=4" alt="Fussel scanning the Mac, showing what it found, its biggest folders and recent clean-ups" width="960" height="740">
       </video>
     </div>
   </div>
@@ -295,7 +295,7 @@ footer { border-top: 1px solid var(--line); padding-block: 32px 48px; color: var
       </div>
       <div class="principles">
         <div><h3>Calm</h3><p>No alarm colours, no exclamation marks. Just sizes in GB and plain words.</p></div>
-        <div><h3>Honest</h3><p>Every item says what it is and carries a clear label: Safe to Clean, or Check First.</p></div>
+        <div><h3>Honest</h3><p>Every item says what it is and carries a clear label: Safe to Remove, or Review First.</p></div>
         <div><h3>Forgiving</h3><p>Everything goes to the Trash first. Undo is always right there.</p></div>
       </div>
     </div>
@@ -325,12 +325,12 @@ footer { border-top: 1px solid var(--line); padding-block: 32px 48px; color: var
       </div>
       <div class="grid g2">
         <div class="tile">
-          <span><span class="tag safe">Safe to Clean</span></span>
+          <span><span class="tag safe">Safe to Remove</span></span>
           <h3>Can go without a second look</h3>
           <p>Caches and logs that apps rebuild by themselves. Picked for you, so one click is enough.</p>
         </div>
         <div class="tile">
-          <span><span class="tag check">Check First</span></span>
+          <span><span class="tag check">Review First</span></span>
           <h3>You decide</h3>
           <p>Big files, old downloads and apps. Never picked for you; have a look first.</p>
         </div>
@@ -342,10 +342,10 @@ footer { border-top: 1px solid var(--line); padding-block: 32px 48px; color: var
   <section>
     <div class="wrap looks">
       <div class="shot">
-        <video id="looks" autoplay muted loop playsinline preload="metadata" poster="screenshots/styles.jpg?v=3" width="960" height="740"
+        <video id="looks" autoplay muted loop playsinline preload="metadata" poster="screenshots/styles.jpg?v=4" width="960" height="740"
                aria-label="Fussel in Light, Dark, Glass and Oreo">
-          <source src="screenshots/styles.mp4?v=3" type="video/mp4">
-          <img src="screenshots/styles.gif?v=3" alt="Fussel in Light, Dark, Glass and Oreo" width="960" height="740">
+          <source src="screenshots/styles.mp4?v=4" type="video/mp4">
+          <img src="screenshots/styles.gif?v=4" alt="Fussel in Light, Dark, Glass and Oreo" width="960" height="740">
         </video>
       </div>
       <div class="head" style="margin:0">

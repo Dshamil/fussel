@@ -33,7 +33,7 @@ for (name, dark) in [("background", false), ("background-dark", true)] {
     NSAttributedString(string: "Fussel", attributes: [
         .font: rounded(76, .heavy), .foregroundColor: ink, .kern: -2.6,
     ]).draw(at: NSPoint(x: left - 3, y: 140))
-    NSAttributedString(string: "Free up your Mac, calmly.", attributes: [
+    NSAttributedString(string: "Less fluff, more Mac.", attributes: [
         .font: rounded(25, .bold), .foregroundColor: muted,
     ]).draw(at: NSPoint(x: left, y: 104))
 

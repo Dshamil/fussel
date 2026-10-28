@@ -18,13 +18,13 @@ struct Tutorial: View {
 
     private let cards = [
         Card(title: "Hi, I'm Fussel.",
-             text: "I help you free up space on your Mac, calmly. Here's how it works, in three quick steps.",
+             text: "I help you free up space on your Mac, without any fuss. Here's how it works, in three quick steps.",
              symbol: nil),
         Card(title: "First, I take a look",
              text: "Click Scan and I check caches, logs, the Trash, old downloads and big files. Nothing is removed yet.",
              symbol: "magnifyingglass"),
         Card(title: "Every file gets a label",
-             text: "I tell you what each item is. Safe to Clean can go without a second look. Check First is never picked for you.",
+             text: "I tell you what each item is. Safe to Remove can go without a second look. Review First is never picked for you.",
              symbol: "checkmark.seal"),
         Card(title: "Clean, and change your mind",
              text: "Everything goes to the Trash first. Changed your mind? Undo puts it right back.",
