@@ -35,6 +35,11 @@ enum Cleaner {
     /// touched. Every scanner already stays within this; this check catches any future mistake.
     static func isSafeToRemove(_ url: URL) -> Bool {
         let standardized = url.standardizedFileURL
+        // A folder on the way that is really a redirect (symlink) would let a harmless-looking path reach
+        // somewhere else, like an app pointing its cache folder at your Documents. Such paths never go.
+        // (The item itself may be a link: moving a link to the Trash leaves its target alone.)
+        let parent = standardized.deletingLastPathComponent()
+        guard parent.resolvingSymlinksInPath().path == parent.path else { return false }
         // The Mac's disk ignores upper and lower case, so the checks do too: "documents" is Documents.
         let path = standardized.path.lowercased()
         let home = FileManager.default.homeDirectoryForCurrentUser.standardizedFileURL.path.lowercased()

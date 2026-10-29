@@ -158,6 +158,140 @@ final class CleaningTests: XCTestCase {
         }
     }
 
+    /// Caches inside an app's container: only their contents, never the folder itself, never Apple's.
+    func testContainerCachesStayInsideTheirCachesFolder() {
+        for item in Scanner.scanJunk() where item.url.path.contains("/Library/Containers/") {
+            let parts = item.url.pathComponents
+            guard let at = parts.firstIndex(of: "Containers"), at + 1 < parts.count else { continue }
+            if item.group == "App Caches" {
+                XCTAssertFalse(parts[at + 1].hasPrefix("com.apple."), item.url.path)
+                XCTAssertEqual(item.url.deletingLastPathComponent().lastPathComponent, "Caches", item.url.path)
+                XCTAssertTrue(item.preselected, item.url.path)
+            }
+        }
+    }
+
+    /// A folder on the way that is really a redirect (symlink) to somewhere else: Fussel would judge the
+    /// harmless-looking path but move the real file elsewhere, so such paths are refused outright.
+    func testAPathThroughARedirectedFolderIsRefused() throws {
+        let folder = try scratchFolder()
+        let elsewhere = folder.appendingPathComponent("elsewhere")
+        try fm.createDirectory(at: elsewhere, withIntermediateDirectories: true)
+        try Data("not a cache".utf8).write(to: elsewhere.appendingPathComponent("file.bin"))
+        let redirect = folder.appendingPathComponent("Caches")
+        try fm.createSymbolicLink(at: redirect, withDestinationURL: elsewhere)
+        let throughRedirect = redirect.appendingPathComponent("file.bin")
+        XCTAssertFalse(Cleaner.isSafeToRemove(throughRedirect), "a path through a symlinked folder")
+        // The redirect itself may still go: trashing a link leaves its target alone.
+        XCTAssertTrue(Cleaner.isSafeToRemove(redirect))
+        let result = Cleaner.clean([CleanupItem(url: throughRedirect, name: "file", group: "App Caches", size: 11)])
+        XCTAssertTrue(result.trashed.isEmpty)
+        XCTAssertTrue(fm.fileExists(atPath: elsewhere.appendingPathComponent("file.bin").path))
+    }
+
+    /// Emptying the Trash ends Undo for earlier clean-ups: the prompt says so, with how many.
+    func testTheEmptyTrashPromptCountsWhatUndoLoses() {
+        let trash = home.appendingPathComponent(".Trash")
+        let mine = trash.appendingPathComponent("old cache")
+        let other = trash.appendingPathComponent("someone else's file")
+        let record = CleanRecord(date: Date(), source: "System Junk", freed: 10, itemCount: 1,
+                                 trashed: [TrashedItem(name: "old cache", original: home.appendingPathComponent("Library/Caches/x"), trashed: mine, size: 10)])
+        let items = [CleanupItem(url: mine, name: "old cache", group: "Trash", size: 10, permanent: true),
+                     CleanupItem(url: other, name: "other", group: "Trash", size: 5, permanent: true)]
+        let note = CleanHistory.permanentNote(for: items, records: [record])
+        XCTAssertTrue(note.contains("1 item from an earlier Fussel clean-up"), note)
+        XCTAssertTrue(note.contains("Undo can't bring it back"), note)
+        // Already undone or none of Fussel's: just the usual sentence.
+        var undone = record; undone.undone = true
+        XCTAssertFalse(CleanHistory.permanentNote(for: items, records: [undone]).contains("Undo"))
+        XCTAssertFalse(CleanHistory.permanentNote(for: [items[1]], records: [record]).contains("Undo"))
+    }
+
+    /// Undo only brings back what is really in the Trash, and only to a place Fussel may clean,
+    /// even if someone wrote a fake entry into the history file.
+    func testUndoRefusesAForgedEntry() throws {
+        let folder = try scratchFolder()
+        let notInTrash = folder.appendingPathComponent("private.txt")
+        try Data("stay here".utf8).write(to: notInTrash)
+        let forged = TrashedItem(name: "forged", original: folder.appendingPathComponent("moved.txt"), trashed: notInTrash, size: 9)
+        let (restored, failed) = CleanHistory.restore([forged])
+        XCTAssertEqual(restored, 0)
+        XCTAssertEqual(failed.count, 1)
+        XCTAssertTrue(fm.fileExists(atPath: notInTrash.path), "the file outside the Trash stays where it is")
+        XCTAssertFalse(fm.fileExists(atPath: folder.appendingPathComponent("moved.txt").path))
+    }
+
+    func testUndoNeverRestoresIntoAProtectedPlace() throws {
+        let folder = try scratchFolder()
+        let file = folder.appendingPathComponent("cache.bin")
+        try Data("x".utf8).write(to: file)
+        var trashed: NSURL?
+        try fm.trashItem(at: file, resultingItemURL: &trashed)
+        let inTrash = try XCTUnwrap(trashed as URL?)
+        defer { try? fm.removeItem(at: inTrash) }
+        let target = home.appendingPathComponent(".ssh/fussel-test-\(UUID().uuidString)")
+        let (restored, _) = CleanHistory.restore([TrashedItem(name: "x", original: target, trashed: inTrash, size: 1)])
+        XCTAssertEqual(restored, 0)
+        XCTAssertFalse(fm.fileExists(atPath: target.path))
+    }
+
+    // MARK: Leftovers of removed apps
+
+    /// Makes a folder in Application Support that looks like a removed app's leftover, last changed
+    /// `daysAgo` days ago.
+    private func fakeLeftover(_ id: String, daysAgo: Double) throws -> URL {
+        let dir = home.appendingPathComponent("Library/Application Support/\(id)")
+        try fm.createDirectory(at: dir, withIntermediateDirectories: true)
+        let file = dir.appendingPathComponent("data.bin")
+        try Data(repeating: 7, count: 4096).write(to: file)
+        let then = Date().addingTimeInterval(-daysAgo * 86_400)
+        try fm.setAttributes([.modificationDate: then], ofItemAtPath: file.path)
+        try fm.setAttributes([.modificationDate: then], ofItemAtPath: dir.path)
+        return dir
+    }
+
+    func testLeftoversOfARemovedAppAreFoundButNeverPreselected() throws {
+        let vendor = "com.zqxleftover\(UUID().uuidString.prefix(8).lowercased())"
+        let old = try fakeLeftover("\(vendor).oldapp", daysAgo: 60)
+        defer { try? fm.removeItem(at: old) }
+        let found = Scanner.scanJunk().first { $0.url.standardizedFileURL.path == old.standardizedFileURL.path }
+        XCTAssertNotNil(found, "a two-month-old leftover of an app that's gone should be offered")
+        XCTAssertEqual(found?.preselected, false, "leftovers always wait for a look")
+        XCTAssertEqual(found.map { Cleaner.isSafeToRemove($0.url) }, true)
+    }
+
+    func testRecentAppleOrStillInstalledVendorsAreNoLeftovers() throws {
+        let vendor = "com.zqxleftover\(UUID().uuidString.prefix(8).lowercased())"
+        var made = [try fakeLeftover("\(vendor).recentapp", daysAgo: 2),
+                    try fakeLeftover("com.apple.fusseltest\(UUID().uuidString.prefix(6).lowercased())", daysAgo: 90)]
+        // A support folder of a vendor that still has an app installed belongs to that vendor's tools.
+        if let installed = Scanner.appBundles().first(where: { $0.id.split(separator: ".").count >= 2 }) {
+            let parts = installed.id.split(separator: ".")
+            made.append(try fakeLeftover("\(parts[0]).\(parts[1]).fusseltesthelper", daysAgo: 90))
+        }
+        defer { made.forEach { try? fm.removeItem(at: $0) } }
+        let paths = Set(Scanner.scanJunk().map { $0.url.standardizedFileURL.path })
+        for dir in made {
+            XCTAssertFalse(paths.contains(dir.standardizedFileURL.path), "not a leftover: \(dir.lastPathComponent)")
+        }
+    }
+
+    /// A background agent only counts as left over when its program is surely gone.
+    func testAnAgentWhoseProgramMightStillExistIsKept() throws {
+        let dir = fm.temporaryDirectory.appendingPathComponent("FusselAgents-\(UUID().uuidString)")
+        try fm.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? fm.removeItem(at: dir) }
+        func agent(_ program: Any) throws -> URL {
+            let url = dir.appendingPathComponent("\(UUID().uuidString).plist")
+            let key = program is [String] ? "ProgramArguments" : "Program"
+            try PropertyListSerialization.data(fromPropertyList: [key: program], format: .xml, options: 0).write(to: url)
+            return url
+        }
+        XCTAssertTrue(Scanner.programStillThere(agent: try agent("/bin/ls")), "an existing program")
+        XCTAssertTrue(Scanner.programStillThere(agent: try agent(["node", "server.js"])), "a bare name found via PATH")
+        XCTAssertFalse(Scanner.programStillThere(agent: try agent("/Applications/GoneForGood-\(UUID().uuidString).app/x")))
+    }
+
     // MARK: Uninstaller
 
     /// An app picks its own name and ID. With "../" in them it must not steer the uninstaller to

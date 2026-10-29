@@ -66,6 +66,8 @@ final class AppModel {
     var foundTotal: Int64 { withResults.reduce(0) { $0 + $1.totalSize } }
     var selectedTotal: Int64 { withResults.reduce(0) { $0 + $1.selectedSize } }
     var selectionIncludesPermanent: Bool { withResults.contains { $0.selectionIncludesPermanent } }
+    /// Everything selected across the tools, for the clean-up prompt.
+    var selectedItems: [CleanupItem] { withResults.flatMap(\.selectedItems) }
 
     var mood: MascotMood {
         switch stage {

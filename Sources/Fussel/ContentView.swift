@@ -472,7 +472,7 @@ private struct CleanConfirmation: ViewModifier {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text(app.selectionIncludesPermanent
-                 ? "Items already in the Trash are deleted permanently. Everything else goes to the Trash."
+                 ? CleanHistory.shared.permanentNote(for: app.selectedItems)
                  : "Everything selected goes to the Trash, so you can still change your mind.")
         }
     }

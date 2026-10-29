@@ -57,6 +57,16 @@ Scan results, file lists and your clean-up history never leave your Mac.
 Prefer drag and drop? Use **Fussel.dmg**, then run
 `xattr -dr com.apple.quarantine /Applications/Fussel.app` once before the first launch.
 
+### Check your download
+
+Fussel isn't notarized by Apple yet, so here's another way to be sure a download is the real thing: every release file is built by GitHub Actions straight from this repository, and GitHub signs a record of exactly which commit and workflow produced it. With the [GitHub CLI](https://cli.github.com) installed, run this in the folder with the download:
+
+```sh
+gh attestation verify Fussel-Installer.zip --repo Dshamil/fussel
+```
+
+It works the same for `Fussel-Installer.pkg`, `Fussel.dmg` and `Fussel.zip`. A ✓ means the file is byte for byte what this repository's workflow built; anything else means don't open it. (Releases from 1.1 on carry this record.)
+
 Fussel lives in the menu bar: click the fluff to open or close it, right-click for more.
 It starts with your Mac; turn that off in Settings.
 

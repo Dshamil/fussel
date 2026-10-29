@@ -68,12 +68,38 @@ final class CleanHistory {
         return outcome
     }
 
+    /// Which of these paths in the Trash Fussel itself put there and could still bring back with Undo.
+    /// Emptying the Trash ends that, so the clean-up prompt says how many it would affect.
+    func undoable(_ urls: [URL]) -> [URL] { Self.undoable(urls, in: records) }
+
+    nonisolated static func undoable(_ urls: [URL], in records: [CleanRecord]) -> [URL] {
+        let mine = Set(records.filter(\.canUndo).flatMap { $0.trashed.map(\.trashed.standardizedFileURL.path) })
+        return urls.filter { mine.contains($0.standardizedFileURL.path) }
+    }
+
+    /// The prompt's line about items that go for good, and what that means for Undo.
+    func permanentNote(for items: [CleanupItem]) -> String { Self.permanentNote(for: items, records: records) }
+
+    nonisolated static func permanentNote(for items: [CleanupItem], records: [CleanRecord]) -> String {
+        let lost = undoable(items.filter(\.permanent).map(\.url), in: records).count
+        let base = "Items already in the Trash are deleted permanently. Everything else goes to the Trash."
+        guard lost > 0 else { return base }
+        let these = lost == 1 ? "1 item from an earlier Fussel clean-up" : "\(lost) items from earlier Fussel clean-ups"
+        return base + " This includes \(these): Undo can't bring \(lost == 1 ? "it" : "them") back afterwards. Deselect \(lost == 1 ? "it" : "them") to keep Undo."
+    }
+
     /// Moves trashed items back to where they were. Never overwrites something new in their place.
+    /// The history file could have been edited by another program, so Undo only takes things that are
+    /// really in the Trash, and only puts them where Fussel itself may clean (never into Mail, keys etc.).
     nonisolated static func restore(_ items: [TrashedItem]) -> (restored: Int, failed: [String]) {
         let fm = FileManager.default
         var restored = 0
         var failed: [String] = []
         for item in items {
+            guard isInTrash(item.trashed), Cleaner.isSafeToRemove(item.original) else {
+                failed.append("\(item.name): not something Fussel can put back")
+                continue
+            }
             guard fm.fileExists(atPath: item.trashed.path) else {
                 failed.append("\(item.name): no longer in the Trash")
                 continue
@@ -92,6 +118,18 @@ final class CleanHistory {
             }
         }
         return (restored, failed)
+    }
+
+    /// Inside your Trash (~/.Trash) or an external drive's (/Volumes/<drive>/.Trashes/<user>), with no
+    /// redirect on the way.
+    nonisolated static func isInTrash(_ url: URL) -> Bool {
+        let path = url.standardizedFileURL.path
+        let parent = url.standardizedFileURL.deletingLastPathComponent()
+        guard parent.resolvingSymlinksInPath().path == parent.path else { return false }
+        let home = FileManager.default.homeDirectoryForCurrentUser.standardizedFileURL.path
+        if path.hasPrefix(home + "/.Trash/") { return true }
+        let parts = url.standardizedFileURL.pathComponents  // ["/", "Volumes", drive, ".Trashes", uid, …]
+        return parts.count > 5 && parts[1] == "Volumes" && parts[3] == ".Trashes"
     }
 
     /// Written right away on the main thread: at most 50 small records, and writes can never overtake each other.

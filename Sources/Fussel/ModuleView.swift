@@ -58,7 +58,7 @@ struct ModuleView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text(model.selectionIncludesPermanent
-                 ? "Items that are already in the Trash will be deleted permanently. Everything else is moved to the Trash."
+                 ? CleanHistory.shared.permanentNote(for: model.selectedItems)
                  : "The selected items will be moved to the Trash, so you can put them back.")
         }
     }
@@ -326,7 +326,10 @@ struct ItemRow: View {
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(palette.text)
                     .lineLimit(1)
-                Text(item.explanation)
+                // Something Fussel trashed earlier: say that cleaning it ends Undo for it.
+                Text(item.permanent && !CleanHistory.shared.undoable([item.url]).isEmpty
+                     ? "From an earlier Fussel clean-up. Undo can still bring it back; cleaning it here deletes it for good."
+                     : item.explanation)
                     .font(.system(size: 11))
                     .foregroundStyle(palette.secondary)
                     .lineLimit(2)
@@ -446,6 +449,8 @@ extension CleanupItem {
             return "A download you haven't touched in a while. Have a look before letting it go."
         case "Application":
             return "The app itself."
+        case "Leftovers of Removed Apps":
+            return "Belongs to an app that's no longer on your Mac. Have a look before letting it go."
         default:
             return "Support files left behind by this app."
         }

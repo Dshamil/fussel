@@ -96,7 +96,133 @@ enum Scanner {
             items.append(found(CleanupItem(url: url, name: name, group: "Developer", size: bytes, preselected: name == "Xcode Derived Data")))
         }
 
+        // Apps from the App Store (and other sandboxed apps) keep their caches inside their own container.
+        // Looking in there needs Full Disk Access; without it macOS would ask once per app, so Fussel doesn't.
+        // Only what's inside each Caches folder goes, never the folder itself, and never Apple's containers.
+        if Permissions.hasFullDiskAccess {
+            for container in children(of: library.appendingPathComponent("Containers")) {
+                let id = container.lastPathComponent
+                guard !id.hasPrefix("com.apple."), id != ownBundleID, !protectedCaches.contains(id) else { continue }
+                let app = friendlyName(for: container)
+                // The app owns its container and could point Caches (or a folder above it) elsewhere.
+                let caches = container.appendingPathComponent("Data/Library/Caches")
+                guard caches.resolvingSymlinksInPath().path == caches.path else { continue }
+                for child in children(of: caches) where !child.lastPathComponent.hasPrefix(".") {
+                    let bytes = size(of: child)
+                    // Small bits aren't worth a row of their own.
+                    guard bytes >= 1_000_000 else { continue }
+                    items.append(found(CleanupItem(url: child, name: "\(app): \(child.lastPathComponent)",
+                                                   group: "App Caches", size: bytes, preselected: true)))
+                }
+            }
+        }
+
+        items += leftoversOfRemovedApps()
         return sortedByGroup(items)
+    }
+
+    // MARK: Leftovers of removed apps
+
+    /// Support files of apps that are no longer on the Mac. Careful on purpose: the name has to be a bundle ID
+    /// (like com.spotify.client), nothing installed may come from the same maker (an app or an audio plug-in;
+    /// "pioneer" and "pioneerdj" count as one), it isn't Apple's or a building block other apps share (like
+    /// Firebase), it hasn't changed in 30 days, and a background agent only counts when its program is gone.
+    /// Even then nothing is preselected: each one waits for a look.
+    static func leftoversOfRemovedApps() -> [CleanupItem] {
+        let makers = installedMakers()
+        let month = Date().addingTimeInterval(-30 * 86_400)
+        var places: [(folder: String, suffix: String)] = [
+            ("Application Support", ""), ("Preferences", ".plist"), ("Saved Application State", ".savedState"),
+            ("HTTPStorages", ""), ("WebKit", ""), ("LaunchAgents", ".plist"),
+        ]
+        // Containers are only looked into with Full Disk Access (see the caches above).
+        if Permissions.hasFullDiskAccess { places.append(("Containers", "")) }
+
+        var items: [CleanupItem] = []
+        for (folder, suffix) in places {
+            for child in children(of: library.appendingPathComponent(folder)) {
+                var id = child.lastPathComponent
+                if !suffix.isEmpty {
+                    guard id.hasSuffix(suffix) else { continue }
+                    id.removeLast(suffix.count)
+                }
+                guard looksLikeBundleID(id), let who = maker(id), !id.lowercased().hasPrefix("com.apple."),
+                      !sharedBuildingBlocks.contains(who), !makers.contains(where: { sameMaker($0, who) }),
+                      NSWorkspace.shared.urlForApplication(withBundleIdentifier: id) == nil,
+                      newestChange(in: child) < month else { continue }
+                if folder == "LaunchAgents", programStillThere(agent: child) { continue }
+                let bytes = size(of: child)
+                guard bytes > 0 else { continue }
+                items.append(found(CleanupItem(url: child, name: id, group: "Leftovers of Removed Apps",
+                                               size: bytes, preselected: false)))
+            }
+        }
+        return items
+    }
+
+    /// At least three parts with letters, digits or dashes, like com.spotify.client.
+    static func looksLikeBundleID(_ text: String) -> Bool {
+        let parts = text.split(separator: ".", omittingEmptySubsequences: false)
+        return parts.count >= 3 && parts.allSatisfy { part in
+            !part.isEmpty && part.allSatisfy { $0.isLetter || $0.isNumber || $0 == "-" || $0 == "_" }
+        }
+    }
+
+    /// Parts of a bundle ID that name a domain, not a maker.
+    private static let domainParts: Set<String> = [
+        "com", "org", "net", "io", "de", "app", "fyi", "co", "me", "dev", "ai", "us", "uk", "eu", "group", "info", "tv",
+    ]
+    /// Code that many apps build in; its settings belong to whichever app uses it, not to a removed app.
+    static let sharedBuildingBlocks: Set<String> = [
+        "apple", "firebase", "segment", "bugsnag", "crashlytics", "sentry", "appcenter", "amplitude", "mixpanel",
+        "sparkle-project", "google", "googlecode",
+    ]
+
+    /// Who made it: the first part that isn't a domain, lowercased. "spotify" for com.spotify.client,
+    /// "adobe" for adobe.com.Adobe-Spaces-Helper, "nordvpn" for group.com.nordvpn.macos.
+    static func maker(_ id: String) -> String? {
+        id.lowercased().split(separator: ".").map(String.init).prefix(3).first { !domainParts.contains($0) }
+    }
+
+    /// The same maker, also when one name is the other plus a bit ("pioneer" and "pioneerdj").
+    static func sameMaker(_ a: String, _ b: String) -> Bool {
+        a == b || (min(a.count, b.count) >= 4 && (a.hasPrefix(b) || b.hasPrefix(a)))
+    }
+
+    /// Makers of everything installed: apps, Fussel itself, and audio plug-ins (which aren't apps, but keep
+    /// settings like one).
+    static func installedMakers() -> Set<String> {
+        var ids = appBundles().map(\.id) + [ownBundleID]
+        for root in [URL(fileURLWithPath: "/Library/Audio/Plug-Ins"), library.appendingPathComponent("Audio/Plug-Ins")] {
+            for kind in children(of: root) {
+                for plugin in children(of: kind) { if let id = Bundle(url: plugin)?.bundleIdentifier { ids.append(id) } }
+            }
+        }
+        return Set(ids.compactMap(maker))
+    }
+
+    /// When anything in here last changed (a folder's own date doesn't move when a file inside is edited).
+    static func newestChange(in url: URL) -> Date {
+        let key: URLResourceKey = .contentModificationDateKey
+        var newest = (try? url.resourceValues(forKeys: [key]).contentModificationDate) ?? .distantFuture
+        guard let files = fm.enumerator(at: url, includingPropertiesForKeys: [key], options: [],
+                                        errorHandler: { _, _ in true }) else { return newest }
+        for case let file as URL in files {
+            if let date = try? file.resourceValues(forKeys: [key]).contentModificationDate, date > newest { newest = date }
+        }
+        return newest
+    }
+
+    /// A background agent whose program still exists belongs to something installed (a command-line tool,
+    /// a Homebrew service), even without an app.
+    static func programStillThere(agent plist: URL) -> Bool {
+        guard let info = NSDictionary(contentsOf: plist) else { return true }
+        let program = info["Program"] as? String ?? (info["ProgramArguments"] as? [String])?.first
+        guard let program, !program.isEmpty else { return true }
+        // A bare name like "node" is looked up in the shell's PATH at run time; Fussel can't be sure it's
+        // gone, so the agent stays.
+        guard program.hasPrefix("/") || program.hasPrefix("~") else { return true }
+        return fm.fileExists(atPath: (program as NSString).expandingTildeInPath)
     }
 
     // MARK: Large & old files

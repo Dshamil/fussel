@@ -8,6 +8,9 @@ on:
 
 permissions:
   contents: write
+  # For the build provenance attestation (who built the release files, from which commit).
+  id-token: write
+  attestations: write
 
 jobs:
   build:
@@ -121,6 +124,27 @@ jobs:
           git add .
           git -c user.name="Fussel CI" -c user.email="ci@fussel.invalid" commit -q -m "Previews for $GITHUB_SHA"
           git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" ci-previews
+
+      - name: Is this a new release?
+        id: release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          if gh release view "v$VERSION" >/dev/null 2>&1; then echo "new=false" >> "$GITHUB_OUTPUT"; else echo "new=true" >> "$GITHUB_OUTPUT"; fi
+
+      # GitHub vouches that these exact files were built by this workflow from this commit, so anyone can
+      # check a download with `gh attestation verify <file> --repo Dshamil/fussel`.
+      - name: Attest build provenance
+        if: steps.release.outputs.new == 'true'
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            dist/Fussel-Installer.zip
+            dist/Fussel-Installer.pkg
+            dist/Fussel.dmg
+            dist/Fussel.zip
 
       # A new release is published whenever VERSION changes to a number that has no release yet.
       - name: Publish release
