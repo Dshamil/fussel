@@ -21,9 +21,10 @@ extension PreviewRenderer {
         UserDefaults.standard.set(AppearanceChoice.system.rawValue, forKey: SettingsKey.appearance)
         let tourSteps = [("scanning", Page.overview), ("ready", .overview), ("ready", .tool(.junk)), ("done", .overview)]
         let tour = tourSteps.compactMap { window($0.0, scheme: .light, page: $0.1) }
-        writeGIF(crossfade(tour, hold: 1.8), to: dir.appendingPathComponent("tour.gif"))
+        writeGIF(crossfade(tour, hold: 1.8, steps: 10), to: dir.appendingPathComponent("tour.gif"))
         let sharpTour = tourSteps.compactMap { window($0.0, scheme: .light, page: $0.1, scale: 2) }
-        writeVideo(crossfade(sharpTour, hold: 1.8, steps: 12, step: 1.0 / 30), to: dir.appendingPathComponent("tour.mp4"))
+        // 60 frames a second with a longer, eased fade: the website plays these big, where any step shows.
+        writeVideo(crossfade(sharpTour, hold: 1.8, steps: 26, step: 1.0 / 60), to: dir.appendingPathComponent("tour.mp4"))
 
         // The looks: Light, Dark, Glass in both, and Oreo.
         var looks: [CGImage] = []
@@ -34,8 +35,8 @@ extension PreviewRenderer {
             if let image = window("ready", scheme: scheme, page: .overview, scale: 2) { sharpLooks.append(image) }
         }
         // Light and dark would wash each other out to grey halfway through a fade, so the looks wipe instead.
-        writeGIF(crossfade(looks, hold: 1.6, wipe: true), to: dir.appendingPathComponent("styles.gif"))
-        writeVideo(crossfade(sharpLooks, hold: 1.6, steps: 14, step: 1.0 / 30, wipe: true), to: dir.appendingPathComponent("styles.mp4"))
+        writeGIF(crossfade(looks, hold: 1.6, steps: 10, wipe: true), to: dir.appendingPathComponent("styles.gif"))
+        writeVideo(crossfade(sharpLooks, hold: 1.6, steps: 40, step: 1.0 / 60, wipe: true), to: dir.appendingPathComponent("styles.mp4"))
 
         // Fussel himself: swinging his curl like while he scans, with a blink.
         let fps = 30.0
@@ -86,12 +87,12 @@ extension PreviewRenderer {
                                   space: CGColorSpaceCreateDeviceRGB(),
                                   bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
         ctx.draw(a, in: rect)
+        // Eased, so the change starts and lands gently instead of at an even pace.
+        let eased = amount * amount * (3 - 2 * amount)
         if wipe {
-            // Eased, so the edge starts and lands gently.
-            let eased = amount * amount * (3 - 2 * amount)
             ctx.clip(to: CGRect(x: 0, y: 0, width: rect.width * eased, height: rect.height))
         } else {
-            ctx.setAlpha(amount)
+            ctx.setAlpha(eased)
         }
         ctx.draw(b, in: rect)
         return ctx.makeImage()
@@ -118,7 +119,9 @@ extension PreviewRenderer {
         let input = AVAssetWriterInput(mediaType: .video, outputSettings: [
             AVVideoCodecKey: AVVideoCodecType.h264,
             AVVideoWidthKey: first.width, AVVideoHeightKey: first.height,
-            AVVideoCompressionPropertiesKey: [AVVideoAverageBitRateKey: 6_000_000,
+            AVVideoCompressionPropertiesKey: [AVVideoAverageBitRateKey: 4_000_000,
+                                              AVVideoExpectedSourceFrameRateKey: 60,
+                                              AVVideoMaxKeyFrameIntervalKey: 120,
                                               AVVideoProfileLevelKey: AVVideoProfileLevelH264HighAutoLevel],
         ])
         let adaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: input, sourcePixelBufferAttributes: [
@@ -128,16 +131,19 @@ extension PreviewRenderer {
         writer.add(input)
         writer.startWriting()
         writer.startSession(atSourceTime: .zero)
-        var time = 0.0
+        // An even 60 frames a second, a still image repeated for as long as it holds: players pace
+        // an even stream more smoothly than one frame that lasts two seconds.
+        var frame: Int64 = 0
         for (image, duration) in frames {
-            while !input.isReadyForMoreMediaData { Thread.sleep(forTimeInterval: 0.01) }
-            if let buffer = pixelBuffer(image) {
-                adaptor.append(buffer, withPresentationTime: CMTime(seconds: time, preferredTimescale: 600))
+            guard let buffer = pixelBuffer(image) else { continue }
+            for _ in 0..<max(1, Int((duration * 60).rounded())) {
+                while !input.isReadyForMoreMediaData { Thread.sleep(forTimeInterval: 0.005) }
+                adaptor.append(buffer, withPresentationTime: CMTime(value: frame, timescale: 60))
+                frame += 1
             }
-            time += duration
         }
         input.markAsFinished()
-        writer.endSession(atSourceTime: CMTime(seconds: time, preferredTimescale: 600))
+        writer.endSession(atSourceTime: CMTime(value: frame, timescale: 60))
         let done = DispatchSemaphore(value: 0)
         writer.finishWriting { done.signal() }
         done.wait()
