@@ -77,6 +77,7 @@ struct ContentView: View {
         }
         .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
         .background { if palette.isGlass { GlassBackdrop() } else { palette.content } }
+        .overlay(alignment: .bottom) { CleanToast() }
         .overlay { if app.showTutorial { Tutorial().transition(.opacity) } }
         .overlay { if app.showPermissions { PermissionsView().transition(.opacity) } }
         .overlay { if let version = app.justUpdatedTo { UpdatedView(version: version).transition(.opacity) } }
@@ -595,8 +596,9 @@ private struct OverviewPage: View {
 
     private var actions: some View {
         ScanAndClean(scanning: app.stage == .scanning, cleaning: app.stage == .cleaning,
-                     cleanSize: app.stage == .ready ? app.selectedTotal : 0,
-                     scan: { Task { await app.smartScan() } }, clean: { confirming = true })
+                     cleanSize: app.stage == .ready ? app.selectedTotal : 0, permanent: app.selectionIncludesPermanent,
+                     scan: { Task { await app.smartScan() } }, clean: { Task { await app.cleanAll() } },
+                     askWithDialog: { confirming = true })
     }
 
     /// From what the live counter showed up to the final total, easing out over about half a second.
@@ -1159,30 +1161,121 @@ private struct SettingsPage: View {
     }
 }
 
+// MARK: - After a clean-up
+
+/// For a few seconds after a clean-up, a small card at the bottom says what went to the Trash and
+/// offers Undo right there. A thin line runs down while it waits.
+private struct CleanToast: View {
+    @Environment(AppModel.self) private var app
+    @Environment(\.palette) private var palette
+    @State private var shown: CleanRecord?
+    @State private var left = 1.0
+    private static let seconds = 6.0
+
+    var body: some View {
+        Group {
+            if let record = shown {
+                HStack(spacing: 12) {
+                    Image(systemName: "trash")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Palette.safe)
+                        .frame(width: 30, height: 30)
+                        .background(Circle().fill(Palette.safe.opacity(0.16)))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Moved \(record.freed.byteString) to the Trash")
+                            .font(.system(size: 13, weight: .semibold)).foregroundStyle(palette.text)
+                        Text("\(record.itemCount == 1 ? "1 item" : "\(record.itemCount) items") · you can put them back")
+                            .font(.system(size: 11)).foregroundStyle(palette.secondary)
+                    }
+                    Spacer(minLength: 16)
+                    Button {
+                        shown = nil
+                        Task { await app.undo(record) }
+                    } label: {
+                        Label("Undo", systemImage: "arrow.uturn.backward")
+                    }
+                    .buttonStyle(SecondaryButtonStyle())
+                    .keyboardShortcut("z", modifiers: .command)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 12)
+                .frame(width: 420)
+                .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(palette.sheet))
+                .overlay(alignment: .bottomLeading) {
+                    Capsule().fill(palette.secondary.opacity(0.35))
+                        .frame(width: max(0, 392 * left), height: 2)
+                        .padding(.horizontal, 14).padding(.bottom, 4)
+                }
+                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(palette.cardStroke, lineWidth: 1))
+                .shadow(color: .black.opacity(0.14), radius: 18, y: 8)
+                .padding(.bottom, 24)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .id(record.id)
+            }
+        }
+        .animation(.spring(duration: 0.4, bounce: 0.2), value: shown?.id)
+        .onChange(of: CleanHistory.shared.records.first?.id) { _, _ in
+            // Only a clean-up that just happened and can still be put back.
+            guard let record = CleanHistory.shared.records.first, record.canUndo,
+                  Date().timeIntervalSince(record.date) < 5 else { return }
+            shown = record
+            left = 1
+            withAnimation(.linear(duration: Self.seconds)) { left = 0 }
+            Task {
+                try? await Task.sleep(for: .seconds(Self.seconds))
+                if shown?.id == record.id { shown = nil }
+            }
+        }
+    }
+}
+
 // MARK: - Scan and Clean
 
 /// Scan, and Clean once there is something to clean. Until then Scan is the main (white or dark)
 /// key; when Clean slides in, Scan steps back to a quiet one. While busy, the button at work shows
-/// a spinner instead of fading out.
+/// a spinner instead of fading out. Clean asks right where it is ("Move … to Trash?"); only a selection
+/// that would delete something for good gets the full dialog, since that can't be undone.
 struct ScanAndClean: View {
     @Environment(\.palette) private var palette
     let scanning: Bool
     let cleaning: Bool
     /// What Clean would remove; 0 hides it.
     let cleanSize: Int64
+    /// The selection includes things deleted for good: ask with the full dialog instead.
+    var permanent = false
     let scan: () -> Void
     let clean: () -> Void
+    var askWithDialog: () -> Void = {}
+    @State private var asking = false
 
     var body: some View {
         let showClean = cleaning || (cleanSize > 0 && !scanning)
         HStack(spacing: 8) {
+            if asking && showClean && !cleaning {
+                Button("Cancel") { asking = false }
+                    .buttonStyle(SecondaryButtonStyle())
+                    .keyboardShortcut(.cancelAction)
+                    .transition(.opacity)
+                Button {
+                    asking = false
+                    clean()
+                } label: {
+                    Label("Move \(cleanSize.byteString) to Trash", systemImage: "trash")
+                }
+                .buttonStyle(ActionButtonStyle())
+                .keyboardShortcut(.defaultAction)
+                .animation(.spring(duration: 0.35, bounce: 0.2), value: cleanSize)
+                .transition(.opacity)
+            } else {
             if showClean {
                 scanButton.buttonStyle(SecondaryButtonStyle())
             } else {
                 scanButton.buttonStyle(ActionButtonStyle())
             }
             if showClean {
-                Button(action: clean) {
+                Button {
+                    if permanent { askWithDialog() } else { asking = true }
+                } label: {
                     busyLabel(cleaning, "Cleaning…", idle: "Clean \(cleanSize.byteString)", symbol: "trash",
                               tint: palette.buttonText)
                 }
@@ -1193,8 +1286,12 @@ struct ScanAndClean: View {
                 .transition(.asymmetric(insertion: .scale(scale: 0.6, anchor: .trailing).combined(with: .opacity),
                                         removal: .opacity))
             }
+            }
         }
         .animation(.spring(duration: 0.45, bounce: 0.25), value: showClean)
+        .animation(.spring(duration: 0.35, bounce: 0.2), value: asking)
+        // Nothing left to ask about (a new scan, or the selection emptied): back to the usual buttons.
+        .onChange(of: showClean) { _, shown in if !shown { asking = false } }
     }
 
     private var scanButton: some View {

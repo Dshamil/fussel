@@ -6,13 +6,17 @@ import AppKit
 struct ModuleView: View {
     let model: ModuleModel
     @State private var confirming = false
+    /// The items being reviewed one by one, while that's open.
+    @State private var reviewing: [CleanupItem]?
 
     var body: some View {
         VStack(spacing: 0) {
             PageHeader(title: model.module.title, subtitle: subtitle) {
                 ScanAndClean(scanning: model.phase == .scanning, cleaning: model.phase == .cleaning,
                              cleanSize: model.phase == .results ? model.selectedSize : 0,
-                             scan: { Task { await model.scan(options: .current) } }, clean: { confirming = true })
+                             permanent: model.selectionIncludesPermanent,
+                             scan: { Task { await model.scan(options: .current) } }, clean: { Task { await model.clean() } },
+                             askWithDialog: { confirming = true })
             }
 
             Group {
@@ -32,7 +36,7 @@ struct ModuleView: View {
                         EmptyState(symbol: "checkmark", celebrate: true, title: model.module.spotless + ".",
                                    detail: "This corner of your Mac is already tidy.") { EmptyView() }
                     } else {
-                        ResultsList(model: model)
+                        ResultsList(model: model) { list in reviewing = list }
                     }
                 case let .done(freed, failures):
                     DoneState(freed: freed, failures: failures, model: model)
@@ -40,6 +44,13 @@ struct ModuleView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .overlay {
+            if let list = reviewing {
+                ReviewView(model: model, items: list) { reviewing = nil }
+                    .transition(.opacity.combined(with: .scale(scale: 0.98)))
+            }
+        }
+        .animation(.easeOut(duration: 0.2), value: reviewing == nil)
         .confirmationDialog(
             "Clean \(model.selectedItems.count) items (\(model.selectedSize.byteString))?",
             isPresented: $confirming
@@ -196,6 +207,8 @@ private enum Sort: String, CaseIterable { case largest = "Largest", name = "Name
 
 private struct ResultsList: View {
     let model: ModuleModel
+    /// Opens the one-by-one review with the items as listed (filter and order included).
+    let review: ([CleanupItem]) -> Void
     @Environment(\.palette) private var palette
     @State private var filter = Filter.all
     @State private var sort = Sort.largest
@@ -232,6 +245,12 @@ private struct ResultsList: View {
                 chip(.safe, "Safe to Remove", count: model.items.filter(\.isSafe).count, symbol: "checkmark.circle.fill")
                 chip(.check, "Review First", count: model.items.filter { !$0.isSafe }.count, symbol: "exclamationmark.circle")
                 Spacer()
+                Button { review(items) } label: {
+                    Label("One by One", systemImage: "rectangle.stack")
+                }
+                .buttonStyle(SecondaryButtonStyle())
+                .help("Look at each item on its own: keep it or pick it for the Trash")
+                .disabled(items.isEmpty)
                 Button {
                     let all = Sort.allCases
                     sort = all[(all.firstIndex(of: sort)! + 1) % all.count]

@@ -19,6 +19,7 @@ enum PreviewRenderer {
         UserDefaults.standard.set(false, forKey: SettingsKey.showSidebar)
         renderMenuBar(to: dir)
         renderKeys(to: dir)
+        for scheme in [ColorScheme.light, .dark] { renderReview(scheme, to: dir) }
         let scenarios = ["idle", "scanning", "ready", "done", "stuffed", "pending", "tutorial", "permissions", "updated"]
         for scheme in [ColorScheme.light, .dark] {
             for scenario in scenarios {
@@ -54,6 +55,31 @@ enum PreviewRenderer {
         UserDefaults.standard.set(AppearanceChoice.glass.rawValue, forKey: SettingsKey.appearance)
         render("ready", scheme: .light, page: .tool(.uninstaller), to: dir, name: "glass-light-uninstaller-ready")
         UserDefaults.standard.set(saved, forKey: SettingsKey.appearance)
+    }
+
+    /// The one-by-one review of Large Files, a few files in.
+    private static func renderReview(_ scheme: ColorScheme, to dir: URL) {
+        let model = sampleModel("ready")
+        let home = FileManager.default.homeDirectoryForCurrentUser
+        let day = 86_400.0
+        model.large.items = [("Movies/Screen Recording.mov", 2_900_000_000, 400.0), ("Movies/Holiday 2019.mov", 4_200_000_000, 730),
+                             ("Downloads/Old Backup.zip", 6_100_000_000, 900), ("Documents/Archive.dmg", 1_400_000_000, 365)].map {
+            CleanupItem(url: home.appendingPathComponent($0.0), name: URL(fileURLWithPath: $0.0).lastPathComponent,
+                        group: "Large Files", size: $0.1, date: Date().addingTimeInterval(-$0.2 * day))
+        }
+        model.large.selected = [model.large.items[0].url]
+        let view = StyledRoot {
+            ReviewView(model: model.large, items: model.large.items) {}
+        }
+        .environment(model)
+        .environment(\.colorScheme, scheme)
+        .frame(width: 960, height: 640)
+        let renderer = ImageRenderer(content: view)
+        renderer.scale = 2
+        if let tiff = renderer.nsImage?.tiffRepresentation, let bitmap = NSBitmapImageRep(data: tiff),
+           let png = bitmap.representation(using: .png, properties: [:]) {
+            try? png.write(to: dir.appendingPathComponent("\(name(scheme))-review.png"))
+        }
     }
 
     private static func name(_ scheme: ColorScheme) -> String { scheme == .dark ? "dark" : "light" }
