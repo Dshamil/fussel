@@ -47,6 +47,9 @@
   --bg: #F3F3F5; --surface: #FFFFFF; --surface-2: #F7F7F9; --line: #E3E3E8;
   --fg: #1D1D1F; --muted: #6E6E73;
   --strong: #2B2D33; --on-strong: #FFFFFF;
+  /* The keys, like the app's buttons: a darker base under the key, a thin light edge on top. */
+  --key-base: color-mix(in srgb, var(--strong), black 45%); --key-edge: rgb(255 255 255 / 0.16);
+  --quiet-base: color-mix(in srgb, var(--fg) 13%, transparent);
   --caution-bg: #FBF1DC; --caution-fg: #9A6A0C; --safe-bg: #E3F4EA;
   --shadow: 0 24px 60px rgb(0 0 0 / 0.14);
 
@@ -58,6 +61,7 @@
   :root:not([data-theme="light"]) {
     --bg: #161618; --surface: #1E1E20; --surface-2: #262629; --line: #333337;
     --fg: #F2F2F2; --muted: #98989F; --strong: #F2F2F2; --on-strong: #1D1D1F;
+    --key-base: color-mix(in srgb, var(--strong), black 28%); --key-edge: rgb(255 255 255 / 0.5); --quiet-base: rgb(0 0 0 / 0.6);
     --caution-bg: #3A2E14; --caution-fg: #F0C15C; --safe-bg: #15301F;
     --shadow: 0 24px 60px rgb(0 0 0 / 0.5);
     color-scheme: dark;
@@ -66,6 +70,7 @@
 :root[data-theme="dark"] {
   --bg: #161618; --surface: #1E1E20; --surface-2: #262629; --line: #333337;
   --fg: #F2F2F2; --muted: #98989F; --strong: #F2F2F2; --on-strong: #1D1D1F;
+  --key-base: color-mix(in srgb, var(--strong), black 28%); --key-edge: rgb(255 255 255 / 0.5); --quiet-base: rgb(0 0 0 / 0.6);
   --caution-bg: #3A2E14; --caution-fg: #F0C15C; --safe-bg: #15301F;
   --shadow: 0 24px 60px rgb(0 0 0 / 0.5);
   color-scheme: dark;
@@ -105,18 +110,22 @@ nav { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(
 .links a { text-decoration: none; }
 .links a:hover { color: var(--fg); }
 .small-dl { color: var(--on-strong) !important; background: var(--strong); padding: 7px 14px; border-radius: 9px; font-weight: 600;
-  display: inline-block; transition: transform .35s cubic-bezier(.3,.7,.4,1.6); }
-.small-dl:active { transform: scale(.94); transition-duration: .08s; }
+  display: inline-block; box-shadow: 0 3px 0 var(--key-base), inset 0 1px 0 var(--key-edge);
+  transition: transform .3s cubic-bezier(.3,.7,.4,1.6), box-shadow .3s cubic-bezier(.3,.7,.4,1.6), filter .15s; }
+.small-dl:hover { filter: brightness(1.08); }
+/* Pressed, the key sinks onto its base. */
+.small-dl:active { transform: translateY(3px); box-shadow: 0 0 0 var(--key-base), inset 0 1px 0 var(--key-edge);
+  transition-duration: .07s; transition-timing-function: ease-out; }
 
 /* ---------- The big button ---------- */
 .download { display: inline-flex; align-items: center; gap: 12px; text-decoration: none;
   background: var(--strong); color: var(--on-strong); border-radius: 16px; padding: 17px 28px 17px 24px;
   font: 700 19px/1 var(--text); letter-spacing: -0.01em;
-  box-shadow: 0 10px 30px rgb(0 0 0 / 0.18), inset 0 1px 0 rgb(255 255 255 / 0.12);
-  transition: transform .4s cubic-bezier(.3,.7,.4,1.5), box-shadow .3s; }
-.download:hover { transform: translateY(-2px); box-shadow: 0 16px 36px rgb(0 0 0 / 0.24), inset 0 1px 0 rgb(255 255 255 / 0.12); }
-.download:active { transform: translateY(1px) scale(.96); box-shadow: 0 4px 14px rgb(0 0 0 / 0.18), inset 0 1px 0 rgb(255 255 255 / 0.12);
-  transition-duration: .08s; }
+  box-shadow: 0 5px 0 var(--key-base), 0 12px 28px rgb(0 0 0 / 0.16), inset 0 1px 0 var(--key-edge);
+  transition: transform .35s cubic-bezier(.3,.7,.4,1.6), box-shadow .35s cubic-bezier(.3,.7,.4,1.6), filter .15s; }
+.download:hover { filter: brightness(1.08); }
+.download:active { transform: translateY(5px); box-shadow: 0 0 0 var(--key-base), 0 4px 10px rgb(0 0 0 / 0.12), inset 0 1px 0 var(--key-edge);
+  transition-duration: .07s; transition-timing-function: ease-out; }
 .download .apple { font-size: 22px; line-height: 1; margin-top: -3px; }
 .download svg { width: 20px; height: 20px; }
 .download svg[hidden] { display: none; }
@@ -164,7 +173,8 @@ section { padding-block: clamp(56px, 9vw, 104px); border-top: 1px solid var(--li
 .tag.safe { color: var(--safe); background: var(--safe-bg); }
 .tag.check { color: var(--caution-fg); background: var(--caution-bg); }
 .undo { display: flex; align-items: center; gap: 14px; margin-top: 16px; }
-.undo .pill { font: 600 13px var(--text); padding: 6px 14px; border-radius: 99px; background: color-mix(in srgb, var(--fg) 8%, transparent); }
+.undo .pill { font: 600 13px var(--text); padding: 6px 14px; border-radius: 9px; background: var(--surface);
+  border: 1px solid var(--line); box-shadow: 0 2px 0 var(--quiet-base); }
 
 .looks { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 32px; align-items: center; }
 .looks .shot { margin: 0; }
@@ -233,6 +243,7 @@ footer { border-top: 1px solid var(--line); padding-block: 32px 48px; color: var
   html { scroll-behavior: auto; }
   .buddy .curl, .buddy .eye, .bubble { animation: none; }
   .download, .small-dl, .swatches button, .swatches i { transition: none; }
+  .download:active, .small-dl:active { transform: none; }
 }
 </style>
 </head>
