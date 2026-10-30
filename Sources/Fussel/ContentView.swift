@@ -718,7 +718,7 @@ private struct StorageBar: View {
         let s = app.monitor.sample
         let total = max(1, Double(s.diskTotal))
         let used = Double(max(0, s.diskTotal - s.diskFree))
-        let slices: [(Module, Double)] = [Module.junk, .tidy, .large].map { module in
+        let slices: [(Module, Double)] = Module.overview.filter(\.inStorageBar).map { module in
             let model = app.model(for: module)
             let shown = model.phase == .results || model.phase == .cleaning
             return (module, shown ? Double(model.totalSize) : 0)
@@ -904,7 +904,10 @@ private struct ToolTile: View {
         .buttonStyle(.plain)
         .onHover { inside in
             withAnimation(.spring(duration: 0.3, bounce: 0.4)) { hovering = inside }
-            withAnimation(.easeOut(duration: 0.15)) { highlighted = inside ? module : nil }
+            // Only tools with a part in the storage bar light it up; the Uninstaller and App Updates have none.
+            if module.inStorageBar {
+                withAnimation(.easeOut(duration: 0.15)) { highlighted = inside ? module : nil }
+            }
         }
         .animation(.snappy, value: facts.value)
         .animation(.spring(duration: 0.4, bounce: 0.5), value: facts.isWorking)
@@ -977,6 +980,9 @@ private struct CategoryFacts {
 extension Module {
     /// The tools on the overview, in order.
     static let overview: [Module] = [.junk, .tidy, .large, .uninstaller, .updates]
+
+    /// Whether the tool has its own part in the storage bar, for what it found.
+    var inStorageBar: Bool { self == .junk || self == .tidy || self == .large }
 
     /// A name short enough for the sidebar.
     var sidebarTitle: String { self == .large ? "Large Files" : title }
