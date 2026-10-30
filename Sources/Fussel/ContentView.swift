@@ -590,8 +590,14 @@ private struct OverviewPage: View {
             if allowed { Task { await app.measureFolders() } }
         }
         .onChange(of: app.stage) { old, stage in
-            if case .done(let freed, _) = stage, freed > 0 { celebrations += 1 }
-            if old == .scanning, stage == .ready, !reduceMotion { countUpFound() }
+            if case .done(let freed, _) = stage, freed > 0 {
+                celebrations += 1
+                // The freed amount rolls in like a counter, once.
+                if !reduceMotion { countUp(from: 0, to: freed) }
+            }
+            if old == .scanning, stage == .ready, !reduceMotion {
+                countUp(from: min(ScanProgress.shared.snapshot.bytes, app.foundTotal), to: app.foundTotal)
+            }
         }
         .cleanConfirmation(isPresented: $confirming)
     }
@@ -603,10 +609,9 @@ private struct OverviewPage: View {
                      askWithDialog: { confirming = true })
     }
 
-    /// From what the live counter showed up to the final total, easing out over about half a second.
-    private func countUpFound() {
-        let start = Double(min(ScanProgress.shared.snapshot.bytes, app.foundTotal))
-        let end = Double(app.foundTotal)
+    /// Up to the final total (found or freed), easing out over about half a second.
+    private func countUp(from first: Int64, to last: Int64) {
+        let start = Double(first), end = Double(last)
         guard end > start else { return }
         Task { @MainActor in
             for step in 1...14 {
@@ -655,6 +660,10 @@ private struct Greeting: View {
                 .tracking(-0.6)
                 .monospacedDigit()
                 .foregroundStyle(palette.text)
+                // Digits roll while a total counts up (once, after a scan or a clean-up), never for live values.
+                .contentTransition(counting == nil ? .identity : .numericText(value: Double(counting ?? 0)))
+                .animation(.snappy(duration: 0.18), value: counting)
+                .modifier(TextShimmer(active: app.stage == .scanning || app.stage == .cleaning))
                 .overlay(alignment: .leading) { SparkleBurst(trigger: celebrations).frame(width: 60) }
             Text(app.stage == .ready && app.selectedTotal > 0
                  ? "\(app.selectedTotal.byteString) safe to remove · \(s.diskFree.byteString) free of \(s.diskTotal.byteString)"
@@ -674,7 +683,37 @@ private struct Greeting: View {
         case .cleaning: return "Cleaning up…"
         case .ready:
             return app.foundTotal > 0 ? "I found \((counting ?? app.foundTotal).byteString) of fluff" : "Not a speck of fluff"
-        case .done(let freed, _): return freed > 0 ? "\(freed.byteString) freed" : "All tidy"
+        case .done(let freed, _): return freed > 0 ? "\((counting ?? freed).byteString) freed" : "All tidy"
+        }
+    }
+}
+
+/// A calm band of light that runs across text while Fussel is busy.
+private struct TextShimmer: ViewModifier {
+    let active: Bool
+    @Environment(\.palette) private var palette
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.animationsPaused) private var paused
+    @State private var phase = 0.0
+
+    func body(content: Content) -> some View {
+        content.overlay {
+            if active && !reduceMotion && !paused {
+                GeometryReader { geo in
+                    let band = max(60, geo.size.width * 0.35)
+                    LinearGradient(colors: [.clear, .white.opacity(palette.isDark ? 0.55 : 0.75), .clear],
+                                   startPoint: .leading, endPoint: .trailing)
+                        .frame(width: band)
+                        .offset(x: -band + phase * (geo.size.width + band))
+                }
+                .mask(content)
+                .allowsHitTesting(false)
+                .onAppear {
+                    phase = 0
+                    withAnimation(.linear(duration: 1.6).repeatForever(autoreverses: false)) { phase = 1 }
+                }
+                .transition(.opacity)
+            }
         }
     }
 }
@@ -1376,9 +1415,9 @@ private struct TopBar: View {
             }
             Spacer(minLength: 12)
             if !showSidebar {
-                RoundButton(symbol: "clock.arrow.circlepath", help: "History") { showingHistory = true }
+                RoundButton(symbol: "clock.arrow.circlepath", help: "History", label: "History") { showingHistory = true }
                     .popover(isPresented: $showingHistory, arrowEdge: .bottom) { HistoryList().environment(app) }
-                RoundButton(symbol: "gearshape", help: "Settings") { page = .settings }
+                RoundButton(symbol: "gearshape", help: "Settings", label: "Settings") { page = .settings }
                     .keyboardShortcut(",", modifiers: .command)
             }
         }
@@ -1427,23 +1466,34 @@ private struct RoundButton: View {
     @Environment(\.palette) private var palette
     let symbol: String
     let help: String
+    /// Slides out next to the symbol while the pointer is on the button.
+    var label: String? = nil
     let action: () -> Void
     @State private var hovering = false
 
     var body: some View {
+        let open = hovering && label != nil
         Button(action: action) {
-            Image(systemName: symbol)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(hovering ? palette.text : palette.secondary)
-                .frame(width: 30, height: 30)
-                .background(Circle().fill(palette.card))
-                .overlay(Circle().strokeBorder(palette.cardStroke, lineWidth: 1))
-                .contentShape(Circle())
+            HStack(spacing: 6) {
+                Image(systemName: symbol)
+                if open, let label {
+                    Text(label)
+                        .fixedSize()
+                        .transition(.opacity.combined(with: .offset(x: -6)))
+                }
+            }
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(hovering ? palette.text : palette.secondary)
+            .padding(.horizontal, open ? 11 : 0)
+            .frame(minWidth: 30, minHeight: 30, maxHeight: 30)
+            .background(Capsule().fill(palette.card))
+            .overlay(Capsule().strokeBorder(palette.cardStroke, lineWidth: 1))
+            .contentShape(Capsule())
         }
         .buttonStyle(.plain)
         .help(help)
         .accessibilityLabel(help)
         .onHover { hovering = $0 }
-        .animation(.easeOut(duration: 0.15), value: hovering)
+        .animation(.spring(duration: 0.3, bounce: 0.2), value: hovering)
     }
 }

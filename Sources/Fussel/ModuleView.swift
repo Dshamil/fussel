@@ -211,6 +211,8 @@ private struct ResultsList: View {
     let review: ([CleanupItem]) -> Void
     @Environment(\.palette) private var palette
     @State private var filter = Filter.all
+    /// The selected filter's highlight, which glides from chip to chip.
+    @Namespace private var chips
     @State private var sort = Sort.largest
     @State private var appeared = PreviewRenderer.isRendering
 
@@ -300,7 +302,7 @@ private struct ResultsList: View {
         let on = filter == value
         let tint: Color = value == .safe ? Palette.safe : (value == .check ? Palette.caution : palette.text)
         return Button {
-            filter = value
+            withAnimation(.spring(duration: 0.35, bounce: 0.2)) { filter = value }
         } label: {
             HStack(spacing: 5) {
                 Image(systemName: symbol)
@@ -314,7 +316,12 @@ private struct ResultsList: View {
             .foregroundStyle(on ? palette.text : palette.secondary)
             .padding(.horizontal, 12)
             .frame(height: 26)
-            .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(on ? palette.selection : .clear))
+            .background {
+                if on {
+                    RoundedRectangle(cornerRadius: 8, style: .continuous).fill(palette.selection)
+                        .matchedGeometryEffect(id: "selected", in: chips)
+                }
+            }
             .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(palette.cardStroke, lineWidth: on ? 0 : 1))
             .contentShape(Rectangle())
         }
