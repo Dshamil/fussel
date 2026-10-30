@@ -159,6 +159,7 @@ struct UninstallerView: View {
                 }
                 .buttonStyle(ActionButtonStyle())
                 .disabled(model.selected.isEmpty || model.loadingLeftovers)
+                .animation(.spring(duration: 0.35, bounce: 0.2), value: model.selectedSize)
             }
             .padding(.horizontal, 24)
             .padding(.vertical, 12)

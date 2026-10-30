@@ -519,8 +519,10 @@ private struct OverviewPage: View {
     /// Screenshots show the finished state right away; the app animates into it.
     @State private var shown = PreviewRenderer.isRendering
     @State private var celebrations = 0
-    /// While set, the line under the title shows this instead of the found total: it counts up to it.
+    /// While set, the greeting shows this instead of the found total: it counts up to it.
     @State private var countingFound: Int64?
+    /// The tool pointed at, in the storage bar or on its tile: both light up.
+    @State private var highlighted: Module?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -540,6 +542,8 @@ private struct OverviewPage: View {
                     }
                     .buttonStyle(ActionButtonStyle())
                     .disabled(app.selectedTotal == 0 || app.stage == .cleaning)
+                    // Grows and shrinks smoothly as the size in its label changes.
+                    .animation(.spring(duration: 0.35, bounce: 0.2), value: app.selectedTotal)
                 }
                 }
 
@@ -550,12 +554,13 @@ private struct OverviewPage: View {
                         AccessBanner()
                     }
 
-                    DiskHeadline(shown: shown, celebrations: celebrations)
+                    Greeting(counting: countingFound, celebrations: celebrations)
+                        .padding(.top, 14)
 
-                    StorageBar(grown: shown)
+                    StorageBar(grown: shown, highlighted: $highlighted)
                         .padding(.top, 4)
 
-                    CategoryList(page: $page, shown: shown)
+                    ToolTiles(page: $page, highlighted: $highlighted, shown: shown)
 
                     StatsLine()
                         .padding(.top, 2)
@@ -602,7 +607,7 @@ private struct OverviewPage: View {
 
     private var status: String {
         switch app.stage {
-        case .idle: return UserName.current.isEmpty ? "Not scanned yet" : "\(UserName.timeOfDay), \(UserName.current)"
+        case .idle: return "Not scanned yet"
         case .scanning:
             let found = ScanProgress.shared.snapshot
             guard found.bytes > 0 else { return "Looking around…" }
@@ -611,44 +616,53 @@ private struct OverviewPage: View {
             return place.isEmpty ? "\(found.bytes.byteString) found so far"
                                  : "\(found.bytes.byteString) found so far · \(place)"
         case .cleaning: return "Cleaning…"
-        case .ready:
-            let found = countingFound ?? app.foundTotal
-            return app.foundTotal > 0 ? "Scanned just now · \(found.byteString) found" : "Scanned just now · not a speck of fluff"
-        case .done(let freed, _): return freed > 0 ? UserName.allTidy(freed) : "All tidy"
+        case .ready: return "Scanned just now"
+        case .done: return "Cleaned just now"
         }
     }
 }
 
-/// The big "used" number with total and free space. It reads the live disk values itself, so their
-/// update every two seconds redraws only this line, not the whole overview.
-private struct DiskHeadline: View {
+/// Fussel says hi and what he found, with the free space below. It reads the live disk values itself,
+/// so their update every two seconds redraws only this, not the whole overview.
+private struct Greeting: View {
     @Environment(AppModel.self) private var app
     @Environment(\.palette) private var palette
-    let shown: Bool
+    /// While the found total counts up after a scan, the number to show.
+    let counting: Int64?
     let celebrations: Int
 
     var body: some View {
         let s = app.monitor.sample
-        let usedBytes = max(0, s.diskTotal - s.diskFree)
-        HStack(alignment: .firstTextBaseline) {
-            // Counts up once when the overview appears. Not on every new sample: free space wobbles by a
-            // few KB each time, and counting the big number up again and again kept the overview redrawing
-            // most of the time (and made the small windows in the stats line close unevenly).
-            CountingBytes(value: shown ? Double(usedBytes) : 0)
-                .animation(.easeOut(duration: 1.0), value: shown)
-                .font(.system(size: 30, weight: .bold))
-                .tracking(-0.6)
-                .foregroundStyle(palette.text)
-                .overlay { SparkleBurst(trigger: celebrations) }
-            Text("used of \(s.diskTotal.byteString)")
-                .font(.system(size: 13))
+        VStack(alignment: .leading, spacing: 4) {
+            Text(UserName.current.isEmpty ? UserName.timeOfDay : "Hi \(UserName.current),")
+                .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(palette.secondary)
-            Spacer()
-            Text("\(s.diskFree.byteString) free")
-                .font(.system(size: 13, weight: .semibold))
+            Text(headline)
+                .font(.system(size: 28, weight: .bold))
+                .tracking(-0.6)
+                .monospacedDigit()
+                .foregroundStyle(palette.text)
+                .overlay(alignment: .leading) { SparkleBurst(trigger: celebrations).frame(width: 60) }
+            Text(app.stage == .ready && app.selectedTotal > 0
+                 ? "\(app.selectedTotal.byteString) safe to remove · \(s.diskFree.byteString) free of \(s.diskTotal.byteString)"
+                 : "\(s.diskFree.byteString) free of \(s.diskTotal.byteString)")
+                .font(.system(size: 13))
+                .monospacedDigit()
                 .foregroundStyle(palette.secondary)
         }
-        .monospacedDigit()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+    }
+
+    private var headline: String {
+        switch app.stage {
+        case .idle: return "Ready when you are"
+        case .scanning: return "Looking for fluff…"
+        case .cleaning: return "Cleaning up…"
+        case .ready:
+            return app.foundTotal > 0 ? "I found \((counting ?? app.foundTotal).byteString) of fluff" : "Not a speck of fluff"
+        case .done(let freed, _): return freed > 0 ? "\(freed.byteString) freed" : "All tidy"
+        }
     }
 }
 
@@ -696,6 +710,7 @@ private struct StorageBar: View {
     @Environment(AppModel.self) private var app
     @Environment(\.palette) private var palette
     let grown: Bool
+    @Binding var highlighted: Module?
     /// Where the pointer is over the bar, for the little label saying what that part is.
     @State private var pointer: CGFloat?
 
@@ -716,6 +731,7 @@ private struct StorageBar: View {
                     if bytes > 0 {
                         Rectangle()
                             .fill(palette.accent(module))
+                            .opacity(highlighted == nil || highlighted == module ? 1 : 0.3)
                             .frame(width: max(3, w * bytes / total))
                     }
                 }
@@ -732,9 +748,7 @@ private struct StorageBar: View {
             .clipShape(Capsule())
             // macOS tooltips don't stay up on a bar that redraws every two seconds, so Fussel shows its own.
             .contentShape(Rectangle())
-            .onContinuousHover { phase in
-                if case .active(let point) = phase { pointer = point.x } else { pointer = nil }
-            }
+            .onContinuousHover { phase in hover(phase, width: w, total: total, slices: slices) }
             .overlay(alignment: .topLeading) {
                 if let x = pointer, grown {
                     Text(part(at: x, width: w, total: total, used: used, slices: slices))
@@ -762,6 +776,23 @@ private struct StorageBar: View {
 }
 
 extension StorageBar {
+    /// Follows the pointer for the label, and lights up the tile of the tool under it.
+    fileprivate func hover(_ phase: HoverPhase, width w: CGFloat, total: Double, slices: [(Module, Double)]) {
+        if case .active(let point) = phase { pointer = point.x } else { pointer = nil }
+        let under = pointer.flatMap { tool(at: $0, width: w, total: total, slices: slices) }
+        if under != highlighted { withAnimation(.easeOut(duration: 0.15)) { highlighted = under } }
+    }
+
+    /// The tool whose slice lies under the pointer, if any.
+    fileprivate func tool(at x: CGFloat, width w: CGFloat, total: Double, slices: [(Module, Double)]) -> Module? {
+        var edge: CGFloat = 0
+        for (module, bytes) in slices where bytes > 0 {
+            edge += max(3, w * bytes / total) + 1.5
+            if x < edge { return module }
+        }
+        return nil
+    }
+
     /// What lies under the pointer: a tool's find, everything else that's used, or free space.
     fileprivate func part(at x: CGFloat, width w: CGFloat, total: Double, used: Double,
                           slices: [(Module, Double)]) -> String {
@@ -795,108 +826,113 @@ private struct Shimmer: View {
     }
 }
 
-/// A row per tool with what it found, its share of the disk and how safe it is to clean.
-private struct CategoryList: View {
-    @Environment(AppModel.self) private var app
-    @Environment(\.palette) private var palette
+/// A tile per tool with what it found. Pointing at a tile or at its part of the storage bar
+/// lights both up; the other tools turn grey for a moment.
+private struct ToolTiles: View {
     @Binding var page: Page
+    @Binding var highlighted: Module?
     let shown: Bool
 
-    private let modules: [Module] = [.junk, .tidy, .large, .uninstaller, .updates]
-
     var body: some View {
-        VStack(spacing: 0) {
-            ForEach(Array(modules.enumerated()), id: \.element) { index, module in
-                if index > 0 {
-                    Rectangle().fill(palette.cardStroke).frame(height: 1).padding(.leading, 58)
-                }
-                CategoryRow(module: module) { page = .tool(module) }
+        HStack(spacing: 10) {
+            ForEach(Array(Module.overview.enumerated()), id: \.element) { index, module in
+                ToolTile(module: module, highlighted: $highlighted) { page = .tool(module) }
                     .opacity(shown ? 1 : 0)
                     .offset(y: shown ? 0 : 10)
                     .animation(.spring(duration: 0.5, bounce: 0.25).delay(0.05 * Double(index) + 0.15), value: shown)
             }
         }
-        .cardSurface(palette, radius: 12)
     }
 }
 
-private struct CategoryRow: View {
+private struct ToolTile: View {
     @Environment(AppModel.self) private var app
     @Environment(\.palette) private var palette
     let module: Module
+    @Binding var highlighted: Module?
     let open: () -> Void
     @State private var hovering = false
     @State private var bounce = 0
 
     var body: some View {
+        let facts = CategoryFacts(app: app, module: module)
+        let lit = highlighted == module
         Button(action: open) {
-            HStack(spacing: 12) {
-                ToolIcon(module: module, size: 30, bounce: bounce)
-                    .scaleEffect(hovering ? 1.08 : 1)
-                    .rotationEffect(.degrees(hovering ? -6 : 0))
-                VStack(alignment: .leading, spacing: 2) {
-                    // Safe to Remove / Review First belong to single files, so the tools themselves carry no label.
-                    Text(module.title)
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(palette.text)
-                    Text(detail)
-                        .font(.system(size: 12))
-                        .foregroundStyle(palette.secondary)
-                        .lineLimit(1)
-                }
-                Spacer(minLength: 12)
-                if let share {
-                    Text(share)
-                        .font(.system(size: 12))
-                        .monospacedDigit()
-                        .foregroundStyle(palette.secondary)
-                }
+            VStack(alignment: .leading, spacing: 0) {
+                ToolIcon(module: module, size: 30, bounce: bounce, muted: highlighted != nil && !lit)
+                Spacer(minLength: 14)
+                // Everything below the gap has a fixed height, so the numbers line up across the tiles.
                 Group {
-                    if isWorking {
+                    if facts.isWorking {
                         Spinner(tint: palette.accent(module))
                             .transition(.scale.combined(with: .opacity))
                     } else {
-                        Text(value)
-                            .font(.system(size: 15, weight: .bold))
+                        Text(facts.value)
+                            .font(.system(size: 18, weight: .bold))
                             .monospacedDigit()
                             .foregroundStyle(palette.text)
-                            .contentTransition(.numericText())
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
                             .transition(.scale(scale: 0.6).combined(with: .opacity))
                     }
                 }
-                .frame(minWidth: 70, alignment: .trailing)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 11, weight: .bold))
+                .frame(height: 24, alignment: .leading)
+                Text(module.sidebarTitle)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(palette.text)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                    .frame(height: 16, alignment: .leading)
+                    .padding(.top, 2)
+                Text(facts.detail)
+                    .font(.system(size: 11))
                     .foregroundStyle(palette.secondary)
-                    .offset(x: hovering ? 3 : 0)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(height: 28, alignment: .topLeading)
+                    .padding(.top, 1)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background(hovering ? palette.text.opacity(0.04) : .clear)
+            .padding(14)
+            .frame(maxWidth: .infinity, minHeight: 148, alignment: .topLeading)
+            // The tile that's pointed at, here or in the storage bar, turns a lighter grey.
+            .background(RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color.white.opacity(lit ? (palette.isDark ? 0.06 : 0.9) : 0)))
+            .cardSurface(palette, radius: 14)
+            .offset(y: hovering ? -2 : 0)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .onHover { inside in withAnimation(.spring(duration: 0.3, bounce: 0.4)) { hovering = inside } }
-        .animation(.snappy, value: value)
-        .animation(.spring(duration: 0.4, bounce: 0.5), value: isWorking)
+        .onHover { inside in
+            withAnimation(.spring(duration: 0.3, bounce: 0.4)) { hovering = inside }
+            withAnimation(.easeOut(duration: 0.15)) { highlighted = inside ? module : nil }
+        }
+        .animation(.snappy, value: facts.value)
+        .animation(.spring(duration: 0.4, bounce: 0.5), value: facts.isWorking)
         // A little hop when a scan for this tool comes back.
-        .onChange(of: isWorking) { _, working in if !working { bounce += 1 } }
+        .onChange(of: facts.isWorking) { _, working in if !working { bounce += 1 } }
     }
+}
 
-    private var isWorking: Bool {
+/// What the overview says about one tool: its value and a line of detail.
+@MainActor
+private struct CategoryFacts {
+    let app: AppModel
+    let module: Module
+
+    var isWorking: Bool {
         if let model { return model.phase == .scanning || model.phase == .cleaning }
         if module == .updates, case .checking = app.appUpdates.phase { return true }
         return false
     }
 
-    private var model: ModuleModel? {
+    var model: ModuleModel? {
         switch module {
         case .junk, .large, .tidy: return app.model(for: module)
         default: return nil
         }
     }
 
-    private var value: String {
+    var value: String {
         if let model {
             switch model.phase {
             case .results: return model.totalSize.byteString
@@ -905,17 +941,13 @@ private struct CategoryRow: View {
             case .idle: return "—"
             }
         }
-        if module == .uninstaller { return app.uninstaller.apps.isEmpty ? "—" : "\(app.uninstaller.apps.count)" }
-        return "\(app.appUpdates.updates.count)"
+        if module == .uninstaller { return app.uninstaller.apps.isEmpty ? "—" : "\(app.uninstaller.apps.count) apps" }
+        if case .idle = app.appUpdates.phase { return "—" }
+        let updates = app.appUpdates.updates.count
+        return updates == 1 ? "1 update" : "\(updates) updates"
     }
 
-    private var share: String? {
-        guard let model, model.phase == .results, app.monitor.diskTotal > 0 else { return nil }
-        let percent = Double(model.totalSize) / Double(app.monitor.diskTotal) * 100
-        return String(format: "%.1f %%", percent)
-    }
-
-    private var detail: String {
+    var detail: String {
         switch module {
         case .junk, .tidy:
             guard let model else { return "" }
@@ -931,7 +963,7 @@ private struct CategoryRow: View {
             if model.phase == .results { return model.items.count == 1 ? "1 file to look at" : "\(model.items.count) files to look at" }
             return model.phase == .scanning ? "Looking…" : "Big and forgotten files"
         case .uninstaller:
-            return "Remove apps with their leftovers"
+            return "Apps and their leftovers"
         case .updates:
             switch app.appUpdates.phase {
             case .checking: return "Checking…"
@@ -943,6 +975,9 @@ private struct CategoryRow: View {
 }
 
 extension Module {
+    /// The tools on the overview, in order.
+    static let overview: [Module] = [.junk, .tidy, .large, .uninstaller, .updates]
+
     /// A name short enough for the sidebar.
     var sidebarTitle: String { self == .large ? "Large Files" : title }
 }
@@ -953,10 +988,12 @@ struct ToolIcon: View {
     let module: Module
     var size: CGFloat = 28
     var bounce = 0
+    /// Grey instead of the tool's color, while another tool is pointed at.
+    var muted = false
 
     var body: some View {
         RoundedRectangle(cornerRadius: size * 0.27, style: .continuous)
-            .fill(palette.accent(module).gradient)
+            .fill(muted ? palette.secondary.opacity(0.4).gradient : palette.accent(module).gradient)
             .overlay(
                 Image(systemName: module.symbol)
                     .font(.system(size: size * 0.48, weight: .semibold))

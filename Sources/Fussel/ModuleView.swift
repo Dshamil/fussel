@@ -20,6 +20,8 @@ struct ModuleView: View {
                 }
                 .buttonStyle(ActionButtonStyle())
                 .disabled(model.selected.isEmpty || model.phase != .results)
+                // Grows and shrinks smoothly as the size in its label changes.
+                .animation(.spring(duration: 0.35, bounce: 0.2), value: model.selectedSize)
             }
 
             Group {

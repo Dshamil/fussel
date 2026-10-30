@@ -16,6 +16,7 @@ enum PreviewRenderer {
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
 
         renderMenuBar(to: dir)
+        renderKeys(to: dir)
         let scenarios = ["idle", "scanning", "ready", "done", "stuffed", "pending", "tutorial", "permissions", "updated"]
         for scheme in [ColorScheme.light, .dark] {
             for scenario in scenarios {
@@ -43,6 +44,30 @@ enum PreviewRenderer {
     }
 
     private static func name(_ scheme: ColorScheme) -> String { scheme == .dark ? "dark" : "light" }
+
+    /// The main button at rest and pressed, in both looks, since a screenshot can't press it.
+    private static func renderKeys(to dir: URL) {
+        let view = VStack(spacing: 0) {
+            ForEach([ColorScheme.light, .dark], id: \.self) { scheme in
+                StyledRoot {
+                    HStack(spacing: 24) {
+                        ForEach([false, true], id: \.self) { pressed in
+                            TactileKey(pressed: pressed) { Label("Clean 2.16 GB", systemImage: "trash") }
+                        }
+                    }
+                    .padding(28)
+                }
+                .environment(\.colorScheme, scheme)
+                .background(scheme == .dark ? Color(hex: 0x1E1E1E) : .white)
+            }
+        }
+        let renderer = ImageRenderer(content: view)
+        renderer.scale = 3
+        if let tiff = renderer.nsImage?.tiffRepresentation, let bitmap = NSBitmapImageRep(data: tiff),
+           let png = bitmap.representation(using: .png, properties: [:]) {
+            try? png.write(to: dir.appendingPathComponent("keys.png"))
+        }
+    }
 
     /// The menu bar icons, eight times their size: plain, with the dot, happy, and the busy frames.
     private static func renderMenuBar(to dir: URL) {
