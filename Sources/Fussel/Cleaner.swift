@@ -59,6 +59,12 @@ enum Cleaner {
         where path == secret || path.hasPrefix(secret + "/") {
             return false
         }
+        // Never anything in a library of Photos, Music, iMovie or Final Cut: it is a database, and taking
+        // one file out of it breaks it.
+        let libraries = [".photoslibrary", ".photolibrary", ".musiclibrary", ".tvlibrary", ".imovielibrary", ".fcpbundle"]
+        if standardized.pathComponents.contains(where: { part in libraries.contains { part.lowercased().hasSuffix($0) } }) {
+            return false
+        }
         if path.hasPrefix(home + "/") {
             // Folders right in the home folder are the user's own (like ~/Projects): files there may go,
             // the folders themselves never.

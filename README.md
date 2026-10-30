@@ -8,10 +8,11 @@
 
 <p align="center"><img src="docs/screenshots/tour.gif" width="720" alt="Fussel scanning, showing what it found, explaining System Junk and cleaning up"></p>
 
-- **Overview**: used and free space, a row per tool, your biggest folders, and your last clean-ups with Undo
+- **Overview**: a greeting with what Fussel found, used and free space, a tile per tool, your biggest folders, and your last clean-ups with Undo. Show the sidebar with ⌃⌘S if you like it
 - **System Junk**: app caches, logs and Xcode build data
 - **Trash & Downloads**: empty the Trash and sweep out old downloads
 - **Large Files**: big files and things you haven't opened in ages
+- **Duplicates**: files you have more than once in your own folders; the oldest copy always stays
 - **Uninstaller**: remove apps together with their support files, caches and preferences
 - **App Updates**: updates for apps from the App Store and the web
 
@@ -22,7 +23,7 @@ Plus memory, CPU, battery and network at a glance, and a menu bar helper.
 
 <p align="center">Light, Dark, Glass or Oreo, picked in Settings. Glass lets your desktop shine through, softly blurred; Oreo pairs a white sidebar with the dark main area.</p>
 
-<p align="center"><img src="docs/screenshots/list.png" width="640" alt="System Junk with explanations and safety labels"></p>
+<p align="center"><img src="docs/screenshots/list.png" width="640" alt="System Junk in groups, with explanations and safety labels"></p>
 
 <p align="center"><img src="docs/screenshots/fussel.gif" width="96" alt="Fussel swinging his curl"><br>
 <i>Fussel lives in your menu bar and swings his curl while he looks around.</i></p>

@@ -15,6 +15,8 @@ enum PreviewRenderer {
         let dir = URL(fileURLWithPath: folder)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
 
+        let saved = UserDefaults.standard.string(forKey: SettingsKey.appearance)
+        UserDefaults.standard.set(false, forKey: SettingsKey.showSidebar)
         renderMenuBar(to: dir)
         renderKeys(to: dir)
         let scenarios = ["idle", "scanning", "ready", "done", "stuffed", "pending", "tutorial", "permissions", "updated"]
@@ -22,13 +24,24 @@ enum PreviewRenderer {
             for scenario in scenarios {
                 render(scenario, scheme: scheme, page: .overview, to: dir, name: "\(name(scheme))-\(scenario)")
             }
-            for (scenario, module) in [("ready", Module.junk), ("ready", .large), ("idle", .tidy), ("ready", .uninstaller)] {
+            for (scenario, module) in [("ready", Module.junk), ("ready", .large), ("idle", .tidy), ("ready", .duplicates),
+                                       ("ready", .uninstaller)] {
                 render(scenario, scheme: scheme, page: .tool(module), to: dir,
                        name: "\(name(scheme))-\(module.rawValue)-\(scenario)")
             }
         }
+        // With the sidebar shown.
+        UserDefaults.standard.set(true, forKey: SettingsKey.showSidebar)
+        for scheme in [ColorScheme.light, .dark] {
+            render("ready", scheme: scheme, page: .overview, to: dir, name: "sidebar-\(name(scheme))-ready")
+            render("ready", scheme: scheme, page: .tool(.junk), to: dir, name: "sidebar-\(name(scheme))-junk-ready")
+        }
+        UserDefaults.standard.set(AppearanceChoice.oreo.rawValue, forKey: SettingsKey.appearance)
+        render("ready", scheme: .dark, page: .tool(.junk), to: dir, name: "sidebar-oreo-junk-ready")
+        UserDefaults.standard.set(saved, forKey: SettingsKey.appearance)
+        UserDefaults.standard.set(false, forKey: SettingsKey.showSidebar)
+
         // The Glass style, over a stand-in desktop.
-        let saved = UserDefaults.standard.string(forKey: SettingsKey.appearance)
         UserDefaults.standard.set(AppearanceChoice.glass.rawValue, forKey: SettingsKey.appearance)
         for scheme in [ColorScheme.light, .dark] {
             render("ready", scheme: scheme, page: .overview, to: dir, name: "glass-\(name(scheme))-ready")
@@ -52,6 +65,7 @@ enum PreviewRenderer {
                 StyledRoot {
                     HStack(spacing: 24) {
                         ForEach([false, true], id: \.self) { pressed in
+                            QuietKey(pressed: pressed) { Label("Scan", systemImage: "arrow.clockwise") }
                             TactileKey(pressed: pressed) { Label("Clean 2.16 GB", systemImage: "trash") }
                         }
                     }
@@ -145,6 +159,7 @@ enum PreviewRenderer {
             model.junk.phase = .results
             model.large.phase = .scanning
             model.tidy.phase = .scanning
+            model.duplicates.phase = .scanning
             model.stage = .scanning
         case "tutorial":
             model.showTutorial = true
@@ -154,13 +169,18 @@ enum PreviewRenderer {
             model.justUpdatedTo = "0.9.9"
             model.hasFullDiskAccess = false
         case "ready":
+            let caches = home.appendingPathComponent("Library/Caches")
             model.junk.items = [
-                CleanupItem(url: home.appendingPathComponent("Library/Caches/com.example.browser"), name: "Browser",
-                            group: "App Caches", size: 1_840_000_000, preselected: true),
-                CleanupItem(url: home.appendingPathComponent("Library/Logs/Example"), name: "Example",
-                            group: "Logs", size: 320_000_000, preselected: true),
-            ]
-            model.junk.selected = Set(model.junk.items.map(\.url))
+                    ("com.example.browser", "Browser", "App Caches", 1_840_000_000, true),
+                    ("com.spotify.client", "Spotify", "App Caches", 640_000_000, true),
+                    ("com.tinyspeck.slackmacgap", "Slack", "App Caches", 410_000_000, true),
+                    ("DerivedData", "Xcode Derived Data", "Developer", 2_100_000_000, true),
+                    ("CoreSimulator", "iOS Simulators", "Developer", 1_250_000_000, false),
+                    ("Logs/Example", "Example", "Logs", 320_000_000, true),
+                    ("Logs/DiagnosticReports", "Diagnostic Reports", "Logs", 85_000_000, true),
+                    ("com.oldvendor.photoapp", "com.oldvendor.photoapp", "Leftovers of Removed Apps", 120_000_000, false),
+                ].map { CleanupItem(url: caches.appendingPathComponent($0.0), name: $0.1, group: $0.2, size: $0.3, preselected: $0.4) }
+            model.junk.selected = Set(model.junk.items.filter(\.preselected).map(\.url))
             model.junk.phase = .results
             model.large.items = [
                 CleanupItem(url: home.appendingPathComponent("Movies/Holiday.mov"), name: "Holiday.mov",
@@ -168,6 +188,15 @@ enum PreviewRenderer {
             ]
             model.large.phase = .results
             model.tidy.phase = .results
+            model.duplicates.items = [
+                ("Downloads/Holiday.mov", "Copies of Holiday.mov", 1_900_000_000, true),
+                ("Desktop/Holiday copy.mov", "Copies of Holiday.mov", 1_900_000_000, false),
+                ("Downloads/Contract.pdf", "Copies of Contract.pdf", 4_200_000, true),
+                ("Documents/Scans/IMG_2041.jpg", "Copies of IMG_2041.jpg", 3_100_000, false),
+            ].map { CleanupItem(url: home.appendingPathComponent($0.0), name: URL(fileURLWithPath: $0.0).lastPathComponent,
+                                group: $0.1, size: $0.2, preselected: $0.3) }
+            model.duplicates.selected = Set(model.duplicates.items.filter(\.preselected).map(\.url))
+            model.duplicates.phase = .results
             model.uninstaller.apps = ["Calculator", "Calendar", "Chess", "Clock", "Maps", "Notes", "Photo Booth", "Stocks"].map {
                 InstalledApp(url: URL(fileURLWithPath: "/System/Applications/\($0).app"), name: $0, bundleID: "")
             }

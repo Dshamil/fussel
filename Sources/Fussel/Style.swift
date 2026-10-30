@@ -26,6 +26,7 @@ struct Palette {
         case .large: return Color(hex: 0x8B78EC)
         case .uninstaller: return Color(hex: 0xE5A33A)
         case .updates: return Color(hex: 0x3D8BE0)
+        case .duplicates: return Color(hex: 0xD9619C)
         }
     }
 

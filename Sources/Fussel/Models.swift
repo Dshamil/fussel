@@ -1,8 +1,8 @@
 import Foundation
 
-/// The four cleaning areas of Fussel.
+/// The tools of Fussel.
 enum Module: String, CaseIterable, Identifiable, Hashable {
-    case junk, large, tidy, uninstaller, updates
+    case junk, large, tidy, duplicates, uninstaller, updates
 
     var id: String { rawValue }
 
@@ -16,6 +16,7 @@ enum Module: String, CaseIterable, Identifiable, Hashable {
         case .uninstaller: return "Uninstaller"
         case .updates: return "App Updates"
         case .tidy: return "Trash & Downloads"
+        case .duplicates: return "Duplicates"
         }
     }
 
@@ -26,6 +27,7 @@ enum Module: String, CaseIterable, Identifiable, Hashable {
         case .uninstaller: return "xmark.bin"
         case .updates: return "arrow.down.circle"
         case .tidy: return "tray.full"
+        case .duplicates: return "doc.on.doc"
         }
     }
 
@@ -39,6 +41,8 @@ enum Module: String, CaseIterable, Identifiable, Hashable {
             return "Remove apps together with the support files, caches and preferences they leave behind."
         case .tidy:
             return "Empty the Trash and sweep out downloads you no longer need."
+        case .duplicates:
+            return "Find files you have more than once in your own folders. The oldest copy always stays."
         case .updates:
             return "See which of your apps have updates waiting, from the App Store or straight from the developer."
         }

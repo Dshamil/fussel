@@ -12,7 +12,8 @@ enum Page: Hashable {
     case settings
 }
 
-/// Fussel's window: a sidebar with the tools on the left, the selected page on the right.
+/// Fussel's window: a bar across the top, the selected page, and a sidebar with the tools that can be
+/// shown or hidden (hidden at first; tools then open from the overview's tiles).
 struct ContentView: View {
     @Environment(AppModel.self) private var app
     @Environment(\.palette) private var palette
@@ -20,6 +21,7 @@ struct ContentView: View {
     @State private var didAutoScan = false
     @AppStorage(SettingsKey.appearance) private var appearance = AppearanceChoice.system.rawValue
     @AppStorage("sidebarWidth") private var sidebarWidth = 248.0
+    @AppStorage(SettingsKey.showSidebar) private var showSidebar = false
 
     init(page: Page = .overview) {
         _page = State(initialValue: page)
@@ -32,6 +34,7 @@ struct ContentView: View {
         let widest = min(SidebarDivider.range.upperBound,
                          max(SidebarDivider.range.lowerBound, window.size.width - 572))
         HStack(spacing: 0) {
+            if showSidebar {
             Group {
                 if appearance == AppearanceChoice.oreo.rawValue {
                     // Oreo: the sidebar stays light while the rest of the window is dark.
@@ -43,7 +46,10 @@ struct ContentView: View {
                 }
             }
             .frame(width: min(sidebarWidth, widest))
+            .transition(.move(edge: .leading))
             SidebarDivider(width: $sidebarWidth, widest: widest)
+                .transition(.move(edge: .leading))
+            }
             Group {
                 switch page {
                 case .overview: OverviewPage(page: $page)
@@ -57,6 +63,15 @@ struct ContentView: View {
             .transition(.opacity.combined(with: .offset(y: 6)))
         }
         .animation(.easeOut(duration: 0.2), value: page)
+        }
+        // Screenshots have no window title bar, so they get the room it takes in the app.
+        .safeAreaInset(edge: .top, spacing: 0) {
+            if PreviewRenderer.isRendering { Color.clear.frame(height: TopBar.height) }
+        }
+        // The bar sits in the window's title bar, next to the window buttons.
+        .overlay(alignment: .top) {
+            TopBar(page: $page, showSidebar: $showSidebar)
+                .ignoresSafeArea(edges: .top)
         }
         .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
         .background { if palette.isGlass { GlassBackdrop() } else { palette.content } }
@@ -132,25 +147,13 @@ private struct Sidebar: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 9) {
-                SidebarFussel(busy: app.stage == .scanning || app.stage == .cleaning)
-                // The wordmark: SF Pro Rounded Heavy, set a little tight.
-                Text("Fussel")
-                    .font(.system(size: 18, weight: .heavy, design: .rounded))
-                    .tracking(-0.7)
-                    .foregroundStyle(palette.text)
-            }
-            .padding(.leading, 16)
-            // Just under the window buttons, level with the page title.
-            .padding(.top, 14)
-            .padding(.bottom, 16)
-
             row(.overview, title: "Overview", symbol: "square.grid.2x2", trailing: nil)
             section("Clean")
             toolRow(.junk)
             toolRow(.tidy)
             section("Review")
             toolRow(.large)
+            toolRow(.duplicates)
             toolRow(.uninstaller)
             toolRow(.updates)
 
@@ -167,6 +170,7 @@ private struct Sidebar: View {
                     .transition(.opacity)
             }
         }
+        .padding(.top, 6)
         .padding(.bottom, 16)
         .animation(.easeOut(duration: 0.2), value: page == .overview)
         .frame(maxHeight: .infinity, alignment: .top)
@@ -195,7 +199,7 @@ private struct Sidebar: View {
     /// The size (or count) shown next to a tool, once there is something to show.
     private func summary(for module: Module) -> String? {
         switch module {
-        case .junk, .large, .tidy:
+        case .junk, .large, .tidy, .duplicates:
             let model = app.model(for: module)
             guard model.phase == .results else { return nil }
             return model.items.isEmpty ? "0 KB" : model.totalSize.byteString
@@ -528,25 +532,6 @@ private struct OverviewPage: View {
     var body: some View {
         PreviewSafeScroll {
             VStack(alignment: .leading, spacing: 0) {
-                // While scanning, the line under the title counts what's found so far, four times a second.
-                TimelineView(.animation(minimumInterval: 0.25, paused: app.stage != .scanning)) { _ in
-                PageHeader(title: "Overview", subtitle: status) {
-                    Button { Task { await app.smartScan() } } label: {
-                        Label("Scan", systemImage: "arrow.clockwise")
-                    }
-                    .buttonStyle(SecondaryButtonStyle())
-                    .disabled(app.stage == .scanning || app.stage == .cleaning)
-                    .keyboardShortcut("r", modifiers: [.command, .shift])
-                    Button { confirming = true } label: {
-                        Label(app.selectedTotal > 0 ? "Clean \(app.selectedTotal.byteString)" : "Clean", systemImage: "trash")
-                    }
-                    .buttonStyle(ActionButtonStyle())
-                    .disabled(app.selectedTotal == 0 || app.stage == .cleaning)
-                    // Grows and shrinks smoothly as the size in its label changes.
-                    .animation(.spring(duration: 0.35, bounce: 0.2), value: app.selectedTotal)
-                }
-                }
-
                 VStack(alignment: .leading, spacing: 18) {
                     UpdateBanner(updater: app.updater)
                         .animation(.spring(duration: 0.4), value: app.updater.state)
@@ -554,8 +539,24 @@ private struct OverviewPage: View {
                         AccessBanner()
                     }
 
-                    Greeting(counting: countingFound, celebrations: celebrations)
-                        .padding(.top, 14)
+                    HStack(alignment: .bottom) {
+                        Greeting(counting: countingFound, celebrations: celebrations)
+                        Spacer(minLength: 16)
+                        VStack(alignment: .trailing, spacing: 8) {
+                            HStack(spacing: 8) { actions }
+                            // While scanning, this counts what's found so far, four times a second.
+                            TimelineView(.animation(minimumInterval: 0.25, paused: app.stage != .scanning)) { _ in
+                                Text(status)
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(palette.secondary)
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                                    .frame(maxWidth: 300, alignment: .trailing)
+                            }
+                        }
+                        .padding(.bottom, 2)
+                    }
+                    .padding(.top, 14)
 
                     StorageBar(grown: shown, highlighted: $highlighted)
                         .padding(.top, 4)
@@ -588,6 +589,22 @@ private struct OverviewPage: View {
             if old == .scanning, stage == .ready, !reduceMotion { countUpFound() }
         }
         .cleanConfirmation(isPresented: $confirming)
+    }
+
+    @ViewBuilder private var actions: some View {
+                    Button { Task { await app.smartScan() } } label: {
+                        Label("Scan", systemImage: "arrow.clockwise")
+                    }
+                    .buttonStyle(SecondaryButtonStyle())
+                    .disabled(app.stage == .scanning || app.stage == .cleaning)
+                    .keyboardShortcut("r", modifiers: [.command, .shift])
+                    Button { confirming = true } label: {
+                        Label(app.selectedTotal > 0 ? "Clean \(app.selectedTotal.byteString)" : "Clean", systemImage: "trash")
+                    }
+                    .buttonStyle(ActionButtonStyle())
+                    .disabled(app.selectedTotal == 0 || app.stage == .cleaning)
+                    // Grows and shrinks smoothly as the size in its label changes.
+                    .animation(.spring(duration: 0.35, bounce: 0.2), value: app.selectedTotal)
     }
 
     /// From what the live counter showed up to the final total, easing out over about half a second.
@@ -834,12 +851,24 @@ private struct ToolTiles: View {
     let shown: Bool
 
     var body: some View {
+        // One row when there's room for all six (no sidebar, or a wide window), else two rows of three.
+        ViewThatFits(in: .horizontal) {
+            row(Module.overview, from: 0, minWidth: 138)
+            VStack(spacing: 10) {
+                row(Array(Module.overview.prefix(3)), from: 0, minWidth: 0)
+                row(Array(Module.overview.dropFirst(3)), from: 3, minWidth: 0)
+            }
+        }
+    }
+
+    private func row(_ modules: [Module], from start: Int, minWidth: CGFloat) -> some View {
         HStack(spacing: 10) {
-            ForEach(Array(Module.overview.enumerated()), id: \.element) { index, module in
+            ForEach(Array(modules.enumerated()), id: \.element) { index, module in
                 ToolTile(module: module, highlighted: $highlighted) { page = .tool(module) }
+                    .frame(minWidth: minWidth, idealWidth: minWidth, maxWidth: .infinity)
                     .opacity(shown ? 1 : 0)
                     .offset(y: shown ? 0 : 10)
-                    .animation(.spring(duration: 0.5, bounce: 0.25).delay(0.05 * Double(index) + 0.15), value: shown)
+                    .animation(.spring(duration: 0.5, bounce: 0.25).delay(0.05 * Double(start + index) + 0.15), value: shown)
             }
         }
     }
@@ -930,7 +959,7 @@ private struct CategoryFacts {
 
     var model: ModuleModel? {
         switch module {
-        case .junk, .large, .tidy: return app.model(for: module)
+        case .junk, .large, .tidy, .duplicates: return app.model(for: module)
         default: return nil
         }
     }
@@ -965,6 +994,13 @@ private struct CategoryFacts {
             guard let model else { return "" }
             if model.phase == .results { return model.items.count == 1 ? "1 file to look at" : "\(model.items.count) files to look at" }
             return model.phase == .scanning ? "Looking…" : "Big and forgotten files"
+        case .duplicates:
+            guard let model else { return "" }
+            if model.phase == .results {
+                let sets = model.groups.count
+                return sets == 0 ? "No copies found" : sets == 1 ? "1 file twice" : "\(sets) files more than once"
+            }
+            return model.phase == .scanning ? "Looking…" : "Files you have twice"
         case .uninstaller:
             return "Apps and their leftovers"
         case .updates:
@@ -979,10 +1015,10 @@ private struct CategoryFacts {
 
 extension Module {
     /// The tools on the overview, in order.
-    static let overview: [Module] = [.junk, .tidy, .large, .uninstaller, .updates]
+    static let overview: [Module] = [.junk, .tidy, .large, .duplicates, .uninstaller, .updates]
 
     /// Whether the tool has its own part in the storage bar, for what it found.
-    var inStorageBar: Bool { self == .junk || self == .tidy || self == .large }
+    var inStorageBar: Bool { self == .junk || self == .tidy || self == .large || self == .duplicates }
 
     /// A name short enough for the sidebar.
     var sidebarTitle: String { self == .large ? "Large Files" : title }
@@ -1106,5 +1142,134 @@ private struct SettingsPage: View {
                     .frame(maxWidth: .infinity)
             }
         }
+    }
+}
+
+// MARK: - Top bar
+
+/// One bar across the top, next to the window buttons: the sidebar button, Fussel and where you are,
+/// and, while the sidebar is hidden, a way back to the overview plus History and Settings.
+private struct TopBar: View {
+    static let height: CGFloat = 52
+    @Environment(AppModel.self) private var app
+    @Environment(\.palette) private var palette
+    @AppStorage(SettingsKey.appearance) private var appearance = AppearanceChoice.system.rawValue
+    @Binding var page: Page
+    @Binding var showSidebar: Bool
+    @State private var showingHistory = false
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Group {
+                if PreviewRenderer.isRendering {
+                    // Stand-ins for the window buttons, which screenshots don't draw.
+                    HStack(spacing: 8) {
+                        ForEach([0xFF5F57, 0xFEBC2E, 0x28C840] as [UInt32], id: \.self) {
+                            Circle().fill(Color(hex: $0)).frame(width: 12, height: 12)
+                        }
+                    }
+                    .padding(.leading, 2)
+                    .padding(.trailing, 6)
+                } else {
+                    // Room for the window buttons.
+                    Color.clear.frame(width: 60, height: 1)
+                }
+                RoundButton(symbol: "sidebar.left", help: showSidebar ? "Hide Sidebar (⌃⌘S)" : "Show Sidebar (⌃⌘S)") {
+                    withAnimation(.spring(duration: 0.35, bounce: 0.1)) { showSidebar.toggle() }
+                }
+                .keyboardShortcut("s", modifiers: [.command, .control])
+                if !showSidebar && page != .overview {
+                    RoundButton(symbol: "chevron.left", help: "Back to Overview") { page = .overview }
+                        .keyboardShortcut("[", modifiers: .command)
+                        .transition(.scale(scale: 0.6).combined(with: .opacity))
+                }
+                SidebarFussel(busy: app.stage == .scanning || app.stage == .cleaning)
+                    .padding(.leading, 4)
+                Wordmark()
+            }
+            // Oreo: over the light sidebar, these take the sidebar's colors.
+            .modifier(OreoSide(on: showSidebar && appearance == AppearanceChoice.oreo.rawValue))
+
+            if !showSidebar, let place {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(palette.secondary)
+                Text(place)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(palette.secondary)
+                    .lineLimit(1)
+                    .transition(.opacity)
+            }
+            Spacer(minLength: 12)
+            if !showSidebar {
+                RoundButton(symbol: "clock.arrow.circlepath", help: "History") { showingHistory = true }
+                    .popover(isPresented: $showingHistory, arrowEdge: .bottom) { HistoryList().environment(app) }
+                RoundButton(symbol: "gearshape", help: "Settings") { page = .settings }
+                    .keyboardShortcut(",", modifiers: .command)
+            }
+        }
+        .padding(.leading, 18)
+        .padding(.trailing, 24)
+        .frame(height: Self.height)
+        .animation(.spring(duration: 0.3), value: page)
+        .animation(.spring(duration: 0.3), value: showSidebar)
+    }
+
+    /// Where you are, after "Fussel ›", on every page but the overview.
+    private var place: String? {
+        switch page {
+        case .overview: return nil
+        case .tool(let module): return module.sidebarTitle
+        case .settings: return "Settings"
+        }
+    }
+}
+
+/// "Fussel" in SF Pro Rounded Heavy, set a little tight.
+private struct Wordmark: View {
+    @Environment(\.palette) private var palette
+
+    var body: some View {
+        Text("Fussel")
+            .font(.system(size: 18, weight: .heavy, design: .rounded))
+            .tracking(-0.7)
+            .foregroundStyle(palette.text)
+    }
+}
+
+private struct OreoSide: ViewModifier {
+    let on: Bool
+    func body(content: Content) -> some View {
+        if on {
+            content.environment(\.palette, .oreoSide).environment(\.colorScheme, .light)
+        } else {
+            content
+        }
+    }
+}
+
+/// A small round button for the top bar.
+private struct RoundButton: View {
+    @Environment(\.palette) private var palette
+    let symbol: String
+    let help: String
+    let action: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(hovering ? palette.text : palette.secondary)
+                .frame(width: 30, height: 30)
+                .background(Circle().fill(palette.card))
+                .overlay(Circle().strokeBorder(palette.cardStroke, lineWidth: 1))
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .help(help)
+        .accessibilityLabel(help)
+        .onHover { hovering = $0 }
+        .animation(.easeOut(duration: 0.15), value: hovering)
     }
 }

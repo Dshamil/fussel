@@ -8,6 +8,7 @@ final class AppModel {
     let junk = ModuleModel(module: .junk)
     let large = ModuleModel(module: .large)
     let tidy = ModuleModel(module: .tidy)
+    let duplicates = ModuleModel(module: .duplicates)
     let uninstaller = UninstallerModel()
     let monitor = SystemMonitor()
     let appUpdates = AppUpdatesModel()
@@ -42,6 +43,7 @@ final class AppModel {
         case .junk, .uninstaller, .updates: return junk
         case .large: return large
         case .tidy: return tidy
+        case .duplicates: return duplicates
         }
     }
 
@@ -60,14 +62,20 @@ final class AppModel {
     /// False while the window is closed, minimised or fully covered: all animations stop.
     var windowVisible = true
 
-    var scannable: [ModuleModel] { [junk, large, tidy] }
+    var scannable: [ModuleModel] { [junk, large, tidy, duplicates] }
     private var withResults: [ModuleModel] { scannable.filter { $0.phase == .results } }
 
-    var foundTotal: Int64 { withResults.reduce(0) { $0 + $1.totalSize } }
-    var selectedTotal: Int64 { withResults.reduce(0) { $0 + $1.selectedSize } }
+    // A file two tools found (like a big video that is also a copy) counts once.
+    var foundTotal: Int64 { Self.unique(withResults.flatMap(\.items)).reduce(0) { $0 + $1.size } }
+    var selectedTotal: Int64 { selectedItems.reduce(0) { $0 + $1.size } }
     var selectionIncludesPermanent: Bool { withResults.contains { $0.selectionIncludesPermanent } }
     /// Everything selected across the tools, for the clean-up prompt.
-    var selectedItems: [CleanupItem] { withResults.flatMap(\.selectedItems) }
+    var selectedItems: [CleanupItem] { Self.unique(withResults.flatMap(\.selectedItems)) }
+
+    private static func unique(_ items: [CleanupItem]) -> [CleanupItem] {
+        var seen = Set<URL>()
+        return items.filter { seen.insert($0.url).inserted }
+    }
 
     var mood: MascotMood {
         switch stage {
@@ -104,7 +112,8 @@ final class AppModel {
         async let a: Void = junk.scan(options: options)
         async let b: Void = large.scan(options: options)
         async let c: Void = tidy.scan(options: options)
-        _ = await (a, b, c)
+        async let d: Void = duplicates.scan(options: options)
+        _ = await (a, b, c, d)
         // Give the scan show a moment even on a very fast Mac.
         let elapsed = Date().timeIntervalSince(started)
         if elapsed < 3.2 {
@@ -125,7 +134,12 @@ final class AppModel {
         stage = .cleaning
         var total = CleanResult()
         var count = 0
-        for module in withResults where !module.selected.isEmpty {
+        var handled = Set<URL>()
+        for module in withResults {
+            // Found by two tools: cleaned once.
+            module.selected.subtract(handled)
+            guard !module.selected.isEmpty else { continue }
+            handled.formUnion(module.selected)
             count += module.selected.count
             total.merge(await module.clean(record: false))
         }

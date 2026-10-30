@@ -81,16 +81,35 @@ struct SecondaryButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var isEnabled
 
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label
+        QuietKey(pressed: configuration.isPressed) { configuration.label }
+    }
+}
+
+/// The look of `SecondaryButtonStyle`: a light key on a shallow, pale base, so it feels like the main
+/// key's quieter sibling. Also drawn on its own for screenshots of the pressed state.
+struct QuietKey<Label: View>: View {
+    @Environment(\.palette) private var palette
+    @Environment(\.isEnabled) private var isEnabled
+    let pressed: Bool
+    @ViewBuilder var label: Label
+    private let depth: CGFloat = 2
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: 8, style: .continuous)
+        label
             .font(.system(size: 13, weight: .semibold))
             .foregroundStyle(palette.text)
             .padding(.horizontal, 16)
             .frame(height: 30)
             .cardSurface(palette, radius: 8)
             .modifier(HoverTint(color: palette.text.opacity(0.06)))
-            .opacity(isEnabled ? (configuration.isPressed ? 0.7 : 1) : 0.4)
-            .scaleEffect(configuration.isPressed ? 0.97 : 1)
-            .animation(.spring(duration: 0.2, bounce: 0.4), value: configuration.isPressed)
+            .offset(y: pressed ? depth : 0)
+            // Only the lower edge of the base is drawn, so a see-through (glass) key isn't tinted by it.
+            .background(shape.fill(palette.text.opacity(palette.isDark ? 0.22 : 0.13))
+                .mask(alignment: .bottom) { Rectangle().frame(height: 10) }
+                .offset(y: depth))
+            .opacity(isEnabled ? 1 : 0.4)
+            .animation(pressed ? .easeOut(duration: 0.07) : .spring(duration: 0.3, bounce: 0.35), value: pressed)
     }
 }
 

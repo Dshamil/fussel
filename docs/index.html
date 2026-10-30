@@ -38,10 +38,10 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&display=swap">
 <style>
 /* Fussel's website: the same calm brand as the app. Graphite and white carry it; colour only enters
-   through the five tools and the two safety labels. */
+   through the six tools and the two safety labels. */
 :root {
   --graphite: #2B2D33;
-  --junk: #3FAE7C; --tidy: #E5484D; --large: #8B78EC; --uninst: #E5A33A; --updates: #3D8BE0;
+  --junk: #3FAE7C; --tidy: #E5484D; --large: #8B78EC; --uninst: #E5A33A; --updates: #3D8BE0; --dupes: #D9619C;
   --safe: #30A46C; --caution: #D99A1E;
 
   --bg: #F3F3F5; --surface: #FFFFFF; --surface-2: #F7F7F9; --line: #E3E3E8;
@@ -131,8 +131,9 @@ nav { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(
 .mark { position: relative; white-space: nowrap; }
 /* The storage bar in the tool colours, underlining "more Mac." */
 .mark::after { content: ""; position: absolute; left: 0.04em; right: 0.04em; bottom: -0.02em; height: 0.11em; border-radius: 99px;
-  background: linear-gradient(90deg, var(--junk) 0 22%, transparent 22% 23%, var(--tidy) 23% 33%, transparent 33% 34%,
-    var(--large) 34% 64%, transparent 64% 65%, var(--uninst) 65% 79%, transparent 79% 80%, var(--updates) 80% 88%, var(--line) 88%); }
+  background: linear-gradient(90deg, var(--junk) 0 20%, transparent 20% 21%, var(--tidy) 21% 30%, transparent 30% 31%,
+    var(--large) 31% 54%, transparent 54% 55%, var(--dupes) 55% 66%, transparent 66% 67%, var(--uninst) 67% 79%,
+    transparent 79% 80%, var(--updates) 80% 88%, var(--line) 88%); }
 .hero .lede { margin: 34px auto 34px; text-align: center; }
 
 .shot { margin: clamp(40px, 7vw, 72px) auto 0; max-width: 980px; border-radius: 14px; overflow: hidden;
@@ -152,7 +153,7 @@ section { padding-block: clamp(56px, 9vw, 104px); border-top: 1px solid var(--li
 .principles div { display: grid; gap: 6px; align-content: start; }
 .principles p { color: var(--muted); font-size: 15px; }
 
-.tools { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+.tools { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .tool { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px 16px; display: grid; gap: 10px; align-content: start; min-width: 0; }
 .tool .ic { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; }
 .tool .ic svg { width: 21px; height: 21px; }
@@ -272,10 +273,10 @@ footer { border-top: 1px solid var(--line); padding-block: 32px 48px; color: var
       <span>No account, no tracking</span>
     </div>
     <div class="shot">
-      <video autoplay muted loop playsinline preload="auto" poster="screenshots/tour.jpg?v=5" width="960" height="740"
+      <video autoplay muted loop playsinline preload="auto" poster="screenshots/tour.jpg?v=6" width="960" height="740"
              aria-label="Fussel scanning the Mac, showing what it found, its biggest folders and recent clean-ups">
-        <source src="screenshots/tour.mp4?v=5" type="video/mp4">
-        <img src="screenshots/tour.gif?v=5" alt="Fussel scanning the Mac, showing what it found, its biggest folders and recent clean-ups" width="960" height="740">
+        <source src="screenshots/tour.mp4?v=6" type="video/mp4">
+        <img src="screenshots/tour.gif?v=6" alt="Fussel scanning the Mac, showing what it found, its biggest folders and recent clean-ups" width="960" height="740">
       </video>
     </div>
   </div>
@@ -306,13 +307,14 @@ footer { border-top: 1px solid var(--line); padding-block: 32px 48px; color: var
   <section id="tools">
     <div class="wrap">
       <div class="head">
-        <h2>One scan, five places where space hides.</h2>
+        <h2>One scan, six places where space hides.</h2>
         <p class="lede">The overview shows how much is used, where it goes, and what each tool found. Your four biggest folders and your last clean-ups sit right below.</p>
       </div>
       <div class="tools">
         <div class="tool"><div class="ic" style="background:var(--junk)" data-glyph="sparkle"></div><b>System Junk</b><span>App caches, logs and Xcode build data.</span></div>
         <div class="tool"><div class="ic" style="background:var(--tidy)" data-glyph="tray"></div><b>Trash &amp; Downloads</b><span>Empty the Trash, sweep out old downloads.</span></div>
         <div class="tool"><div class="ic" style="background:var(--large)" data-glyph="drive"></div><b>Large Files</b><span>Big files and things you haven’t opened in ages.</span></div>
+        <div class="tool"><div class="ic" style="background:var(--dupes)" data-glyph="copies"></div><b>Duplicates</b><span>Files you have twice. The oldest copy always stays.</span></div>
         <div class="tool"><div class="ic" style="background:var(--uninst)" data-glyph="box"></div><b>Uninstaller</b><span>Apps together with their leftovers.</span></div>
         <div class="tool"><div class="ic" style="background:var(--updates)" data-glyph="down"></div><b>App Updates</b><span>From the App Store and the web.</span></div>
       </div>
@@ -344,10 +346,10 @@ footer { border-top: 1px solid var(--line); padding-block: 32px 48px; color: var
   <section>
     <div class="wrap looks">
       <div class="shot">
-        <video id="looks" autoplay muted loop playsinline preload="metadata" poster="screenshots/styles.jpg?v=5" width="960" height="740"
+        <video id="looks" autoplay muted loop playsinline preload="metadata" poster="screenshots/styles.jpg?v=6" width="960" height="740"
                aria-label="Fussel in Light, Dark, Glass and Oreo">
-          <source src="screenshots/styles.mp4?v=5" type="video/mp4">
-          <img src="screenshots/styles.gif?v=5" alt="Fussel in Light, Dark, Glass and Oreo" width="960" height="740">
+          <source src="screenshots/styles.mp4?v=6" type="video/mp4">
+          <img src="screenshots/styles.gif?v=6" alt="Fussel in Light, Dark, Glass and Oreo" width="960" height="740">
         </video>
       </div>
       <div class="head" style="margin:0">
@@ -445,6 +447,7 @@ footer { border-top: 1px solid var(--line); padding-block: 32px 48px; color: var
     tray: '<path d="M3 11h4l1 2h4l1-2h4v4.5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 3 15.5Z M5 4h10l2 7H3Z" fill="none" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/>',
     drive: '<rect x="2.5" y="6" width="15" height="9" rx="2" fill="none" stroke="#fff" stroke-width="1.6"/><circle cx="14" cy="10.5" r="1.1" fill="#fff"/>',
     box: '<path d="M3 6.5h14v9a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 3 15.5Z M2 3.5h16v3H2Z M8 10h4" fill="none" stroke="#fff" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>',
+    copies: '<rect x="6.5" y="5.5" width="10" height="12" rx="2" fill="none" stroke="#fff" stroke-width="1.6"/><path d="M4 13.5V4.5A2 2 0 0 1 6 2.5h7" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>',
     down: '<circle cx="10" cy="10" r="7.5" fill="none" stroke="#fff" stroke-width="1.6"/><path d="M10 6v7M7 10.5l3 3 3-3" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>'
   };
   document.querySelectorAll("[data-glyph]").forEach(el => { el.innerHTML = `<svg viewBox="0 0 20 20" aria-hidden="true">${glyphs[el.dataset.glyph]}</svg>`; });

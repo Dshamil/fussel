@@ -264,6 +264,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             window.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
             window.titlebarAppearsTransparent = true
             window.titleVisibility = .hidden
+            // An empty toolbar makes the title bar as tall as Fussel's top bar, with the window buttons centred in it.
+            window.toolbar = NSToolbar(identifier: "main")
+            window.toolbarStyle = .unified
             window.isReleasedWhenClosed = false
             window.setContentSize(NSSize(width: 960, height: 640))
             window.contentMinSize = NSSize(width: 820, height: 560)

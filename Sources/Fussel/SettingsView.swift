@@ -7,6 +7,7 @@ enum SettingsKey {
     static let downloadDays = "downloadDays"
     static let sounds = "playSounds"
     static let appearance = "appearance"
+    static let showSidebar = "showSidebar"
 }
 
 /// What Fussel calls you. Suggested from the Mac account's first name; changed in the tour or in Settings,

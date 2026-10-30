@@ -229,6 +229,13 @@ private struct ResultsList: View {
         let items = shown
         let allOn = !items.isEmpty && items.allSatisfy { model.isSelected($0) }
         VStack(spacing: 0) {
+            // What the finds are made of, when they fall into a few groups.
+            let groups = ItemGroups.of(model.items)
+            if (2...5).contains(groups.count), model.module != .duplicates {
+                GroupBar(module: model.module, groups: groups)
+                    .padding(.horizontal, 32)
+                    .padding(.bottom, 16)
+            }
             HStack(spacing: 8) {
                 chip(.all, "All", count: model.items.count, symbol: "square.grid.2x2")
                 chip(.safe, "Safe to Remove", count: model.items.filter(\.isSafe).count, symbol: "checkmark.circle.fill")
@@ -262,13 +269,12 @@ private struct ResultsList: View {
             .padding(.bottom, 8)
 
             PreviewSafeScroll {
-                LazyVStack(spacing: 8) {
-                    ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
-                        ItemRow(item: item, isOn: Binding(get: { model.isSelected(item) },
-                                                          set: { model.setSelected(item, $0) }))
+                LazyVStack(spacing: 12) {
+                    ForEach(Array(ItemGroups.of(items).enumerated()), id: \.element.name) { index, group in
+                        GroupCard(model: model, name: group.name, items: group.items)
                             .opacity(appeared ? 1 : 0)
                             .offset(y: appeared ? 0 : 8)
-                            .animation(.spring(duration: 0.45, bounce: 0.2).delay(min(0.3, 0.03 * Double(index))), value: appeared)
+                            .animation(.spring(duration: 0.45, bounce: 0.2).delay(min(0.3, 0.05 * Double(index))), value: appeared)
                     }
                 }
                 .padding(.horizontal, 32)
@@ -391,7 +397,8 @@ struct CheckBox: View {
                     .overlay(
                         Image(systemName: "checkmark")
                             .font(.system(size: 11, weight: .heavy))
-                            .foregroundStyle(palette.content)
+                            // Not the page color: in the Glass style that is see-through.
+                            .foregroundStyle(palette.isDark ? Color.black : Color.white)
                             .scaleEffect(isOn ? 1 : 0.3)
                             .opacity(isOn ? 1 : 0)
                     )
@@ -420,7 +427,7 @@ struct PreviewSafeScroll<Content: View>: View {
         if PreviewRenderer.isRendering {
             VStack(spacing: 0) { content }
                 .fixedSize(horizontal: false, vertical: true)
-                .frame(maxHeight: .infinity, alignment: .top)
+                .frame(minHeight: 0, maxHeight: .infinity, alignment: .top)
                 .clipped()
         } else {
             ScrollView { content }
@@ -453,8 +460,169 @@ extension CleanupItem {
             return "The app itself."
         case "Leftovers of Removed Apps":
             return "Belongs to an app that's no longer on your Mac. Have a look before letting it go."
+        case _ where group.hasPrefix(Scanner.duplicatesPrefix):
+            return isSafe ? "An extra copy in your Downloads. The oldest copy stays where it is."
+                          : "An exact copy of another file. The oldest copy stays; check you don't need this one where it is."
         default:
             return "Support files left behind by this app."
         }
+    }
+}
+
+
+// MARK: - Groups
+
+/// The finds by group ("App Caches", "Logs", …), biggest group first, items in the order they came.
+enum ItemGroups {
+    static func of(_ items: [CleanupItem]) -> [(name: String, items: [CleanupItem])] {
+        Dictionary(grouping: items, by: \.group)
+            .map { (name: $0.key, items: $0.value) }
+            .sorted { $0.items.reduce(0) { $0 + $1.size } > $1.items.reduce(0) { $0 + $1.size } }
+    }
+
+    static func symbol(_ group: String) -> String {
+        switch group {
+        case "App Caches": return "square.stack.3d.up"
+        case "Developer": return "hammer"
+        case "Logs": return "doc.text"
+        case "Leftovers of Removed Apps": return "shippingbox"
+        case "Large Files": return "externaldrive"
+        case "Not Opened in a While": return "clock"
+        case "Trash": return "trash"
+        case "Old Downloads": return "arrow.down.circle"
+        case _ where group.hasPrefix(Scanner.duplicatesPrefix): return "doc.on.doc"
+        default: return "folder"
+        }
+    }
+}
+
+/// One bar split by group, in shades of the tool's color, with a legend under it.
+struct GroupBar: View {
+    @Environment(\.palette) private var palette
+    let module: Module
+    let groups: [(name: String, items: [CleanupItem])]
+
+    var body: some View {
+        let sizes = groups.map { Double($0.items.reduce(0) { $0 + $1.size }) }
+        let total = max(sizes.reduce(0, +), 1)
+        let shades = [1.0, 0.7, 0.48, 0.3, 0.2]
+        VStack(alignment: .leading, spacing: 10) {
+            GeometryReader { geo in
+                HStack(spacing: 3) {
+                    ForEach(Array(sizes.enumerated()), id: \.offset) { i, size in
+                        RoundedRectangle(cornerRadius: 4, style: .continuous)
+                            .fill(palette.accent(module).opacity(shades[min(i, shades.count - 1)]))
+                            .frame(width: max(4, (geo.size.width - CGFloat(sizes.count - 1) * 3) * size / total))
+                    }
+                }
+            }
+            .frame(height: 12)
+            HStack(spacing: 16) {
+                ForEach(Array(groups.enumerated()), id: \.offset) { i, group in
+                    HStack(spacing: 6) {
+                        Circle().fill(palette.accent(module).opacity(shades[min(i, shades.count - 1)])).frame(width: 8, height: 8)
+                        Text(group.name).foregroundStyle(palette.text)
+                        Text(group.items.reduce(0) { $0 + $1.size }.byteString).foregroundStyle(palette.secondary).monospacedDigit()
+                    }
+                    .font(.system(size: 11, weight: .medium))
+                    .lineLimit(1)
+                }
+            }
+        }
+    }
+}
+
+/// A card per group: its own checkbox and total, the items inside as compact rows.
+struct GroupCard: View {
+    @Environment(\.palette) private var palette
+    let model: ModuleModel
+    let name: String
+    let items: [CleanupItem]
+    @State private var open = true
+
+    var body: some View {
+        let total = items.reduce(0) { $0 + $1.size }
+        let safe = items.filter(\.isSafe).count
+        VStack(spacing: 0) {
+            HStack(spacing: 12) {
+                CheckBox(isOn: Binding(get: { items.allSatisfy { model.isSelected($0) } },
+                                       set: { on in items.forEach { model.setSelected($0, on) } }),
+                         label: nil, accessibility: "Select \(name)")
+                Image(systemName: ItemGroups.symbol(name))
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(palette.accent(model.module))
+                    .frame(width: 28, height: 28)
+                    .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(palette.accent(model.module).opacity(0.14)))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(name).font(.system(size: 13, weight: .semibold)).foregroundStyle(palette.text)
+                    let count = items.count == 1 ? "1 item" : "\(items.count) items"
+                    Text(safe == items.count ? "\(count) · all safe to remove" : "\(count) · \(items.count - safe) to review")
+                        .font(.system(size: 11)).foregroundStyle(palette.secondary)
+                }
+                Spacer()
+                Text(total.byteString).font(.system(size: 15, weight: .bold)).monospacedDigit().foregroundStyle(palette.text)
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(palette.secondary)
+                    .rotationEffect(.degrees(open ? 180 : 0))
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .contentShape(Rectangle())
+            .onTapGesture { withAnimation(.spring(duration: 0.3)) { open.toggle() } }
+            .accessibilityAddTraits(.isButton)
+            .accessibilityHint(open ? "Hides the items" : "Shows the items")
+            if open {
+                ForEach(items) { item in
+                    Rectangle().fill(palette.cardStroke).frame(height: 1).padding(.leading, 56)
+                    CompactRow(item: item, isOn: Binding(get: { model.isSelected(item) }, set: { model.setSelected(item, $0) }))
+                }
+                .transition(.opacity)
+            }
+        }
+        .clipped()
+        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(palette.card))
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(palette.cardStroke, lineWidth: 1))
+    }
+}
+
+/// One item inside a group card: checkbox, name with a plain-language explanation, size, and a label
+/// only when it needs a look first. The full path shows when you point at it.
+struct CompactRow: View {
+    @Environment(\.palette) private var palette
+    let item: CleanupItem
+    @Binding var isOn: Bool
+    @State private var hovering = false
+
+    var body: some View {
+        HStack(spacing: 12) {
+            CheckBox(isOn: $isOn, label: nil, accessibility: "Select \(item.name)")
+                .padding(.leading, 28)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(item.name).font(.system(size: 12, weight: .semibold)).foregroundStyle(palette.text).lineLimit(1)
+                // Something Fussel trashed earlier: say that cleaning it ends Undo for it.
+                Text(item.permanent && !CleanHistory.shared.undoable([item.url]).isEmpty
+                     ? "From an earlier Fussel clean-up. Undo can still bring it back; cleaning it here deletes it for good."
+                     : item.explanation)
+                    .font(.system(size: 11)).foregroundStyle(palette.secondary).lineLimit(1)
+            }
+            .help(item.displayPath)
+            Spacer(minLength: 12)
+            if !item.isSafe { SafetyLabel(safe: false) }
+            Text(item.size.byteString).font(.system(size: 12, weight: .semibold)).monospacedDigit()
+                .foregroundStyle(palette.text).frame(width: 64, alignment: .trailing)
+            Button {
+                NSWorkspace.shared.activateFileViewerSelecting([item.url])
+            } label: {
+                Image(systemName: "magnifyingglass").foregroundStyle(palette.secondary)
+            }
+            .buttonStyle(.plain)
+            .help("Show in Finder")
+            .opacity(hovering ? 1 : 0.4)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 9)
+        .background(hovering ? palette.text.opacity(0.03) : .clear)
+        .onHover { inside in withAnimation(.easeOut(duration: 0.15)) { hovering = inside } }
     }
 }

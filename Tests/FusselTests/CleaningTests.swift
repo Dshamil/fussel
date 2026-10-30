@@ -313,6 +313,59 @@ final class CleaningTests: XCTestCase {
         XCTAssertTrue(others.isEmpty, "an empty ID offered \(others.map(\.name))")
     }
 
+    // MARK: Duplicates
+
+    /// Photos, Music and iMovie keep their files inside a library that is really a database: removing a
+    /// single file from in there breaks it. Nothing inside such a library may ever go, whatever finds it.
+    func testNothingInsideAPhotosOrMusicLibraryIsTouched() {
+        for path in ["Pictures/Photos Library.photoslibrary",
+                     "Pictures/Photos Library.photoslibrary/originals/A/IMG_0001.heic",
+                     "pictures/PHOTOS LIBRARY.PHOTOSLIBRARY/originals/A/IMG_0001.heic",
+                     "Pictures/iPhoto Library.photolibrary/Masters/2010/IMG_0002.jpg",
+                     "Music/Music/Music Library.musiclibrary/Library.musicdb",
+                     "Movies/iMovie Library.imovielibrary/Holiday/Original Media/clip.mov",
+                     "Movies/Projects.fcpbundle/Event/Original Media/clip.mov"] {
+            XCTAssertFalse(Cleaner.isSafeToRemove(home.appendingPathComponent(path)), path)
+        }
+        // Files next to a library are still the user's to decide about.
+        XCTAssertTrue(Cleaner.isSafeToRemove(home.appendingPathComponent("Pictures/IMG_0001 copy.heic")))
+    }
+
+    /// The oldest copy always stays and isn't even listed; only copies in Downloads are preselected;
+    /// small files and files that only share their size are left alone.
+    func testDuplicatesKeepTheOldestCopyAndOnlyPreselectDownloads() throws {
+        let root = home.appendingPathComponent("FusselTest-\(UUID().uuidString)")
+        let docs = root.appendingPathComponent("Documents"), downloads = root.appendingPathComponent("Downloads")
+        try fm.createDirectory(at: docs.appendingPathComponent("Old"), withIntermediateDirectories: true)
+        try fm.createDirectory(at: downloads, withIntermediateDirectories: true)
+        defer { try? fm.removeItem(at: root) }
+
+        let content = Data((0..<1_200_000).map { UInt8($0 % 251) })
+        var other = content
+        other[other.count - 1] ^= 0xFF
+        let small = Data(repeating: 7, count: 200_000)
+        func write(_ data: Data, _ url: URL, daysAgo: Double) throws {
+            try data.write(to: url)
+            try fm.setAttributes([.creationDate: Date().addingTimeInterval(-daysAgo * 86_400)], ofItemAtPath: url.path)
+        }
+        try write(content, docs.appendingPathComponent("Old/report.pdf"), daysAgo: 300)    // the original
+        try write(content, downloads.appendingPathComponent("report.pdf"), daysAgo: 2)
+        try write(content, docs.appendingPathComponent("report copy.pdf"), daysAgo: 30)
+        try write(other, docs.appendingPathComponent("almost.pdf"), daysAgo: 10)          // same size, other content
+        try write(small, docs.appendingPathComponent("small.txt"), daysAgo: 10)
+        try write(small, downloads.appendingPathComponent("small.txt"), daysAgo: 1)
+
+        let items = Scanner.scanDuplicates(in: [docs, downloads], downloads: downloads)
+        XCTAssertEqual(Set(items.map(\.url.lastPathComponent)), ["report.pdf", "report copy.pdf"])
+        XCTAssertFalse(items.contains { $0.url.path.contains("/Old/") }, "the oldest copy must stay")
+        XCTAssertEqual(Set(items.map(\.group)), ["Copies of report.pdf"])
+        for item in items {
+            XCTAssertEqual(item.preselected, item.url.deletingLastPathComponent().lastPathComponent == "Downloads",
+                           item.url.path)
+            XCTAssertTrue(Cleaner.isSafeToRemove(item.url), item.url.path)
+        }
+    }
+
     // MARK: Self-update
 
     /// The update runs as administrator, so it must not write to shared places like /tmp, and it must
