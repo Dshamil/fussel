@@ -162,12 +162,15 @@ section { padding-block: clamp(56px, 9vw, 104px); border-top: 1px solid var(--li
 .principles div { display: grid; gap: 6px; align-content: start; }
 .principles p { color: var(--muted); font-size: 15px; }
 
-.tools { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.tools { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .tool { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px 16px; display: grid; gap: 10px; align-content: start; min-width: 0; }
 .tool .ic { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; }
 .tool .ic svg { width: 21px; height: 21px; }
 .tool b { font-size: 15px; }
 .tool span { font-size: 13px; color: var(--muted); }
+/* The Uninstaller and App Updates: wide and low, under the four tools that free space, like in the app. */
+.tool.wide { grid-column: span 2; grid-template-columns: 38px minmax(0, 1fr); column-gap: 14px; row-gap: 2px; align-items: center; }
+.tool.wide .ic { grid-row: span 2; }
 
 .tag { display: inline-block; font: 600 12px var(--text); padding: 2px 8px; border-radius: 6px; }
 .tag.safe { color: var(--safe); background: var(--safe-bg); }
@@ -326,8 +329,8 @@ footer { border-top: 1px solid var(--line); padding-block: 32px 48px; color: var
         <div class="tool"><div class="ic" style="background:var(--tidy)" data-glyph="tray"></div><b>Trash &amp; Downloads</b><span>Empty the Trash, sweep out old downloads.</span></div>
         <div class="tool"><div class="ic" style="background:var(--large)" data-glyph="drive"></div><b>Large Files</b><span>Big files and things you haven’t opened in ages.</span></div>
         <div class="tool"><div class="ic" style="background:var(--dupes)" data-glyph="copies"></div><b>Duplicates</b><span>Files you have twice. The oldest copy always stays.</span></div>
-        <div class="tool"><div class="ic" style="background:var(--uninst)" data-glyph="box"></div><b>Uninstaller</b><span>Apps together with their leftovers.</span></div>
-        <div class="tool"><div class="ic" style="background:var(--updates)" data-glyph="down"></div><b>App Updates</b><span>From the App Store and the web.</span></div>
+        <div class="tool wide"><div class="ic" style="background:var(--uninst)" data-glyph="box"></div><b>Uninstaller</b><span>Apps together with their leftovers.</span></div>
+        <div class="tool wide"><div class="ic" style="background:var(--updates)" data-glyph="down"></div><b>App Updates</b><span>From the App Store and the web.</span></div>
       </div>
     </div>
   </section>
