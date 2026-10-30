@@ -98,6 +98,10 @@ otherwise GitHub generates notes from the commits.
 
 Fussel is made by **Dshamil Meziane** and built with [Claude](https://claude.com/claude-code). Every safety rule is covered by tests, and the code is open for anyone to check.
 
+## Thanks
+
+Fussel's layout was inspired by [Purge](https://github.com/jithin-sabu/purge-app), a free and open-source Mac cleaner by Jithin Sabu. If you like Fussel, go check it out too.
+
 ## License
 
 MIT, see [LICENSE](LICENSE).
