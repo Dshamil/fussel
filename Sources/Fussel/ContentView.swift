@@ -35,20 +35,22 @@ struct ContentView: View {
                          max(SidebarDivider.range.lowerBound, window.size.width - 572))
         HStack(spacing: 0) {
             if showSidebar {
-            Group {
-                if appearance == AppearanceChoice.oreo.rawValue {
-                    // Oreo: the sidebar stays light while the rest of the window is dark.
-                    Sidebar(page: $page)
-                        .environment(\.palette, .oreoSide)
-                        .environment(\.colorScheme, .light)
-                } else {
-                    Sidebar(page: $page)
+            // The sidebar and its dividing line slide in and out as one piece.
+            HStack(spacing: 0) {
+                Group {
+                    if appearance == AppearanceChoice.oreo.rawValue {
+                        // Oreo: the sidebar stays light while the rest of the window is dark.
+                        Sidebar(page: $page)
+                            .environment(\.palette, .oreoSide)
+                            .environment(\.colorScheme, .light)
+                    } else {
+                        Sidebar(page: $page)
+                    }
                 }
+                .frame(width: min(sidebarWidth, widest))
+                SidebarDivider(width: $sidebarWidth, widest: widest)
             }
-            .frame(width: min(sidebarWidth, widest))
             .transition(.move(edge: .leading))
-            SidebarDivider(width: $sidebarWidth, widest: widest)
-                .transition(.move(edge: .leading))
             }
             Group {
                 switch page {

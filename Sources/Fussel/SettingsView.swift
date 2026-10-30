@@ -8,6 +8,7 @@ enum SettingsKey {
     static let sounds = "playSounds"
     static let appearance = "appearance"
     static let showSidebar = "showSidebar"
+    static let showInDock = "showInDock"
 }
 
 /// What Fussel calls you. Suggested from the Mac account's first name; changed in the tour or in Settings,
@@ -68,6 +69,7 @@ struct SettingsView: View {
     @AppStorage(FluffWatcher.enabledKey) private var weeklyCheck = true
     @AppStorage(FusselUpdater.autoKey) private var autoUpdate = true
     @AppStorage(SettingsKey.sounds) private var playSounds = false
+    @AppStorage(SettingsKey.showInDock) private var showInDock = false
     @AppStorage(SettingsKey.appearance) private var appearance = AppearanceChoice.system.rawValue
     @AppStorage(UserName.key) private var name = UserName.suggested
 
@@ -169,6 +171,8 @@ struct SettingsView: View {
                     .onChange(of: openAtLogin) { _, enabled in
                         LoginItem.setEnabled(enabled)
                     }
+                Toggle("Show Fussel in the Dock", isOn: $showInDock)
+                    .onChange(of: showInDock) { _, _ in DockIcon.apply(switched: true) }
                 Toggle("Weekly reminder", isOn: $weeklyCheck)
                     .onChange(of: weeklyCheck) { _, enabled in
                         if enabled { Task { _ = await Notifier.requestPermission() } }

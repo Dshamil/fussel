@@ -31,6 +31,19 @@ struct FusselApp: App {
     }
 }
 
+/// Fussel lives in the menu bar; it can also show up in the Dock (Settings › Show Fussel in the Dock).
+/// Then clicking the Dock icon opens the window, and the app gets its own menu bar while in front.
+@MainActor
+enum DockIcon {
+    /// `switched`: the setting was just changed, with Fussel's window in front.
+    static func apply(switched: Bool = false) {
+        let inDock = UserDefaults.standard.bool(forKey: SettingsKey.showInDock)
+        NSApp.setActivationPolicy(inDock ? .regular : .accessory)
+        // Leaving the Dock sends the app to the back; keep the window you were just using in front.
+        if switched && !inDock { DispatchQueue.main.async { NSApp.activate(ignoringOtherApps: true) } }
+    }
+}
+
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNotificationCenterDelegate {
     /// The running delegate, for the few places outside the window that need the model.
@@ -50,7 +63,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         Self.shared = self
-        NSApp.setActivationPolicy(.accessory)
+        DockIcon.apply()
         AppearanceChoice.apply()
         setUpStatusItem()
         setUpKeyboardShortcuts()
