@@ -206,6 +206,12 @@ enum PreviewRenderer {
                 ("Documents/Scans/IMG_2041.jpg", "Copies of IMG_2041.jpg", 3_100_000, false),
             ].map { CleanupItem(url: home.appendingPathComponent($0.0), name: URL(fileURLWithPath: $0.0).lastPathComponent,
                                 group: $0.1, size: $0.2, preselected: $0.3) }
+            model.duplicates.kept = [("Movies/Holiday.mov", "Copies of Holiday.mov", 1_900_000_000),
+                                     ("Documents/Contract.pdf", "Copies of Contract.pdf", 4_200_000),
+                                     ("Pictures/IMG_2041.jpg", "Copies of IMG_2041.jpg", 3_100_000)].reduce(into: [:]) {
+                $0[$1.1] = CleanupItem(url: home.appendingPathComponent($1.0), name: URL(fileURLWithPath: $1.0).lastPathComponent,
+                                       group: $1.1, size: $1.2)
+            }
             model.duplicates.selected = Set(model.duplicates.items.filter(\.preselected).map(\.url))
             model.duplicates.phase = .results
             model.uninstaller.apps = ["Calculator", "Calendar", "Chess", "Clock", "Maps", "Notes", "Photo Booth", "Stocks"].map {

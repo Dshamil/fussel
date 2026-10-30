@@ -843,13 +843,11 @@ private struct ToolTiles: View {
     let shown: Bool
 
     var body: some View {
-        // One row when there's room for all six (no sidebar, or a wide window), else two rows of three.
-        ViewThatFits(in: .horizontal) {
-            row(Module.overview, from: 0, minWidth: 138)
-            VStack(spacing: 10) {
-                row(Array(Module.overview.prefix(3)), from: 0, minWidth: 0)
-                row(Array(Module.overview.dropFirst(3)), from: 3, minWidth: 0)
-            }
+        // The four tools that free space in a row, the two that look after apps below as wider tiles.
+        let space = Module.overview.filter(\.inStorageBar)
+        VStack(spacing: 10) {
+            row(space, from: 0, minWidth: 0)
+            row(Module.overview.filter { !$0.inStorageBar }, from: space.count, minWidth: 0)
         }
     }
 
@@ -878,43 +876,51 @@ private struct ToolTile: View {
     var body: some View {
         let facts = CategoryFacts(app: app, module: module)
         let lit = highlighted == module
+        let flat = !module.inStorageBar
         Button(action: open) {
-            VStack(alignment: .leading, spacing: 0) {
-                ToolIcon(module: module, size: 30, bounce: bounce, muted: highlighted != nil && !lit)
-                Spacer(minLength: 14)
-                // Everything below the gap has a fixed height, so the numbers line up across the tiles.
-                Group {
-                    if facts.isWorking {
-                        Spinner(tint: palette.accent(module))
-                            .transition(.scale.combined(with: .opacity))
-                    } else {
-                        Text(facts.value)
-                            .font(.system(size: 18, weight: .bold))
-                            .monospacedDigit()
+            Group {
+                if flat {
+                    // The Uninstaller and App Updates: a wide, low tile, everything on one line.
+                    HStack(spacing: 12) {
+                        ToolIcon(module: module, size: 30, bounce: bounce, muted: highlighted != nil && !lit)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(module.sidebarTitle)
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(palette.text)
+                            Text(facts.detail)
+                                .font(.system(size: 11))
+                                .foregroundStyle(palette.secondary)
+                        }
+                        .lineLimit(1)
+                        Spacer(minLength: 8)
+                        value(facts)
+                    }
+                } else {
+                    VStack(alignment: .leading, spacing: 0) {
+                        ToolIcon(module: module, size: 30, bounce: bounce, muted: highlighted != nil && !lit)
+                        Spacer(minLength: 14)
+                        // Everything below the gap has a fixed height, so the numbers line up across the tiles.
+                        value(facts)
+                            .frame(height: 24, alignment: .leading)
+                        Text(module.sidebarTitle)
+                            .font(.system(size: 12, weight: .semibold))
                             .foregroundStyle(palette.text)
                             .lineLimit(1)
-                            .minimumScaleFactor(0.7)
-                            .transition(.scale(scale: 0.6).combined(with: .opacity))
+                            .minimumScaleFactor(0.75)
+                            .frame(height: 16, alignment: .leading)
+                            .padding(.top, 2)
+                        Text(facts.detail)
+                            .font(.system(size: 11))
+                            .foregroundStyle(palette.secondary)
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(height: 28, alignment: .topLeading)
+                            .padding(.top, 1)
                     }
                 }
-                .frame(height: 24, alignment: .leading)
-                Text(module.sidebarTitle)
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(palette.text)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
-                    .frame(height: 16, alignment: .leading)
-                    .padding(.top, 2)
-                Text(facts.detail)
-                    .font(.system(size: 11))
-                    .foregroundStyle(palette.secondary)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(height: 28, alignment: .topLeading)
-                    .padding(.top, 1)
             }
             .padding(14)
-            .frame(maxWidth: .infinity, minHeight: 148, alignment: .topLeading)
+            .frame(maxWidth: .infinity, minHeight: flat ? 0 : 148, alignment: .topLeading)
             // The tile that's pointed at, here or in the storage bar, turns a lighter grey.
             .background(RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .fill(Color.white.opacity(lit ? (palette.isDark ? 0.06 : 0.9) : 0)))
@@ -934,6 +940,22 @@ private struct ToolTile: View {
         .animation(.spring(duration: 0.4, bounce: 0.5), value: facts.isWorking)
         // A little hop when a scan for this tool comes back.
         .onChange(of: facts.isWorking) { _, working in if !working { bounce += 1 } }
+    }
+
+    @ViewBuilder
+    private func value(_ facts: CategoryFacts) -> some View {
+        if facts.isWorking {
+            Spinner(tint: palette.accent(module))
+                .transition(.scale.combined(with: .opacity))
+        } else {
+            Text(facts.value)
+                .font(.system(size: 18, weight: .bold))
+                .monospacedDigit()
+                .foregroundStyle(palette.text)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .transition(.scale(scale: 0.6).combined(with: .opacity))
+        }
     }
 }
 

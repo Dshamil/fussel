@@ -355,7 +355,9 @@ final class CleaningTests: XCTestCase {
         try write(small, docs.appendingPathComponent("small.txt"), daysAgo: 10)
         try write(small, downloads.appendingPathComponent("small.txt"), daysAgo: 1)
 
-        let items = Scanner.scanDuplicates(in: [docs, downloads], downloads: downloads)
+        let found = Scanner.findDuplicates(in: [docs, downloads], downloads: downloads)
+        XCTAssertEqual(found.kept["Copies of report.pdf"]?.url.path.contains("/Old/"), true, "the oldest copy stays")
+        let items = found.items
         XCTAssertEqual(Set(items.map(\.url.lastPathComponent)), ["report.pdf", "report copy.pdf"])
         XCTAssertFalse(items.contains { $0.url.path.contains("/Old/") }, "the oldest copy must stay")
         XCTAssertEqual(Set(items.map(\.group)), ["Copies of report.pdf"])
@@ -364,6 +366,28 @@ final class CleaningTests: XCTestCase {
                            item.url.path)
             XCTAssertTrue(Cleaner.isSafeToRemove(item.url), item.url.path)
         }
+    }
+
+    /// Picking another copy to keep: it leaves the list and the selection, and the copy that stayed so far
+    /// comes back unselected. The copy that stays can never be cleaned.
+    @MainActor
+    func testKeepingAnotherCopySwapsItSafely() async {
+        let model = ModuleModel(module: .duplicates)
+        let group = "Copies of a.mov"
+        let old = CleanupItem(url: home.appendingPathComponent("Movies/a.mov"), name: "a.mov", group: group, size: 5)
+        let copy = CleanupItem(url: home.appendingPathComponent("Downloads/a.mov"), name: "a.mov", group: group, size: 5,
+                               preselected: true)
+        model.items = [copy]
+        model.kept = [group: old]
+        model.selected = [copy.url]
+        model.phase = .results
+
+        model.keep(copy)
+        XCTAssertEqual(model.kept[group]?.url, copy.url)
+        XCTAssertEqual(model.items.map(\.url), [old.url])
+        XCTAssertFalse(model.selected.contains(copy.url), "the copy that stays must not be selected")
+        XCTAssertFalse(model.items[0].preselected, "the copy coming back waits for a decision")
+        XCTAssertTrue(model.selectedItems.isEmpty)
     }
 
     // MARK: Self-update

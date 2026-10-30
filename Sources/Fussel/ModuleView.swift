@@ -530,9 +530,14 @@ struct GroupCard: View {
     let name: String
     let items: [CleanupItem]
     @State private var open = true
+    /// Long groups show their first rows, and the rest on request: drawing hundreds at once makes scrolling stutter.
+    @State private var showAll = false
+    private static let firstRows = 50
 
     var body: some View {
         let total = items.reduce(0) { $0 + $1.size }
+        let rows = showAll ? items : Array(items.prefix(Self.firstRows))
+        let stays = model.kept[name]
         let safe = items.filter(\.isSafe).count
         VStack(spacing: 0) {
             HStack(spacing: 12) {
@@ -564,9 +569,28 @@ struct GroupCard: View {
             .accessibilityAddTraits(.isButton)
             .accessibilityHint(open ? "Hides the items" : "Shows the items")
             if open {
-                ForEach(items) { item in
-                    Rectangle().fill(palette.cardStroke).frame(height: 1).padding(.leading, 56)
-                    CompactRow(item: item, isOn: Binding(get: { model.isSelected(item) }, set: { model.setSelected(item, $0) }))
+                Group {
+                    if let stays {
+                        Rectangle().fill(palette.cardStroke).frame(height: 1).padding(.leading, 56)
+                        StaysRow(item: stays)
+                    }
+                    ForEach(rows) { item in
+                        Rectangle().fill(palette.cardStroke).frame(height: 1).padding(.leading, 56)
+                        CompactRow(item: item, isOn: Binding(get: { model.isSelected(item) }, set: { model.setSelected(item, $0) }),
+                                   keep: stays == nil ? nil : { withAnimation(.spring(duration: 0.35)) { model.keep(item) } })
+                    }
+                    if items.count > rows.count {
+                        Rectangle().fill(palette.cardStroke).frame(height: 1).padding(.leading, 56)
+                        Button { withAnimation(.easeOut(duration: 0.2)) { showAll = true } } label: {
+                            Text("Show all \(items.count)")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(palette.secondary)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 10)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
                 .transition(.opacity)
             }
@@ -583,6 +607,8 @@ struct CompactRow: View {
     @Environment(\.palette) private var palette
     let item: CleanupItem
     @Binding var isOn: Bool
+    /// Duplicates: keep this copy instead of the one that stays now.
+    var keep: (() -> Void)?
     @State private var hovering = false
 
     var body: some View {
@@ -591,14 +617,26 @@ struct CompactRow: View {
                 .padding(.leading, 28)
             VStack(alignment: .leading, spacing: 1) {
                 Text(item.name).font(.system(size: 12, weight: .semibold)).foregroundStyle(palette.text).lineLimit(1)
-                // Something Fussel trashed earlier: say that cleaning it ends Undo for it.
-                Text(item.permanent && !CleanHistory.shared.undoable([item.url]).isEmpty
+                // A copy is told apart by where it lives. Something Fussel trashed earlier: say that cleaning it ends Undo for it.
+                Text(keep != nil ? item.displayPath
+                     : item.permanent && !CleanHistory.shared.undoable([item.url]).isEmpty
                      ? "From an earlier Fussel clean-up. Undo can still bring it back; cleaning it here deletes it for good."
                      : item.explanation)
-                    .font(.system(size: 11)).foregroundStyle(palette.secondary).lineLimit(1)
+                    .font(.system(size: 11)).foregroundStyle(palette.secondary).lineLimit(1).truncationMode(.middle)
             }
             .help(item.displayPath)
             Spacer(minLength: 12)
+            if let keep, hovering {
+                Button("Keep This One", action: keep)
+                    .buttonStyle(.plain)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(palette.text)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Capsule().fill(palette.selection))
+                    .help("Keep this copy and list the other one instead")
+                    .transition(.opacity)
+            }
             if !item.isSafe { SafetyLabel(safe: false) }
             Text(item.size.byteString).font(.system(size: 12, weight: .semibold)).monospacedDigit()
                 .foregroundStyle(palette.text).frame(width: 64, alignment: .trailing)
@@ -615,5 +653,48 @@ struct CompactRow: View {
         .padding(.vertical, 9)
         .background(hovering ? palette.text.opacity(0.03) : .clear)
         .onHover { inside in withAnimation(.easeOut(duration: 0.15)) { hovering = inside } }
+    }
+}
+
+/// Duplicates: the copy that stays, with no checkbox, so it can't be picked by accident.
+struct StaysRow: View {
+    @Environment(\.palette) private var palette
+    let item: CleanupItem
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "pin.fill")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(palette.accent(.duplicates))
+                .frame(width: 18, height: 18)
+                .padding(.leading, 28)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(item.name).font(.system(size: 12, weight: .semibold)).foregroundStyle(palette.text).lineLimit(1)
+                Text(item.displayPath).font(.system(size: 11)).foregroundStyle(palette.secondary)
+                    .lineLimit(1).truncationMode(.middle)
+            }
+            .help(item.displayPath)
+            Spacer(minLength: 12)
+            Text("Stays")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(palette.accent(.duplicates))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 2)
+                .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(palette.accent(.duplicates).opacity(0.14)))
+            Text(item.size.byteString).font(.system(size: 12, weight: .semibold)).monospacedDigit()
+                .foregroundStyle(palette.secondary).frame(width: 64, alignment: .trailing)
+            Button {
+                NSWorkspace.shared.activateFileViewerSelecting([item.url])
+            } label: {
+                Image(systemName: "magnifyingglass").foregroundStyle(palette.secondary)
+            }
+            .buttonStyle(.plain)
+            .help("Show in Finder")
+            .opacity(0.4)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 9)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(item.name) stays, in \(item.displayPath)")
     }
 }

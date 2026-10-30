@@ -38,6 +38,20 @@ final class SafetyTests: XCTestCase {
         XCTAssertFalse(UpdateSignature.isValid(installer, signature: ""))
     }
 
+    /// An older installer, genuinely signed back then, must not pass as a newer version: the signed version
+    /// has to match the one offered and the exact installer.
+    func testUpdateVersionSignature() {
+        let key = Curve25519.Signing.PrivateKey()
+        let publicKey = key.publicKey.rawRepresentation.base64EncodedString()
+        let sum = FusselUpdater.sha256(Data("installer 1.1.5".utf8))
+        let signature = try! key.signature(for: UpdateSignature.versionMessage("1.1.5", sha256: sum)).base64EncodedString()
+        XCTAssertTrue(UpdateSignature.isValidVersion("1.1.5", sha256: sum, signature: signature, publicKey: publicKey))
+        XCTAssertFalse(UpdateSignature.isValidVersion("9.9", sha256: sum, signature: signature, publicKey: publicKey))
+        XCTAssertFalse(UpdateSignature.isValidVersion("1.1.5", sha256: FusselUpdater.sha256(Data("older".utf8)),
+                                                      signature: signature, publicKey: publicKey))
+        XCTAssertFalse(UpdateSignature.isValidVersion("1.1.5", sha256: sum, signature: signature))
+    }
+
     func testVersionCompare() {
         XCTAssertTrue(VersionCompare.isNewer("0.10.0", than: "0.9.0"))
         XCTAssertTrue(VersionCompare.isNewer("v1.2.1", than: "1.2"))

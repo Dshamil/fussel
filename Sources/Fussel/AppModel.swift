@@ -190,6 +190,8 @@ final class ModuleModel {
     var phase: Phase = .idle
     var items: [CleanupItem] = []
     var selected: Set<URL> = []
+    /// Duplicates only: the copy that stays in each group. Never in `items`, so it can't be selected or cleaned.
+    var kept: [String: CleanupItem] = [:]
     /// This tool's last clean-up, for the Undo button on its done screen.
     var lastRecord: CleanRecord?
 
@@ -227,10 +229,11 @@ final class ModuleModel {
     func scan(options: ScanOptions) async {
         phase = .scanning
         let module = self.module
-        let found = await Task.detached(priority: .userInitiated) {
-            Scanner.scan(module, options: options)
+        let (found, stays) = await Task.detached(priority: .userInitiated) {
+            module == .duplicates ? Scanner.findDuplicates() : (Scanner.scan(module, options: options), [:])
         }.value
         items = found
+        kept = stays
         selected = Set(found.filter(\.preselected).map(\.url))
         phase = .results
     }
@@ -245,6 +248,7 @@ final class ModuleModel {
         }.value
         items = []
         selected = []
+        kept = [:]
         phase = .done(freed: result.freed, failures: result.failures)
         if record {
             lastRecord = CleanHistory.shared.record(result, source: module.title, itemCount: toClean.count)
@@ -255,7 +259,24 @@ final class ModuleModel {
     func reset() {
         items = []
         selected = []
+        kept = [:]
         phase = .idle
+    }
+
+    /// Duplicates: this copy stays instead. The one that stayed so far takes its place in the list,
+    /// not selected, so nothing is cleaned without a fresh look.
+    func keep(_ item: CleanupItem) {
+        guard let index = items.firstIndex(where: { $0.url == item.url }) else { return }
+        selected.remove(item.url)
+        var stays = item
+        stays.preselected = false
+        if var before = kept[item.group] {
+            before.preselected = false
+            items[index] = before
+        } else {
+            items.remove(at: index)
+        }
+        kept[item.group] = stays
     }
 }
 

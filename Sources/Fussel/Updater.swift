@@ -15,6 +15,16 @@ enum UpdateSignature {
         else { return false }
         return key.isValidSignature(signatureData, for: data)
     }
+
+    /// What the release build signs besides the installer: which version it is, tied to the installer's
+    /// fingerprint. Without it an older installer, signed for real back then, could be offered as an update.
+    static func versionMessage(_ version: String, sha256: String) -> Data {
+        Data("Fussel \(version) \(sha256)".utf8)
+    }
+
+    static func isValidVersion(_ version: String, sha256: String, signature: String, publicKey: String = publicKey) -> Bool {
+        isValid(versionMessage(version, sha256: sha256), signature: signature, publicKey: publicKey)
+    }
 }
 
 /// Compares "1.2.10" with "1.2.9" the way people expect. Ignores a leading "v" and any "-beta" suffix.
@@ -56,6 +66,8 @@ final class FusselUpdater {
         let installer: URL?
         /// The installer's signature, published next to it as `<installer>.sig`.
         let signature: URL?
+        /// The signed version, published as `Fussel-Installer.version.sig`.
+        var versionSignature: URL? = nil
     }
 
     enum State: Equatable {
@@ -119,7 +131,8 @@ final class FusselUpdater {
 
     func install() async {
         guard let release = availableRelease else { return }
-        guard let installerURL = release.installer, let signatureURL = release.signature else {
+        guard let installerURL = release.installer, let signatureURL = release.signature,
+              let versionURL = release.versionSignature else {
             // No signed installer: let people download it themselves from the release page.
             NSWorkspace.shared.open(release.page)
             return
@@ -133,9 +146,14 @@ final class FusselUpdater {
             }
             let (signatureData, signatureResponse) = try await URLSession.shared.data(from: signatureURL)
             let signature = String(decoding: signatureData, as: UTF8.self)
+            let (versionData, versionResponse) = try await URLSession.shared.data(from: versionURL)
+            let versionSignature = String(decoding: versionData, as: UTF8.self)
             let package = try Data(contentsOf: temp)
             guard (signatureResponse as? HTTPURLResponse)?.statusCode == 200,
-                  UpdateSignature.isValid(package, signature: signature) else {
+                  (versionResponse as? HTTPURLResponse)?.statusCode == 200,
+                  UpdateSignature.isValid(package, signature: signature),
+                  UpdateSignature.isValidVersion(release.version, sha256: Self.sha256(package),
+                                                 signature: versionSignature) else {
                 try? FileManager.default.removeItem(at: temp)
                 state = .failed("This update couldn't be verified, so Fussel won't install it.")
                 return
@@ -260,7 +278,8 @@ final class FusselUpdater {
                         .flatMap(URL.init(string:))
                 }
                 if VersionCompare.isNewer(version, than: best?.version ?? current) {
-                    best = Release(version: version, page: page, installer: asset(".pkg"), signature: asset(".pkg.sig"))
+                    best = Release(version: version, page: page, installer: asset(".pkg"), signature: asset(".pkg.sig"),
+                                   versionSignature: asset(".version.sig"))
                 }
             }
             return .success(best)
