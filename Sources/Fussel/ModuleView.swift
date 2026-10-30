@@ -10,18 +10,9 @@ struct ModuleView: View {
     var body: some View {
         VStack(spacing: 0) {
             PageHeader(title: model.module.title, subtitle: subtitle) {
-                Button { Task { await model.scan(options: .current) } } label: {
-                    Label("Scan", systemImage: "arrow.clockwise")
-                }
-                .buttonStyle(SecondaryButtonStyle())
-                .disabled(model.phase == .scanning || model.phase == .cleaning)
-                Button { confirming = true } label: {
-                    Label(model.selected.isEmpty ? "Clean" : "Clean \(model.selectedSize.byteString)", systemImage: "trash")
-                }
-                .buttonStyle(ActionButtonStyle())
-                .disabled(model.selected.isEmpty || model.phase != .results)
-                // Grows and shrinks smoothly as the size in its label changes.
-                .animation(.spring(duration: 0.35, bounce: 0.2), value: model.selectedSize)
+                ScanAndClean(scanning: model.phase == .scanning, cleaning: model.phase == .cleaning,
+                             cleanSize: model.phase == .results ? model.selectedSize : 0,
+                             scan: { Task { await model.scan(options: .current) } }, clean: { confirming = true })
             }
 
             Group {

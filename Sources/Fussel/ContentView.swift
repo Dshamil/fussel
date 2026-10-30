@@ -63,6 +63,8 @@ struct ContentView: View {
             .transition(.opacity.combined(with: .offset(y: 6)))
         }
         .animation(.easeOut(duration: 0.2), value: page)
+        // A setting kept in UserDefaults changes outside withAnimation, so the slide is set here.
+        .animation(.spring(duration: 0.35, bounce: 0.1), value: showSidebar)
         }
         // Screenshots have no window title bar, so they get the room it takes in the app.
         .safeAreaInset(edge: .top, spacing: 0) {
@@ -591,20 +593,10 @@ private struct OverviewPage: View {
         .cleanConfirmation(isPresented: $confirming)
     }
 
-    @ViewBuilder private var actions: some View {
-                    Button { Task { await app.smartScan() } } label: {
-                        Label("Scan", systemImage: "arrow.clockwise")
-                    }
-                    .buttonStyle(SecondaryButtonStyle())
-                    .disabled(app.stage == .scanning || app.stage == .cleaning)
-                    .keyboardShortcut("r", modifiers: [.command, .shift])
-                    Button { confirming = true } label: {
-                        Label(app.selectedTotal > 0 ? "Clean \(app.selectedTotal.byteString)" : "Clean", systemImage: "trash")
-                    }
-                    .buttonStyle(ActionButtonStyle())
-                    .disabled(app.selectedTotal == 0 || app.stage == .cleaning)
-                    // Grows and shrinks smoothly as the size in its label changes.
-                    .animation(.spring(duration: 0.35, bounce: 0.2), value: app.selectedTotal)
+    private var actions: some View {
+        ScanAndClean(scanning: app.stage == .scanning, cleaning: app.stage == .cleaning,
+                     cleanSize: app.stage == .ready ? app.selectedTotal : 0,
+                     scan: { Task { await app.smartScan() } }, clean: { confirming = true })
     }
 
     /// From what the live counter showed up to the final total, easing out over about half a second.
@@ -1145,6 +1137,67 @@ private struct SettingsPage: View {
     }
 }
 
+// MARK: - Scan and Clean
+
+/// Scan, and Clean once there is something to clean. Until then Scan is the main (white or dark)
+/// key; when Clean slides in, Scan steps back to a quiet one. While busy, the button at work shows
+/// a spinner instead of fading out.
+struct ScanAndClean: View {
+    @Environment(\.palette) private var palette
+    let scanning: Bool
+    let cleaning: Bool
+    /// What Clean would remove; 0 hides it.
+    let cleanSize: Int64
+    let scan: () -> Void
+    let clean: () -> Void
+
+    var body: some View {
+        let showClean = cleaning || (cleanSize > 0 && !scanning)
+        HStack(spacing: 8) {
+            if showClean {
+                scanButton.buttonStyle(SecondaryButtonStyle())
+            } else {
+                scanButton.buttonStyle(ActionButtonStyle())
+            }
+            if showClean {
+                Button(action: clean) {
+                    busyLabel(cleaning, "Cleaning…", idle: "Clean \(cleanSize.byteString)", symbol: "trash",
+                              tint: palette.buttonText)
+                }
+                .buttonStyle(ActionButtonStyle())
+                .allowsHitTesting(!cleaning)
+                // Grows and shrinks smoothly as the size in its label changes.
+                .animation(.spring(duration: 0.35, bounce: 0.2), value: cleanSize)
+                .transition(.asymmetric(insertion: .scale(scale: 0.6, anchor: .trailing).combined(with: .opacity),
+                                        removal: .opacity))
+            }
+        }
+        .animation(.spring(duration: 0.45, bounce: 0.25), value: showClean)
+    }
+
+    private var scanButton: some View {
+        let quiet = cleaning || (cleanSize > 0 && !scanning)
+        return Button(action: scan) {
+            busyLabel(scanning, "Scanning…", idle: "Scan", symbol: "arrow.clockwise",
+                      tint: quiet ? palette.text : palette.buttonText)
+        }
+        .allowsHitTesting(!scanning && !cleaning)
+        .keyboardShortcut("r", modifiers: [.command, .shift])
+    }
+
+    @ViewBuilder
+    private func busyLabel(_ busy: Bool, _ busyText: String, idle: String, symbol: String, tint: Color) -> some View {
+        if busy {
+            HStack(spacing: 7) {
+                Spinner(tint: tint, size: 13)
+                Text(busyText)
+            }
+        } else {
+            Label(idle, systemImage: symbol)
+        }
+    }
+}
+
 // MARK: - Top bar
 
 /// One bar across the top, next to the window buttons: the sidebar button, Fussel and where you are,
@@ -1175,7 +1228,7 @@ private struct TopBar: View {
                     Color.clear.frame(width: 60, height: 1)
                 }
                 RoundButton(symbol: "sidebar.left", help: showSidebar ? "Hide Sidebar (⌃⌘S)" : "Show Sidebar (⌃⌘S)") {
-                    withAnimation(.spring(duration: 0.35, bounce: 0.1)) { showSidebar.toggle() }
+                    showSidebar.toggle()
                 }
                 .keyboardShortcut("s", modifiers: [.command, .control])
                 if !showSidebar && page != .overview {

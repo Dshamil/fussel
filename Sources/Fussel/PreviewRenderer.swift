@@ -63,10 +63,21 @@ enum PreviewRenderer {
         let view = VStack(spacing: 0) {
             ForEach([ColorScheme.light, .dark], id: \.self) { scheme in
                 StyledRoot {
-                    HStack(spacing: 24) {
-                        ForEach([false, true], id: \.self) { pressed in
-                            QuietKey(pressed: pressed) { Label("Scan", systemImage: "arrow.clockwise") }
-                            TactileKey(pressed: pressed) { Label("Clean 2.16 GB", systemImage: "trash") }
+                    VStack(alignment: .leading, spacing: 20) {
+                        HStack(spacing: 24) {
+                            ForEach([false, true], id: \.self) { pressed in
+                                QuietKey(pressed: pressed) { Label("Scan", systemImage: "arrow.clockwise") }
+                                TactileKey(pressed: pressed) { Label("Clean 2.16 GB", systemImage: "trash") }
+                            }
+                            // Switched off.
+                            TactileKey(pressed: false) { Label("Clean", systemImage: "trash") }.disabled(true)
+                        }
+                        // Before a scan, while scanning, with finds, while cleaning.
+                        HStack(spacing: 24) {
+                            ScanAndClean(scanning: false, cleaning: false, cleanSize: 0, scan: {}, clean: {})
+                            ScanAndClean(scanning: true, cleaning: false, cleanSize: 0, scan: {}, clean: {})
+                            ScanAndClean(scanning: false, cleaning: false, cleanSize: 2_160_000_000, scan: {}, clean: {})
+                            ScanAndClean(scanning: false, cleaning: true, cleanSize: 2_160_000_000, scan: {}, clean: {})
                         }
                     }
                     .padding(28)

@@ -67,10 +67,12 @@ struct TactileKey<Label: View>: View {
             // A thin light edge along the top, as if light fell on the key.
             .overlay(shape.stroke(Color.white.opacity(palette.isDark ? 0.5 : 0.16), lineWidth: 1).offset(y: 1).clipShape(shape))
             .modifier(HoverTint(color: palette.buttonText.opacity(0.1)))
+            // Switched off, the key lies flat and faint, without its base.
+            .opacity(isEnabled ? 1 : 0.35)
             .offset(y: pressed ? depth : 0)
             // The base sits below the key without taking up room, so the button keeps its height in a row.
-            .background(shape.fill(palette.buttonFill).overlay(shape.fill(.black.opacity(palette.isDark ? 0.28 : 0.45))).offset(y: depth))
-            .opacity(isEnabled ? 1 : 0.4)
+            .background(shape.fill(palette.buttonFill).overlay(shape.fill(.black.opacity(palette.isDark ? 0.28 : 0.45)))
+                .offset(y: depth).opacity(isEnabled ? 1 : 0))
             .animation(pressed ? .easeOut(duration: 0.07) : .spring(duration: 0.3, bounce: 0.35), value: pressed)
     }
 }
@@ -102,13 +104,16 @@ struct QuietKey<Label: View>: View {
             .padding(.horizontal, 16)
             .frame(height: 30)
             .cardSurface(palette, radius: 8)
+            // In the dark, a faint light edge along the top, like on the main key.
+            .overlay(shape.stroke(Color.white.opacity(palette.isDark ? 0.07 : 0), lineWidth: 1).offset(y: 1).clipShape(shape))
             .modifier(HoverTint(color: palette.text.opacity(0.06)))
+            .opacity(isEnabled ? 1 : 0.4)
             .offset(y: pressed ? depth : 0)
             // Only the lower edge of the base is drawn, so a see-through (glass) key isn't tinted by it.
-            .background(shape.fill(palette.text.opacity(palette.isDark ? 0.22 : 0.13))
+            // It is always darker than the key: a pale edge under a dark key reads as a second outline.
+            .background(shape.fill(palette.isDark ? Color.black.opacity(0.6) : palette.text.opacity(0.13))
                 .mask(alignment: .bottom) { Rectangle().frame(height: 10) }
-                .offset(y: depth))
-            .opacity(isEnabled ? 1 : 0.4)
+                .offset(y: depth).opacity(isEnabled ? 1 : 0))
             .animation(pressed ? .easeOut(duration: 0.07) : .spring(duration: 0.3, bounce: 0.35), value: pressed)
     }
 }
