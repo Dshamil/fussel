@@ -57,7 +57,7 @@ Fussel ist eine Menüleisten-App (`LSUIElement`, ohne Dock-Symbol; in den Einste
 
 Website: https://dshamil.github.io/fussel/ (GitHub Pages aus `main` / `docs`, aktualisiert sich bei jedem Push). Quelle `docs/index.html` (eine Seite im Stil der Visual Identity, nutzt docs/logo.png und die GIFs aus docs/screenshots; Download-Knopf zeigt immer auf das neueste Release). Lokal ansehen: `python3 -m http.server 8765 --directory docs`.
 
-Weitere Ordner: `Resources` (Info.plist, `AppIcon/` = fertig gebautes Glas-Icon), `installer` (pkg-Installer), `scripts`, `release-notes`, `docs` (Logo, Screenshots), `design` (`AppIcon.icon` = Liquid-Glass-Icon für Icon Composer; nach Änderungen `scripts/icon.sh` laufen lassen, das baut `Resources/AppIcon`, docs/logo.png und die Installer-Bilder, braucht Xcode 26). Markenregeln: Fussel nur weiß auf Graphit oder graphit auf hell, nie bunt, immer mit Locke; Farbe nur für die sechs Werkzeuge und die Etiketten; Wortmarke SF Pro Rounded Heavy, `Tests`.
+Weitere Ordner: `Resources` (Info.plist, `AppIcon/` = fertig gebautes Glas-Icon), `installer` (pkg-Installer), `scripts`, `release-notes`, `docs` (Logo, Screenshots), `design` (`AppIcon.icon` = Liquid-Glass-Icon für Icon Composer; nach Änderungen `scripts/icon.sh` laufen lassen, das baut `Resources/AppIcon`, docs/logo.png und die Installer-Bilder, braucht Xcode 26; `design/banner.swift` baut das Link-Vorschaubild `docs/social.png` und Banner für Beiträge, Anleitung oben in der Datei). Markenregeln: Fussel nur weiß auf Graphit oder graphit auf hell, nie bunt, immer mit Locke; Farbe nur für die sechs Werkzeuge und die Etiketten; Wortmarke SF Pro Rounded Heavy, `Tests`.
 
 ## Offene Punkte
 
