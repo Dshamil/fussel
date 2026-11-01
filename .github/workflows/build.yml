@@ -180,14 +180,14 @@ jobs:
               "${NOTES_ARG[@]}"
           fi
 
-  # The finished app on older and Intel Macs, the way users get it: screenshots of every style and a
+  # The finished app on the newest macOS and on Intel, the way users get it: screenshots of every style and a
   # short run in the background. Then the tests, built with the newest Xcode that Mac has.
   compat:
     needs: build
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-14, macos-15-intel]
+        os: [macos-26, macos-15-intel]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4

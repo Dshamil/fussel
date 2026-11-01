@@ -29,7 +29,7 @@ Fussel ist eine Menüleisten-App (`LSUIElement`, ohne Dock-Symbol; in den Einste
 - Version steht in `VERSION`. Neue Nummer + `release-notes/<version>.md` (Vorlage: letzte Notes, mit Logo oben; erste Zeile `<!-- title: … -->` setzt den Release-Titel) + Push auf `main` → GitHub Actions (`.github/workflows/build.yml`, macos-15) baut, testet, packt, **signiert den Installer** und veröffentlicht ein Release, **als „Latest“ markiert** (keine Prerelease mehr), mit Installer-zip (empfohlener Download: das pkg mit Fussel-Icon, denn Browser verlieren eigene Icons), pkg, pkg.sig, dmg und App-zip. Installer-Bilder: `swift design/installer-background.swift`, Seiten in `installer/resources/*.html`.
 - Update-Signatur: Ed25519. Privater Schlüssel nur als GitHub-Secret `FUSSEL_SIGNING_KEY` (nicht lesbar, keine Kopie), öffentlicher in `UpdateSignature.publicKey`. Der Updater installiert nur Installer mit passender `.pkg.sig` **und** `Fussel-Installer.version.sig` (signiert „Fussel <Version> <SHA-256 des pkg>“, damit kein älterer echter Installer als neuer durchgeht; ab 1.1.5 Pflicht). Geht das Secret verloren: neues Paar mit `swift scripts/sign-update.swift`, Nutzer müssen dann einmal von Hand aktualisieren.
 - Code-Signatur: CI signiert mit einem eigenen, festen Zertifikat „Fussel Code Signing“ (10 Jahre, Secrets `FUSSEL_CERT_P12` + `FUSSEL_CERT_PASSWORD`, keine Kopie lokal). Dadurch behält macOS den Festplattenvollzugriff über Updates hinweg. Lokale Builds bleiben ad-hoc signiert. Geht das Secret verloren: neues Zertifikat erstellen, Nutzer erteilen den Zugriff dann einmal neu.
-- CI-Job `compat`: dieselbe fertige App auf macOS 14 und Intel (siehe Offene Punkte); Bilder als Artefakt `previews-<mac>`.
+- CI-Job `compat`: dieselbe fertige App auf macOS 26 und Intel (siehe Offene Punkte); Bilder als Artefakt `previews-<mac>`.
 - CI legt Screenshots auf den Branch `ci-previews` und misst CPU/RAM (`scripts/perf-probe.sh`).
 - Nicht mit Developer ID signiert/notarisiert: Gatekeeper fragt beim Installer einmal nach („Trotzdem öffnen“). Langfristige Lösung: Apple Developer Account. Bewusst auf später verschoben.
 
@@ -62,7 +62,7 @@ Weitere Ordner: `Resources` (Info.plist, `AppIcon/` = fertig gebautes Glas-Icon)
 ## Offene Punkte
 
 - **Apple Developer ID** (Signatur + Notarisierung): größte Hürde für neue Nutzer (Gatekeeper „Trotzdem öffnen“, beim DMG `xattr`). Entscheidung und Konto liegen beim Nutzer.
-- Ältere Macs: CI-Job `compat` prüft bei jedem Push macOS 14 (Apple-Chip: Tests, App-Start, 35 Vorschaubilder, alles grün) und macOS 15 Intel (Tests grün; App-Start und Bilder gehen dort nicht, weil GitHubs virtueller Intel-Mac keinen nutzbaren Grafikchip hat). Offen: ein echter Intel-Mac, und das stille Update auf macOS 14.
+- Ältere Macs: CI-Job `compat` prüft bei jedem Push macOS 26 (Apple-Chip: Tests, App-Start, Vorschaubilder) und macOS 15 Intel (Tests grün; App-Start und Bilder gehen dort nicht, weil GitHubs virtueller Intel-Mac keinen nutzbaren Grafikchip hat). GitHub hat die macOS-14-Rechner am 2.11.2026 abgeschaltet, 1.1.8 war die letzte automatisch auf macOS 14 geprüfte Version; Fussel gibt macOS 14 aber weiter als Mindestsystem an. Offen: ob das so bleibt oder auf macOS 15 steigt, ein echter Intel-Mac, und das stille Update auf macOS 14.
 - Auf echtem Mac prüfen: ob die Locke in der Menüleiste bei 18 pt gut lesbar ist.
 - Ideen für später: Anmeldeobjekte verwalten, Homebrew-Cask.
 - Noch nicht auf echtem Mac geprüft: ob die Fenster-Knöpfe mit der leeren Toolbar mittig neben der oberen Leiste sitzen.
