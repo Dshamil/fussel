@@ -114,13 +114,7 @@ private struct HappyFussel: View {
     @State private var hopped = PreviewRenderer.isRendering
 
     var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Theme.graphite)
-                .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .strokeBorder(Color.white.opacity(palette.isDark ? 0.14 : 0), lineWidth: 1))
-            FusselBody(mood: .happy).equatable().frame(width: 68, height: 68)
-        }
-        .frame(width: 76, height: 76)
+        FusselMark(mood: .happy, background: palette.content, side: 76, cornerRadius: 20, bodySide: 68)
         .scaleEffect(hopped || reduceMotion ? 1 : 0.6)
         .offset(y: hopped || reduceMotion ? 0 : 8)
         .onAppear { withAnimation(.spring(duration: 0.5, bounce: 0.55).delay(0.1)) { hopped = true } }
@@ -322,7 +316,7 @@ private struct ResultsList: View {
                         .matchedGeometryEffect(id: "selected", in: chips)
                 }
             }
-            .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(palette.cardStroke, lineWidth: on ? 0 : 1))
+            .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(palette.cardStroke, lineWidth: on || palette.isPure ? 0 : 1))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -622,8 +616,8 @@ struct GroupCard: View {
             }
         }
         .clipped()
-        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(palette.card))
-        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(palette.cardStroke, lineWidth: 1))
+        .background(RoundedRectangle(cornerRadius: palette.radius(14), style: .continuous).fill(palette.card))
+        .overlay(RoundedRectangle(cornerRadius: palette.radius(14), style: .continuous).strokeBorder(palette.isPure ? .clear : palette.cardStroke, lineWidth: 1))
     }
 }
 

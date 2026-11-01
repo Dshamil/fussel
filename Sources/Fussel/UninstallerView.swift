@@ -8,6 +8,10 @@ struct UninstallerView: View {
     @State private var confirming = false
     @State private var askToQuit = false
     @FocusState private var listFocused: Bool
+    @State private var dropping = PreviewRenderer.uninstallerDrop.targeted
+    @State private var refusal = PreviewRenderer.uninstallerDrop.refusal
+    /// Goes up by one for each refused drop, which shakes the note.
+    @State private var shakes = 0
 
     private var filteredApps: [InstalledApp] {
         guard !search.isEmpty else { return model.apps }
@@ -22,8 +26,64 @@ struct UninstallerView: View {
             detail
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .overlay { if dropping { dropTarget.transition(.opacity) } }
+        .overlay(alignment: .bottom) {
+            if let refusal {
+                Text(refusal.message)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(palette.text)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(Capsule().fill(palette.sheet))
+                    .overlay(Capsule().strokeBorder(palette.cardStroke, lineWidth: 1))
+                    .shadow(color: .black.opacity(0.12), radius: 8, y: 3)
+                    .modifier(HeadShake(shakes: CGFloat(shakes)))
+                    // Above the row with the Uninstall button.
+                    .padding(.bottom, 64)
+                    .transition(.opacity.combined(with: .offset(y: 8)))
+            }
+        }
+        .modifier(AppDrop(take: { url in Task { await take(url) } },
+                          targeted: { inside in withAnimation(.easeOut(duration: 0.15)) { dropping = inside } }))
         .task {
             if model.apps.isEmpty { await model.loadApps() }
+        }
+    }
+
+    /// While an app is dragged over the window: one quiet frame around everything.
+    private var dropTarget: some View {
+        ZStack {
+            palette.content.opacity(0.85)
+            RoundedRectangle(cornerRadius: palette.radius(14), style: .continuous)
+                .strokeBorder(palette.accent(.uninstaller), style: StrokeStyle(lineWidth: 2, dash: [7, 6]))
+                .padding(16)
+            VStack(spacing: 10) {
+                ToolIcon(module: .uninstaller, size: 44)
+                Text("Drop to see what it left behind")
+                    .font(.rounded(17, .bold))
+                    .foregroundStyle(palette.text)
+                Text("Nothing is removed until you say so.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(palette.secondary)
+            }
+        }
+        .allowsHitTesting(false)
+    }
+
+    /// Opens a dropped app as if it had been picked from the list, or says why not.
+    private func take(_ url: URL) async {
+        if model.apps.isEmpty { await model.loadApps() }
+        switch UninstallerModel.dropped(url, among: model.apps) {
+        case .success(let app):
+            search = ""
+            withAnimation(.spring(duration: 0.25)) { refusal = nil }
+            await model.select(app)
+        case .failure(let reason):
+            Sounds.play("Funk")
+            withAnimation(.spring(duration: 0.25)) { refusal = reason }
+            withAnimation(.linear(duration: 0.4)) { shakes += 1 }
+            try? await Task.sleep(for: .seconds(3))
+            if refusal == reason { withAnimation(.easeOut(duration: 0.25)) { refusal = nil } }
         }
     }
 
@@ -58,6 +118,9 @@ struct UninstallerView: View {
                     .focused($listFocused)
                     .onKeyPress(.downArrow) { step(1, scroller); return .handled }
                     .onKeyPress(.upArrow) { step(-1, scroller); return .handled }
+                    .onChange(of: model.selectedApp) { _, app in
+                        if let app { withAnimation { scroller.scrollTo(app.id) } }
+                    }
                 }
             }
         }
@@ -98,7 +161,7 @@ struct UninstallerView: View {
         } else {
             VStack(spacing: 18) {
                 StateIcon(symbol: "xmark.bin", size: 96)
-                Text("Pick an app to remove")
+                Text("Pick an app, or drag one here")
                     .font(.rounded(22, .bold))
                 Text("Fussel finds its support files, caches and preferences too.")
                     .foregroundStyle(.secondary)
@@ -176,6 +239,37 @@ struct UninstallerView: View {
         } message: {
             Text("Quit the app first, then uninstall it.")
         }
+    }
+}
+
+/// Takes a file dragged onto the view. Screenshots can't draw the system's drop area, so they go without.
+private struct AppDrop: ViewModifier {
+    let take: (URL) -> Void
+    let targeted: (Bool) -> Void
+
+    func body(content: Content) -> some View {
+        if PreviewRenderer.isRendering {
+            content
+        } else {
+            content.dropDestination(for: URL.self) { urls, _ in
+                guard let url = urls.first else { return false }
+                take(url)
+                return true
+            } isTargeted: { targeted($0) }
+        }
+    }
+}
+
+/// A small shake of the head.
+private struct HeadShake: GeometryEffect {
+    var shakes: CGFloat
+    var animatableData: CGFloat {
+        get { shakes }
+        set { shakes = newValue }
+    }
+
+    func effectValue(size: CGSize) -> ProjectionTransform {
+        ProjectionTransform(CGAffineTransform(translationX: 6 * sin(shakes * .pi * 6) * (1 - shakes.truncatingRemainder(dividingBy: 1)), y: 0))
     }
 }
 

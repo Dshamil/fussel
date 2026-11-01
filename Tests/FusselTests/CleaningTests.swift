@@ -395,6 +395,39 @@ final class CleaningTests: XCTestCase {
     /// The update runs as administrator, so it must not write to shared places like /tmp, and it must
     /// install exactly the file Fussel checked: copied somewhere only the administrator can reach,
     /// then compared with the checked file's fingerprint.
+    func testTheUninstallerOnlyTakesInstalledAppsWhenDropped() throws {
+        let folder = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? fm.removeItem(at: folder) }
+        let listed = folder.appendingPathComponent("Listed.app")
+        let stray = folder.appendingPathComponent("Stray.app")
+        let note = folder.appendingPathComponent("Note.txt")
+        for app in [listed, stray] { try fm.createDirectory(at: app, withIntermediateDirectories: true) }
+        fm.createFile(atPath: note.path, contents: Data())
+        // The same app reached by a detour is still that app; a link to it counts too.
+        let link = folder.appendingPathComponent("Shortcut.app")
+        try fm.createSymbolicLink(at: link, withDestinationURL: listed)
+        let apps = [InstalledApp(url: listed, name: "Listed", bundleID: "com.example.listed")]
+
+        XCTAssertEqual(try? UninstallerModel.dropped(listed, among: apps).get(), apps[0])
+        XCTAssertEqual(try? UninstallerModel.dropped(folder.appendingPathComponent("x/../Listed.app"), among: apps).get(), apps[0])
+        XCTAssertEqual(try? UninstallerModel.dropped(link, among: apps).get(), apps[0])
+
+        func refusal(_ url: URL) -> DropRefusal? {
+            if case .failure(let reason) = UninstallerModel.dropped(url, among: apps) { return reason }
+            return nil
+        }
+        XCTAssertEqual(refusal(note), .notAnApp)
+        XCTAssertEqual(refusal(stray), .notInstalled)
+        // Apple's apps are refused even if they somehow end up in the list.
+        let safari = URL(fileURLWithPath: "/Applications/Safari.app")
+        let listedApple = [InstalledApp(url: safari, name: "Safari", bundleID: "com.apple.Safari")]
+        if fm.fileExists(atPath: safari.path), case .failure(let reason) = UninstallerModel.dropped(safari, among: listedApple) {
+            XCTAssertEqual(reason, .apple)
+        } else if fm.fileExists(atPath: safari.path) {
+            XCTFail("Safari was accepted")
+        }
+    }
+
     func testTheUpdateInstallsOnlyTheCheckedFile() {
         let script = FusselUpdater.installCommand(package: "/Users/me/Library/Caches/it's.pkg", sha256: "abc123")
         XCTAssertFalse(script.contains("/tmp/"), script)

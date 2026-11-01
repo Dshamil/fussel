@@ -57,6 +57,8 @@ struct FusselBody: View, Equatable {
     var curlTilt: Double = 0
     /// Eyes looking to the side, in design units (about ±3 looks around without leaving the face).
     var look: CGFloat = 0
+    /// Eyes looking up or down, in design units (about ±2 stays on the face).
+    var lookY: CGFloat = 0
 
     var body: some View {
         Canvas { ctx, size in
@@ -79,7 +81,7 @@ struct FusselBody: View, Equatable {
 
             let w = g.eyeSize.width, h = g.eyeSize.height
             for base in g.eyes {
-                let eye = CGPoint(x: base.x + look, y: base.y)
+                let eye = CGPoint(x: base.x + look, y: base.y + lookY)
                 if mood == .happy || mood == .sleepy || blink {
                     // Closed: smiling for happy, drooping for sleepy, flat for a blink.
                     var lid = Path()
@@ -94,6 +96,34 @@ struct FusselBody: View, Equatable {
                 }
             }
         }
+    }
+}
+
+/// Fussel on the app icon's graphite tile. In the Pure style just Fussel himself, as in the menu bar.
+struct FusselMark: View {
+    @Environment(\.palette) private var palette
+    var mood: MascotMood = .idle
+    var blink = false
+    /// The color behind him, which his eyes take in the Pure style.
+    let background: Color
+    let side: CGFloat
+    let cornerRadius: CGFloat
+    let bodySide: CGFloat
+
+    var body: some View {
+        ZStack {
+            if palette.isPure {
+                FusselBody(mood: mood, color: palette.text, eyeColor: background, blink: blink).equatable()
+                    .frame(width: side * 1.25, height: side * 1.25)
+                    .offset(y: side * 0.09)
+            } else {
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous).fill(Theme.graphite)
+                    .overlay(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .strokeBorder(Color.white.opacity(palette.isDark ? 0.14 : 0), lineWidth: 1))
+                FusselBody(mood: mood, blink: blink).equatable().frame(width: bodySide, height: bodySide)
+            }
+        }
+        .frame(width: side, height: side)
     }
 }
 

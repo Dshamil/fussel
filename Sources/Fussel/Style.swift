@@ -17,6 +17,11 @@ struct Palette {
     var sheet: Color
     /// The Glass style: the desktop shows through a blur and cards are made of glass.
     var isGlass = false
+    /// The Pure style: no outlines, softer corners, flat pill buttons, thin type.
+    var isPure = false
+
+    /// A card's corner radius in this style.
+    func radius(_ base: CGFloat) -> CGFloat { isPure ? base * 1.3 : base }
 
     /// One color per tool, used for its icon square and its slice of the storage bar.
     func accent(_ module: Module) -> Color {
@@ -72,6 +77,36 @@ struct Palette {
     /// The main area of Oreo is exactly the Dark style.
     static let oreoMain = Palette.dark
 
+    static let pureLight = Palette(
+        isDark: false,
+        content: Color(hex: 0xF5F5F7),
+        sidebar: Color(hex: 0xECECEF),
+        selection: Color(hex: 0xDFDFE4),
+        card: .white,
+        cardStroke: Color(hex: 0xE4E4E8),
+        text: Color(hex: 0x1D1D1F),
+        secondary: Color(hex: 0x6E6E73),
+        buttonFill: Color(hex: 0x1D1D1F),
+        buttonText: .white,
+        sheet: .white,
+        isPure: true
+    )
+
+    static let pureDark = Palette(
+        isDark: true,
+        content: Color(hex: 0x111113),
+        sidebar: Color(hex: 0x18181A),
+        selection: Color(hex: 0x2C2C30),
+        card: Color(hex: 0x1E1E21),
+        cardStroke: Color(hex: 0x29292D),
+        text: Color(hex: 0xF5F5F7),
+        secondary: Color(hex: 0x8E8E93),
+        buttonFill: Color(hex: 0xF5F5F7),
+        buttonText: Color(hex: 0x1D1D1F),
+        sheet: Color(hex: 0x1C1C1E),
+        isPure: true
+    )
+
     static let glassLight = Palette(
         isDark: false,
         content: .clear,
@@ -103,10 +138,10 @@ struct Palette {
     )
 }
 
-/// The look picked in Settings: follow the Mac, always light, always dark, or Glass (which follows
-/// the Mac's light or dark).
+/// The look picked in Settings: follow the Mac, always light, always dark, or Glass and Pure (which
+/// follow the Mac's light or dark).
 enum AppearanceChoice: String, CaseIterable {
-    case system, light, dark, glass, oreo
+    case system, light, dark, glass, oreo, pure
 
     static var current: AppearanceChoice {
         AppearanceChoice(rawValue: UserDefaults.standard.string(forKey: SettingsKey.appearance) ?? "") ?? .system
@@ -116,7 +151,7 @@ enum AppearanceChoice: String, CaseIterable {
         switch current {
         case .light: NSApp.appearance = NSAppearance(named: .aqua)
         case .dark, .oreo: NSApp.appearance = NSAppearance(named: .darkAqua)
-        case .system, .glass: NSApp.appearance = nil
+        case .system, .glass, .pure: NSApp.appearance = nil
         }
     }
 }
@@ -133,7 +168,7 @@ private struct CardSurface: ViewModifier {
     let radius: CGFloat
 
     func body(content: Content) -> some View {
-        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: palette.radius(radius), style: .continuous)
         // Screenshots can't draw glass, so they get the plain see-through fill below.
         if palette.isGlass && !PreviewRenderer.isRendering {
             // Real glass needs the macOS 26 SDK (Xcode 26); older toolchains build the frosted fallback.
@@ -148,6 +183,8 @@ private struct CardSurface: ViewModifier {
             #else
             frosted(content, shape)
             #endif
+        } else if palette.isPure {
+            content.background(shape.fill(palette.card))
         } else {
             content
                 .background(shape.fill(palette.card))
@@ -243,6 +280,7 @@ struct StyledRoot<Content: View>: View {
     var body: some View {
         let glass = appearance == AppearanceChoice.glass.rawValue
         let palette: Palette = appearance == AppearanceChoice.oreo.rawValue ? .oreoMain
+            : appearance == AppearanceChoice.pure.rawValue ? (scheme == .dark ? .pureDark : .pureLight)
             : scheme == .dark ? (glass ? .glassDark : .dark) : (glass ? .glassLight : .light)
         content
             .environment(\.palette, palette)

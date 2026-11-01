@@ -81,6 +81,20 @@ struct InstalledApp: Identifiable, Hashable, Sendable {
     let bundleID: String
 }
 
+/// Why the Uninstaller didn't take something dropped on it.
+enum DropRefusal: Error, Equatable {
+    case notAnApp, apple, fussel, notInstalled
+
+    var message: String {
+        switch self {
+        case .notAnApp: return "Only apps can go here"
+        case .apple: return "Apple's apps stay where they are"
+        case .fussel: return "Fussel can't remove himself"
+        case .notInstalled: return "Fussel only removes apps from your Applications folders"
+        }
+    }
+}
+
 struct CleanResult: Sendable {
     var freed: Int64 = 0
     var failures: [String] = []

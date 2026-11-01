@@ -278,6 +278,9 @@ private struct SidebarFussel: View {
     @State private var awake = false
     /// One whole turn after a big clean-up.
     @State private var spins = 0
+    /// Where his eyes are looking: towards the pointer, in design units.
+    @State private var gaze = CGSize.zero
+    @State private var gazeReset: Task<Void, Never>?
 
     private func mood(night: Bool) -> MascotMood {
         if busy { return .busy }
@@ -301,10 +304,13 @@ private struct SidebarFussel: View {
 
     private func badge(mood: MascotMood) -> some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 9.5, style: .continuous)
-                .fill(Theme.graphite)
-                .overlay(RoundedRectangle(cornerRadius: 9.5, style: .continuous)
-                    .strokeBorder(Color.white.opacity(palette.isDark ? 0.14 : 0), lineWidth: 1))
+            // Pure: just Fussel himself, as in the menu bar, without the icon's tile.
+            if !palette.isPure {
+                RoundedRectangle(cornerRadius: 9.5, style: .continuous)
+                    .fill(Theme.graphite)
+                    .overlay(RoundedRectangle(cornerRadius: 9.5, style: .continuous)
+                        .strokeBorder(Color.white.opacity(palette.isDark ? 0.14 : 0), lineWidth: 1))
+            }
             // While scanning the curl swings ±16° every 1.1 s and the eyes look slowly from side to side,
             // resting a moment at each side; frames only run during the scan.
             TimelineView(.animation(minimumInterval: 1.0 / 30, paused: !busy || reduceMotion || paused)) { timeline in
@@ -312,15 +318,20 @@ private struct SidebarFussel: View {
                 let swing = 16 * sin(t * 2 * .pi / 1.1)
                 let glance = sin(t * 2 * .pi / 2.8)
                 let look = 3.2 * CGFloat(glance.sign == .minus ? -1 : 1) * CGFloat(pow(abs(glance), 0.45))
-                FusselBody(mood: mood, blink: blink && !cheering,
-                           curlTilt: busy && !reduceMotion ? swing : (hovering ? -18 : 0),
-                           look: busy && !reduceMotion ? look : 0)
-                    .equatable()
-                    .frame(width: 34, height: 34)
+                GazingFussel(mood: mood, blink: blink && !cheering,
+                             curlTilt: busy && !reduceMotion ? swing : (hovering ? -18 : 0),
+                             x: busy && !reduceMotion ? look : gaze.width,
+                             y: busy && !reduceMotion ? 0 : gaze.height,
+                             color: palette.isPure ? palette.text : .white,
+                             eyeColor: palette.isPure ? palette.content : Theme.graphite)
+                    // Without a tile he fills the same room, like the menu bar's Fussel does.
+                    .frame(width: palette.isPure ? 44 : 34, height: palette.isPure ? 44 : 34)
+                    .offset(y: palette.isPure ? 3 : 0)
             }
             .offset(y: cheering && !reduceMotion ? -3 : 0)
         }
         .frame(width: 34, height: 34)
+        .background { if !reduceMotion && !PreviewRenderer.isRendering { PointerWatcher(moved: lookTowards) } }
         .rotationEffect(.degrees(Double(spins) * 360))
         .scaleEffect(hovering ? 1.1 : 1)
         .contentShape(Rectangle())
@@ -350,6 +361,22 @@ private struct SidebarFussel: View {
         }
     }
 
+    /// The eyes turn towards the pointer, further the further away it is, and rest after a moment.
+    /// Only a noticeable change redraws him, and nothing runs while the pointer is still.
+    private func lookTowards(_ offset: CGVector) {
+        let distance = max(1, hypot(offset.dx, offset.dy))
+        let reach = min(1, distance / 220)
+        let target = CGSize(width: (offset.dx / distance * 3.2 * reach * 4).rounded() / 4,
+                            height: (offset.dy / distance * 2.2 * reach * 4).rounded() / 4)
+        if target != gaze { withAnimation(.easeOut(duration: 0.18)) { gaze = target } }
+        gazeReset?.cancel()
+        gazeReset = Task {
+            try? await Task.sleep(for: .seconds(2.5))
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeInOut(duration: 0.6)) { gaze = .zero }
+        }
+    }
+
     /// Opens his eyes for a few seconds, then dozes off again.
     private func wake() {
         withAnimation(.spring(duration: 0.3)) { awake = true }
@@ -365,6 +392,56 @@ private struct SidebarFussel: View {
             try? await Task.sleep(for: .seconds(seconds))
             withAnimation(.spring(duration: 0.4)) { cheering = false }
         }
+    }
+}
+
+/// Fussel with eyes that glide from one place to the next instead of jumping.
+private struct GazingFussel: View, Animatable {
+    let mood: MascotMood
+    let blink: Bool
+    let curlTilt: Double
+    var x: CGFloat
+    var y: CGFloat
+    let color: Color
+    let eyeColor: Color
+
+    var animatableData: AnimatablePair<CGFloat, CGFloat> {
+        get { AnimatablePair(x, y) }
+        set { x = newValue.first; y = newValue.second }
+    }
+
+    var body: some View {
+        FusselBody(mood: mood, color: color, eyeColor: eyeColor, blink: blink, curlTilt: curlTilt, look: x, lookY: y).equatable()
+    }
+}
+
+/// Tells where the pointer is relative to this spot, whenever it moves over Fussel's window.
+private struct PointerWatcher: NSViewRepresentable {
+    let moved: (CGVector) -> Void
+
+    func makeNSView(context: Context) -> WatcherView { WatcherView() }
+    func updateNSView(_ view: WatcherView, context: Context) { view.moved = moved }
+
+    final class WatcherView: NSView {
+        var moved: ((CGVector) -> Void)?
+        private var monitor: Any?
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            if let monitor { NSEvent.removeMonitor(monitor) }
+            monitor = nil
+            guard let window else { return }
+            window.acceptsMouseMovedEvents = true
+            monitor = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved, .leftMouseDragged]) { [weak self] event in
+                if let self, event.window === self.window {
+                    let here = self.convert(NSPoint(x: self.bounds.midX, y: self.bounds.midY), to: nil)
+                    self.moved?(CGVector(dx: event.locationInWindow.x - here.x, dy: here.y - event.locationInWindow.y))
+                }
+                return event
+            }
+        }
+
+        deinit { if let monitor { NSEvent.removeMonitor(monitor) } }
     }
 }
 
@@ -500,7 +577,7 @@ struct PageHeader<Actions: View>: View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
-                    .font(.system(size: 22, weight: .bold))
+                    .font(.system(size: 22, weight: palette.isPure ? .medium : .bold))
                     .foregroundStyle(palette.text)
                 Text(subtitle)
                     .font(.system(size: 12))
@@ -656,8 +733,8 @@ private struct Greeting: View {
                 .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(palette.secondary)
             Text(headline)
-                .font(.system(size: 28, weight: .bold))
-                .tracking(-0.6)
+                .font(.system(size: 28, weight: palette.isPure ? .medium : .bold))
+                .tracking(palette.isPure ? -0.3 : -0.6)
                 .monospacedDigit()
                 .foregroundStyle(palette.text)
                 // Digits roll while a total counts up (once, after a scan or a clean-up), never for live values.
@@ -778,16 +855,16 @@ private struct StorageBar: View {
         let known = slices.reduce(0) { $0 + $1.1 }
         GeometryReader { geo in
             let w = geo.size.width
-            HStack(spacing: 1.5) {
+            HStack(spacing: 0) {
+                // Every slice is always there, so a cleaned one squeezes shut instead of just vanishing.
                 ForEach(slices, id: \.0) { module, bytes in
-                    if bytes > 0 {
-                        Rectangle()
-                            .fill(palette.accent(module))
-                            .opacity(highlighted == nil || highlighted == module ? 1 : 0.3)
-                            .frame(width: max(3, w * bytes / total))
-                    }
+                    RoundedRectangle(cornerRadius: palette.isPure ? 3 : 0, style: .continuous)
+                        .fill(palette.accent(module))
+                        .opacity(highlighted == nil || highlighted == module ? 1 : 0.3)
+                        .frame(width: bytes > 0 ? max(3, w * bytes / total) : 0)
+                        .padding(.trailing, bytes > 0 ? (palette.isPure ? 2 : 1.5) : 0)
                 }
-                Rectangle()
+                RoundedRectangle(cornerRadius: palette.isPure ? 3 : 0, style: .continuous)
                     .fill(palette.secondary.opacity(0.55))
                     .frame(width: max(0, w * (used - known) / total))
                 Spacer(minLength: 0)
@@ -797,7 +874,7 @@ private struct StorageBar: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(palette.text.opacity(0.08))
             .overlay { if app.stage == .scanning { Shimmer() } }
-            .clipShape(Capsule())
+            .clipShape(RoundedRectangle(cornerRadius: palette.isPure ? 7 : 5, style: .continuous))
             // macOS tooltips don't stay up on a bar that redraws every two seconds, so Fussel shows its own.
             .contentShape(Rectangle())
             .onContinuousHover { phase in hover(phase, width: w, total: total, slices: slices) }
@@ -820,8 +897,8 @@ private struct StorageBar: View {
             }
             .animation(.easeOut(duration: 0.12), value: pointer == nil)
         }
-        .frame(height: 10)
-        .animation(.spring(duration: 0.8), value: known)
+        .frame(height: palette.isPure ? 22 : 10)
+        .animation(.spring(duration: 0.8, bounce: 0.12), value: known)
         .accessibilityElement()
         .accessibilityLabel("Disk: \(Int64(used).byteString) used of \(s.diskTotal.byteString)")
     }
@@ -965,7 +1042,7 @@ private struct ToolTile: View {
             .padding(14)
             .frame(maxWidth: .infinity, minHeight: flat ? 0 : 148, alignment: .topLeading)
             // The tile that's pointed at, here or in the storage bar, turns a lighter grey.
-            .background(RoundedRectangle(cornerRadius: 14, style: .continuous)
+            .background(RoundedRectangle(cornerRadius: palette.radius(14), style: .continuous)
                 .fill(Color.white.opacity(lit ? (palette.isDark ? 0.06 : 0.9) : 0)))
             .cardSurface(palette, radius: 14)
             .offset(y: hovering ? -2 : 0)
@@ -992,7 +1069,7 @@ private struct ToolTile: View {
                 .transition(.scale.combined(with: .opacity))
         } else {
             Text(facts.value)
-                .font(.system(size: 18, weight: .bold))
+                .font(.system(size: palette.isPure ? 20 : 18, weight: palette.isPure ? .medium : .bold))
                 .monospacedDigit()
                 .foregroundStyle(palette.text)
                 .lineLimit(1)
@@ -1091,16 +1168,27 @@ struct ToolIcon: View {
     var muted = false
 
     var body: some View {
-        RoundedRectangle(cornerRadius: size * 0.27, style: .continuous)
-            .fill(muted ? palette.secondary.opacity(0.4).gradient : palette.accent(module).gradient)
-            .overlay(
+        Group {
+            if palette.isPure {
+                // Pure: only the symbol in the tool's color, without a tile behind it.
                 Image(systemName: module.symbol)
-                    .font(.system(size: size * 0.48, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .font(.system(size: size * 0.62, weight: .regular))
+                    .foregroundStyle(muted ? palette.secondary.opacity(0.6) : palette.accent(module))
                     .symbolEffect(.bounce, value: bounce)
-            )
-            .frame(width: size, height: size)
-            .accessibilityHidden(true)
+                    .frame(width: size, height: size, alignment: .leading)
+            } else {
+                RoundedRectangle(cornerRadius: size * 0.27, style: .continuous)
+                    .fill(muted ? palette.secondary.opacity(0.4).gradient : palette.accent(module).gradient)
+                    .overlay(
+                        Image(systemName: module.symbol)
+                            .font(.system(size: size * 0.48, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .symbolEffect(.bounce, value: bounce)
+                    )
+                    .frame(width: size, height: size)
+            }
+        }
+        .accessibilityHidden(true)
     }
 }
 

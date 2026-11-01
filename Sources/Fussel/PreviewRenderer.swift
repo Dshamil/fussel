@@ -7,6 +7,10 @@ import AppKit
 enum PreviewRenderer {
     /// True while screenshots are drawn: some AppKit-backed views are swapped for plain ones.
     static var isRendering = false
+    /// Which card of the tour to draw.
+    static var tutorialStep = 0
+    /// How to draw the Uninstaller's drop states.
+    static var uninstallerDrop: (targeted: Bool, refusal: DropRefusal?) = (false, nil)
 
     static func renderAll(to folder: String) {
         _ = NSApplication.shared
@@ -54,11 +58,42 @@ enum PreviewRenderer {
         render("ready", scheme: .dark, page: .tool(.uninstaller), to: dir, name: "oreo-uninstaller-ready")
         UserDefaults.standard.set(AppearanceChoice.glass.rawValue, forKey: SettingsKey.appearance)
         render("ready", scheme: .light, page: .tool(.uninstaller), to: dir, name: "glass-light-uninstaller-ready")
+
+        // The Pure style.
+        UserDefaults.standard.set(AppearanceChoice.pure.rawValue, forKey: SettingsKey.appearance)
+        for scheme in [ColorScheme.light, .dark] {
+            for (scenario, page) in [("ready", Page.overview), ("idle", .overview), ("ready", .tool(.junk)), ("ready", .tool(.uninstaller))] {
+                var label = scenario
+                if case .tool(let module) = page { label = "\(module.rawValue)-\(scenario)" }
+                render(scenario, scheme: scheme, page: page, to: dir, name: "pure-\(name(scheme))-\(label)")
+            }
+            renderReview(scheme, to: dir, prefix: "pure-")
+        }
+        UserDefaults.standard.set(true, forKey: SettingsKey.showSidebar)
+        render("ready", scheme: .dark, page: .overview, to: dir, name: "sidebar-pure-dark-ready")
+        UserDefaults.standard.set(false, forKey: SettingsKey.showSidebar)
+        for scheme in [ColorScheme.light, .dark] {
+            render("tutorial", scheme: scheme, page: .overview, to: dir, name: "pure-\(name(scheme))-tutorial")
+            render("updated", scheme: scheme, page: .overview, to: dir, name: "pure-\(name(scheme))-updated")
+        }
+        tutorialStep = 2
+        render("tutorial", scheme: .dark, page: .overview, to: dir, name: "pure-dark-tutorial-step")
         UserDefaults.standard.set(saved, forKey: SettingsKey.appearance)
+
+        // The step player, and dropping on the Uninstaller.
+        for scheme in [ColorScheme.light, .dark] {
+            render("tutorial", scheme: scheme, page: .overview, to: dir, name: "\(name(scheme))-tutorial-step")
+            uninstallerDrop = (true, nil)
+            render("ready", scheme: scheme, page: .tool(.uninstaller), to: dir, name: "\(name(scheme))-uninstaller-dropping")
+            uninstallerDrop = (false, .apple)
+            render("ready", scheme: scheme, page: .tool(.uninstaller), to: dir, name: "\(name(scheme))-uninstaller-refused")
+            uninstallerDrop = (false, nil)
+        }
+        tutorialStep = 0
     }
 
     /// The one-by-one review of Large Files, a few files in.
-    private static func renderReview(_ scheme: ColorScheme, to dir: URL) {
+    private static func renderReview(_ scheme: ColorScheme, to dir: URL, prefix: String = "") {
         let model = sampleModel("ready")
         let home = FileManager.default.homeDirectoryForCurrentUser
         let day = 86_400.0
@@ -78,7 +113,7 @@ enum PreviewRenderer {
         renderer.scale = 2
         if let tiff = renderer.nsImage?.tiffRepresentation, let bitmap = NSBitmapImageRep(data: tiff),
            let png = bitmap.representation(using: .png, properties: [:]) {
-            try? png.write(to: dir.appendingPathComponent("\(name(scheme))-review.png"))
+            try? png.write(to: dir.appendingPathComponent("\(prefix)\(name(scheme))-review.png"))
         }
     }
 
@@ -97,6 +132,16 @@ enum PreviewRenderer {
                             }
                             // Switched off.
                             TactileKey(pressed: false) { Label("Clean", systemImage: "trash") }.disabled(true)
+                        }
+                        // Fussel's eyes following the pointer: up left, ahead, down right, up right.
+                        HStack(spacing: 16) {
+                            ForEach(Array([CGPoint(x: -3.2, y: -2.2), .zero, CGPoint(x: 3.2, y: 2.2), CGPoint(x: 3.2, y: -2.2)].enumerated()), id: \.offset) { _, look in
+                                ZStack {
+                                    RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Theme.graphite)
+                                    FusselBody(look: look.x, lookY: look.y).frame(width: 60, height: 60)
+                                }
+                                .frame(width: 60, height: 60)
+                            }
                         }
                         // Before a scan, while scanning, with finds, while cleaning.
                         HStack(spacing: 24) {

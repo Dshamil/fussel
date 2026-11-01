@@ -20,8 +20,12 @@ extension Color {
 }
 
 extension Font {
+    /// Fussel's headline type. The Pure style swaps it for the plain system face, a little lighter.
     static func rounded(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
-        .system(size: size, weight: weight, design: .rounded)
+        if AppearanceChoice.current == .pure {
+            return .system(size: size, weight: weight == .bold || weight == .heavy ? .semibold : weight)
+        }
+        return .system(size: size, weight: weight, design: .rounded)
     }
 }
 
@@ -57,8 +61,16 @@ struct TactileKey<Label: View>: View {
     private let depth: CGFloat = 3
 
     var body: some View {
+        if palette.isPure {
+            PurePill(pressed: pressed, fill: palette.buttonFill, text: palette.buttonText, tint: palette.buttonText.opacity(0.1)) { label }
+        } else {
+            key
+        }
+    }
+
+    private var key: some View {
         let shape = RoundedRectangle(cornerRadius: 8, style: .continuous)
-        label
+        return label
             .font(.system(size: 13, weight: .semibold))
             .foregroundStyle(palette.buttonText)
             .padding(.horizontal, 16)
@@ -97,8 +109,16 @@ struct QuietKey<Label: View>: View {
     private let depth: CGFloat = 2
 
     var body: some View {
+        if palette.isPure {
+            PurePill(pressed: pressed, fill: palette.text.opacity(0.08), text: palette.text, tint: palette.text.opacity(0.06)) { label }
+        } else {
+            key
+        }
+    }
+
+    private var key: some View {
         let shape = RoundedRectangle(cornerRadius: 8, style: .continuous)
-        label
+        return label
             .font(.system(size: 13, weight: .semibold))
             .foregroundStyle(palette.text)
             .padding(.horizontal, 16)
@@ -118,15 +138,39 @@ struct QuietKey<Label: View>: View {
     }
 }
 
+/// The Pure style's button: a flat pill that gives a little when pressed.
+private struct PurePill<Label: View>: View {
+    @Environment(\.isEnabled) private var isEnabled
+    let pressed: Bool
+    let fill: Color
+    let text: Color
+    let tint: Color
+    @ViewBuilder var label: Label
+
+    var body: some View {
+        label
+            .font(.system(size: 13, weight: .medium))
+            .foregroundStyle(text)
+            .padding(.horizontal, 16)
+            .frame(height: 30)
+            .background(Capsule().fill(fill))
+            .modifier(HoverTint(color: tint, radius: 15))
+            .opacity(isEnabled ? 1 : 0.35)
+            .scaleEffect(pressed ? 0.97 : 1)
+            .animation(pressed ? .easeOut(duration: 0.07) : .spring(duration: 0.3, bounce: 0.3), value: pressed)
+    }
+}
+
 /// Under the pointer, a button lights up a touch. Nothing moves, so passing over it stays calm.
 struct HoverTint: ViewModifier {
     let color: Color
+    var radius: CGFloat = 8
     @Environment(\.isEnabled) private var isEnabled
     @State private var hovering = false
 
     func body(content: Content) -> some View {
         content
-            .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(hovering && isEnabled ? color : .clear))
+            .overlay(RoundedRectangle(cornerRadius: radius, style: .continuous).fill(hovering && isEnabled ? color : .clear))
             .onHover { hovering = $0 }
             .animation(.easeOut(duration: 0.12), value: hovering)
     }

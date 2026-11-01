@@ -6,8 +6,13 @@ struct Tutorial: View {
     @Environment(AppModel.self) private var app
     @Environment(\.palette) private var palette
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var step = 0
+    @State private var step = PreviewRenderer.tutorialStep
     @State private var blink = false
+    /// The step player: how long this card has been up, whether it plays, and a pause while pointed at.
+    @State private var elapsed: TimeInterval = PreviewRenderer.isRendering ? 3.4 : 0
+    @State private var playing = true
+    @State private var pointedAt = false
+    private let cardSeconds: TimeInterval = 8
     @AppStorage(UserName.key) private var name = UserName.suggested
 
     private struct Card {
@@ -32,6 +37,9 @@ struct Tutorial: View {
     ]
 
     private var isLast: Bool { step == cards.count - 1 }
+    /// The first card asks for a name and the last one waits for Get Started, so only those between run on.
+    private var runsOn: Bool { step > 0 && !isLast && !reduceMotion }
+    private var running: Bool { runsOn && playing && !pointedAt && !PreviewRenderer.isRendering }
 
     var body: some View {
         ZStack {
@@ -56,13 +64,7 @@ struct Tutorial: View {
                     if let symbol = card.symbol {
                         StateIcon(symbol: symbol, size: 84)
                     } else {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 22, style: .continuous).fill(Theme.graphite)
-                                .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous)
-                                    .strokeBorder(Color.white.opacity(palette.isDark ? 0.14 : 0), lineWidth: 1))
-                            FusselBody(blink: blink).equatable().frame(width: 76, height: 76)
-                        }
-                        .frame(width: 84, height: 84)
+                        FusselMark(blink: blink, background: palette.sheet, side: 84, cornerRadius: 22, bodySide: 76)
                     }
                     Text(card.title)
                         .font(.rounded(22, .bold))
@@ -96,18 +98,14 @@ struct Tutorial: View {
                     }
                 }
                 .frame(maxWidth: .infinity, minHeight: 250)
+                .contentShape(Rectangle())
+                .onHover { pointedAt = $0 }
                 .id(step)
                 .transition(reduceMotion ? .opacity : .asymmetric(insertion: .opacity.combined(with: .offset(x: 24)),
                                                                    removal: .opacity.combined(with: .offset(x: -24))))
 
                 HStack {
-                    HStack(spacing: 6) {
-                        ForEach(cards.indices, id: \.self) { i in
-                            Capsule()
-                                .fill(i == step ? palette.text : palette.text.opacity(0.18))
-                                .frame(width: i == step ? 16 : 6, height: 6)
-                        }
-                    }
+                    stepPlayer
                     Spacer()
                     if step > 0 {
                         Button("Back") { go(step - 1) }
@@ -125,6 +123,14 @@ struct Tutorial: View {
             .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(palette.cardStroke, lineWidth: 1))
             .shadow(color: .black.opacity(0.18), radius: 30, y: 12)
         }
+        .task(id: "\(step) \(running)") {
+            guard running else { return }
+            while !Task.isCancelled, elapsed < cardSeconds {
+                try? await Task.sleep(for: .milliseconds(50))
+                if !Task.isCancelled { elapsed += 0.05 }
+            }
+            if !Task.isCancelled { go(step + 1) }
+        }
         .task {
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(Double.random(in: 2.5...5)))
@@ -135,8 +141,43 @@ struct Tutorial: View {
         }
     }
 
+    /// A row of dots: the current one stretches into a bar that fills while the card is up, then eases
+    /// over to the next dot. Beside it, a small button to pause.
+    private var stepPlayer: some View {
+        HStack(spacing: 10) {
+            HStack(spacing: 6) {
+                ForEach(cards.indices, id: \.self) { i in
+                    Capsule()
+                        .fill(palette.text.opacity(i == step && !runsOn ? 1 : 0.18))
+                        .frame(width: i == step ? 40 : 6, height: 6)
+                        .overlay(alignment: .leading) {
+                            if i == step && runsOn {
+                                Capsule()
+                                    .fill(palette.text)
+                                    .frame(width: max(6, 40 * min(1, elapsed / cardSeconds)))
+                                    .animation(.linear(duration: 0.05), value: elapsed)
+                            }
+                        }
+                }
+            }
+            Button { playing.toggle() } label: {
+                Image(systemName: playing ? "pause.fill" : "play.fill")
+                    .font(.system(size: 9))
+                    .foregroundStyle(palette.secondary)
+                    .frame(width: 18, height: 18)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help(playing ? "Pause" : "Play")
+            .accessibilityLabel(playing ? "Pause" : "Play")
+            .opacity(runsOn ? 1 : 0)
+            .disabled(!runsOn)
+        }
+    }
+
     private func go(_ index: Int) {
-        withAnimation(.spring(duration: 0.25)) { step = index }
+        elapsed = 0
+        withAnimation(.spring(duration: 0.35, bounce: 0.15)) { step = index }
     }
 
     private func finish() {

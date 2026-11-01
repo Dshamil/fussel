@@ -316,6 +316,20 @@ final class UninstallerModel {
         loadingLeftovers = false
     }
 
+    /// What a file dropped on the Uninstaller means. Only an app already in the list of installed apps
+    /// is taken, so a drop can't reach anything that picking from the list couldn't.
+    nonisolated static func dropped(_ url: URL, among apps: [InstalledApp]) -> Result<InstalledApp, DropRefusal> {
+        guard url.pathExtension.lowercased() == "app" else { return .failure(.notAnApp) }
+        let id = Bundle(url: url)?.bundleIdentifier ?? ""
+        if id.hasPrefix("com.apple.") { return .failure(.apple) }
+        if id == Scanner.ownBundleID { return .failure(.fussel) }
+        let path = url.resolvingSymlinksInPath().standardizedFileURL.path
+        guard let app = apps.first(where: { $0.url.resolvingSymlinksInPath().standardizedFileURL.path == path }) else {
+            return .failure(.notInstalled)
+        }
+        return .success(app)
+    }
+
     func isRunning(_ app: InstalledApp) -> Bool {
         !NSRunningApplication.runningApplications(withBundleIdentifier: app.bundleID).isEmpty
     }

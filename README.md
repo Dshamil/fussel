@@ -13,7 +13,7 @@
 - **Trash & Downloads**: empty the Trash and sweep out old downloads
 - **Large Files**: big files and things you haven't opened in ages
 - **Duplicates**: files you have more than once in your own folders; the oldest copy always stays
-- **Uninstaller**: remove apps together with their support files, caches and preferences
+- **Uninstaller**: remove apps together with their support files, caches and preferences; pick one from the list or drag it in from the Finder
 - **App Updates**: updates for apps from the App Store and the web
 
 Every item comes with a plain-language explanation and a **Safe to Remove** or **Review First** label.
@@ -21,7 +21,7 @@ Plus memory, CPU, battery and network at a glance, and a menu bar helper.
 
 <p align="center"><img src="docs/screenshots/styles.gif" width="720" alt="Fussel in Light, Dark, Glass and Oreo"></p>
 
-<p align="center">Light, Dark, Glass or Oreo, picked in Settings. Glass lets your desktop shine through, softly blurred; Oreo pairs a white sidebar with the dark main area.</p>
+<p align="center">Light, Dark, Glass, Oreo or Pure, picked in Settings. Pure is the quietest one: no outlines, flat pill buttons, lighter type, and Fussel on his own. Glass lets your desktop shine through, softly blurred; Oreo pairs a white sidebar with the dark main area.</p>
 
 <p align="center"><img src="docs/screenshots/list.png" width="640" alt="System Junk in groups, with explanations and safety labels"></p>
 

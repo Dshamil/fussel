@@ -14,13 +14,7 @@ struct UpdatedView: View {
                 .onTapGesture {}
 
             VStack(spacing: 12) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Theme.graphite)
-                        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .strokeBorder(Color.white.opacity(palette.isDark ? 0.14 : 0), lineWidth: 1))
-                    FusselBody(mood: .happy).equatable().frame(width: 58, height: 58)
-                }
-                .frame(width: 64, height: 64)
+                FusselMark(mood: .happy, background: palette.sheet, side: 64, cornerRadius: 16, bodySide: 58)
 
                 Text("Updated to Fussel \(version)")
                     .font(.rounded(22, .bold))
