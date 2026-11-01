@@ -80,6 +80,14 @@ enum PreviewRenderer {
         render("tutorial", scheme: .dark, page: .overview, to: dir, name: "pure-dark-tutorial-step")
         UserDefaults.standard.set(saved, forKey: SettingsKey.appearance)
 
+        // A big window: the overview fills it.
+        let big = CGSize(width: 1280, height: 860)
+        render("ready", scheme: .light, page: .overview, to: dir, name: "big-light-ready", size: big)
+        render("ready", scheme: .dark, page: .overview, to: dir, name: "big-dark-ready", size: big)
+        UserDefaults.standard.set(AppearanceChoice.pure.rawValue, forKey: SettingsKey.appearance)
+        render("ready", scheme: .dark, page: .overview, to: dir, name: "big-pure-dark-ready", size: big)
+        UserDefaults.standard.set(saved, forKey: SettingsKey.appearance)
+
         // The step player, and dropping on the Uninstaller.
         for scheme in [ColorScheme.light, .dark] {
             render("tutorial", scheme: scheme, page: .overview, to: dir, name: "\(name(scheme))-tutorial-step")
@@ -183,14 +191,15 @@ enum PreviewRenderer {
         }
     }
 
-    private static func render(_ scenario: String, scheme: ColorScheme, page: Page, to dir: URL, name: String) {
+    private static func render(_ scenario: String, scheme: ColorScheme, page: Page, to dir: URL, name: String,
+                               size: CGSize = CGSize(width: 960, height: 700)) {
         let model = sampleModel(scenario)
         let view = StyledRoot {
             ContentView(page: page)
         }
         .environment(model)
         .environment(\.colorScheme, scheme)
-        .frame(width: 960, height: 640)
+        .frame(width: size.width, height: size.height)
 
         let renderer = ImageRenderer(content: view)
         renderer.scale = 2
@@ -205,12 +214,20 @@ enum PreviewRenderer {
     }
 
     /// Made-up clean-ups for "Recent clean-ups" in screenshots.
-    static let sampleRecords: [CleanRecord] = [(Int64(2_160_000_000), 1800.0, "Smart Clean"), (840_000_000, 2 * 86_400.0, "System Junk"),
-                                               (1_350_000_000, 6 * 86_400.0, "Trash & Downloads")].map { freed, ago, source in
-        let item = TrashedItem(name: "Example", original: URL(fileURLWithPath: "/tmp/example"),
-                               trashed: URL(fileURLWithPath: "/tmp/example"), size: freed)
-        return CleanRecord(date: Date().addingTimeInterval(-ago), source: source, freed: freed, itemCount: 12, trashed: [item])
-    }
+    static let sampleRecords: [CleanRecord] = {
+        let samples: [(freed: Int64, ago: Double, source: String)] = [
+            (2_160_000_000, 1800, "Smart Clean"), (840_000_000, 2 * 86_400, "System Junk"),
+            (1_350_000_000, 6 * 86_400, "Trash & Downloads"), (3_100_000_000, 12 * 86_400, "Smart Clean"),
+            (620_000_000, 20 * 86_400, "System Junk"), (1_900_000_000, 31 * 86_400, "Large Files"),
+            (450_000_000, 45 * 86_400, "Smart Clean"),
+        ]
+        return samples.map { sample in
+            let item = TrashedItem(name: "Example", original: URL(fileURLWithPath: "/tmp/example"),
+                                   trashed: URL(fileURLWithPath: "/tmp/example"), size: sample.freed)
+            return CleanRecord(date: Date().addingTimeInterval(-sample.ago), source: sample.source, freed: sample.freed,
+                               itemCount: 12, trashed: [item])
+        }
+    }()
 
     static func sampleModel(_ scenario: String) -> AppModel {
         let model = AppModel()
@@ -290,7 +307,8 @@ enum PreviewRenderer {
             }
             model.uninstaller.selectedApp = model.uninstaller.apps[3]
             model.folders = [("Library", 96_400_000_000), ("Pictures", 61_200_000_000), ("Applications", 38_900_000_000),
-                             ("Movies", 24_700_000_000), ("Downloads", 9_300_000_000)].map {
+                             ("Movies", 24_700_000_000), ("Downloads", 9_300_000_000), ("Documents", 7_800_000_000),
+                             ("Music", 5_200_000_000), ("Desktop", 3_100_000_000), ("Developer", 2_400_000_000)].map {
                 FolderSize(url: home.appendingPathComponent($0.0), name: $0.0, bytes: $0.1)
             }
             model.stage = .ready

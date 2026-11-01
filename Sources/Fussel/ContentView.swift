@@ -612,6 +612,8 @@ private struct OverviewPage: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
+        // A bigger window fills up: the tiles grow a little and the cards below take all the rest.
+        GeometryReader { window in
         PreviewSafeScroll {
             VStack(alignment: .leading, spacing: 0) {
                 VStack(alignment: .leading, spacing: 18) {
@@ -640,24 +642,28 @@ private struct OverviewPage: View {
                     }
                     .padding(.top, 14)
 
-                    StorageBar(grown: shown, highlighted: $highlighted)
-                        .padding(.top, 4)
+                    VStack(alignment: .leading, spacing: 10) {
+                        StorageBar(grown: shown, highlighted: $highlighted)
+                        StorageLegend(page: $page, highlighted: $highlighted)
+                    }
+                    .padding(.top, 4)
 
-                    ToolTiles(page: $page, highlighted: $highlighted, shown: shown)
-
-                    StatsLine()
-                        .padding(.top, 2)
+                    ToolTiles(page: $page, highlighted: $highlighted, shown: shown,
+                              tileHeight: 148 + min(64, max(0, window.size.height - 600) * 0.25))
 
                     HStack(alignment: .top, spacing: 16) {
                         BiggestFolders()
                         RecentCleanups()
                             .frame(width: 290)
                     }
-                    .padding(.top, 8)
+                    .frame(minHeight: 156, maxHeight: .infinity)
+                    .padding(.top, 4)
                 }
                 .padding(.horizontal, 32)
-                .padding(.bottom, 32)
+                .padding(.bottom, 24)
+                .frame(minHeight: window.size.height, alignment: .top)
             }
+        }
         }
         .onAppear {
             withAnimation(.spring(duration: 1.0, bounce: 0.2).delay(0.1)) { shown = true }
@@ -957,10 +963,73 @@ private struct Shimmer: View {
 
 /// A tile per tool with what it found. Pointing at a tile or at its part of the storage bar
 /// lights both up; the other tools turn grey for a moment.
+/// Says what the storage bar's colors are: each tool that found something, the rest and what's free.
+/// Reads the disk values itself, so only this line redraws when they change.
+private struct StorageLegend: View {
+    @Environment(AppModel.self) private var app
+    @Environment(\.palette) private var palette
+    @Binding var page: Page
+    @Binding var highlighted: Module?
+
+    var body: some View {
+        let s = app.monitor.sample
+        let tools = Module.overview.filter(\.inStorageBar).compactMap { module -> (Module, Int64)? in
+            let model = app.model(for: module)
+            guard model.phase == .results || model.phase == .cleaning, model.totalSize > 0 else { return nil }
+            return (module, model.totalSize)
+        }
+        let used = max(0, s.diskTotal - s.diskFree)
+        let other = max(0, used - tools.reduce(0) { $0 + $1.1 })
+        // When the sizes don't fit on one line, only the names stay.
+        ViewThatFits(in: .horizontal) {
+            line(tools, other: other, free: s.diskFree, sizes: true)
+            line(tools, other: other, free: s.diskFree, sizes: false)
+        }
+    }
+
+    private func line(_ tools: [(Module, Int64)], other: Int64, free: Int64, sizes: Bool) -> some View {
+        HStack(spacing: 14) {
+            ForEach(tools, id: \.0) { module, bytes in
+                Button { page = .tool(module) } label: {
+                    item(palette.accent(module), module.sidebarTitle, sizes ? bytes.byteString : nil)
+                }
+                .buttonStyle(.plain)
+                .opacity(highlighted == nil || highlighted == module ? 1 : 0.45)
+                .onHover { inside in
+                    withAnimation(.easeOut(duration: 0.15)) { highlighted = inside ? module : nil }
+                }
+            }
+            item(palette.secondary.opacity(0.55), tools.isEmpty ? "Used" : "Other", sizes ? other.byteString : nil)
+            item(palette.text.opacity(0.14), "Free", sizes ? free.byteString : nil)
+            Spacer(minLength: 0)
+        }
+    }
+
+    private func item(_ color: Color, _ name: String, _ size: String?) -> some View {
+        HStack(spacing: 5) {
+            RoundedRectangle(cornerRadius: palette.isPure ? 2 : 4, style: .continuous)
+                .fill(color)
+                .frame(width: 8, height: 8)
+            Text(name)
+                .foregroundStyle(palette.text)
+            if let size {
+                Text(size)
+                    .foregroundStyle(palette.secondary)
+                    .monospacedDigit()
+            }
+        }
+        .font(.system(size: 11, weight: .medium))
+        .lineLimit(1)
+        .fixedSize()
+        .contentShape(Rectangle())
+    }
+}
+
 private struct ToolTiles: View {
     @Binding var page: Page
     @Binding var highlighted: Module?
     let shown: Bool
+    let tileHeight: CGFloat
 
     var body: some View {
         // The four tools that free space in a row, the two that look after apps below as wider tiles.
@@ -974,7 +1043,7 @@ private struct ToolTiles: View {
     private func row(_ modules: [Module], from start: Int, minWidth: CGFloat) -> some View {
         HStack(spacing: 10) {
             ForEach(Array(modules.enumerated()), id: \.element) { index, module in
-                ToolTile(module: module, highlighted: $highlighted) { page = .tool(module) }
+                ToolTile(module: module, highlighted: $highlighted, height: tileHeight) { page = .tool(module) }
                     .frame(minWidth: minWidth, idealWidth: minWidth, maxWidth: .infinity)
                     .opacity(shown ? 1 : 0)
                     .offset(y: shown ? 0 : 10)
@@ -989,6 +1058,7 @@ private struct ToolTile: View {
     @Environment(\.palette) private var palette
     let module: Module
     @Binding var highlighted: Module?
+    let height: CGFloat
     let open: () -> Void
     @State private var hovering = false
     @State private var bounce = 0
@@ -1040,7 +1110,7 @@ private struct ToolTile: View {
                 }
             }
             .padding(14)
-            .frame(maxWidth: .infinity, minHeight: flat ? 0 : 148, alignment: .topLeading)
+            .frame(maxWidth: .infinity, minHeight: flat ? 0 : height, alignment: .topLeading)
             // The tile that's pointed at, here or in the storage bar, turns a lighter grey.
             .background(RoundedRectangle(cornerRadius: palette.radius(14), style: .continuous)
                 .fill(Color.white.opacity(lit ? (palette.isDark ? 0.06 : 0.9) : 0)))
@@ -1502,6 +1572,7 @@ private struct TopBar: View {
                     .transition(.opacity)
             }
             Spacer(minLength: 12)
+            StatsLine()
             if !showSidebar {
                 RoundButton(symbol: "clock.arrow.circlepath", help: "History", label: "History") { showingHistory = true }
                     .popover(isPresented: $showingHistory, arrowEdge: .bottom) { HistoryList().environment(app) }

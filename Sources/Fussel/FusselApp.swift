@@ -281,7 +281,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             window.toolbar = NSToolbar(identifier: "main")
             window.toolbarStyle = .unified
             window.isReleasedWhenClosed = false
-            window.setContentSize(NSSize(width: 960, height: 640))
+            window.setContentSize(NSSize(width: 960, height: 700))
             window.contentMinSize = NSSize(width: 820, height: 560)
             window.setFrameAutosaveName("FusselWindow")
             window.delegate = self

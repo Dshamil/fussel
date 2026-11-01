@@ -80,11 +80,14 @@ struct BiggestFolders: View {
                 }
                 .frame(maxWidth: .infinity, minHeight: 60)
             } else {
-                let top = Array(app.folders.prefix(4))
-                let largest = Double(max(1, top.first?.bytes ?? 1))
-                VStack(spacing: 2) {
-                    ForEach(top) { folder in
-                        FolderRow(folder: folder, share: Double(folder.bytes) / largest)
+                // As many folders as the card has room for, at least four.
+                GeometryReader { room in
+                    let top = Array(app.folders.prefix(max(4, Int(room.size.height / 26))))
+                    let largest = Double(max(1, top.first?.bytes ?? 1))
+                    VStack(spacing: 2) {
+                        ForEach(top) { folder in
+                            FolderRow(folder: folder, share: Double(folder.bytes) / largest)
+                        }
                     }
                 }
             }
@@ -157,20 +160,23 @@ struct RecentCleanups: View {
     var body: some View {
         OverviewCard(title: "Recent clean-ups") {
             // Screenshots show made-up clean-ups, never the history of the Mac they're drawn on.
-            let records = PreviewRenderer.isRendering ? PreviewRenderer.sampleRecords : Array(CleanHistory.shared.records.prefix(3))
-            if records.isEmpty {
+            let all = PreviewRenderer.isRendering ? PreviewRenderer.sampleRecords : CleanHistory.shared.records
+            if all.isEmpty {
                 Text("Nothing cleaned yet. When you do, Undo will be right here.")
                     .font(.system(size: 12))
                     .foregroundStyle(palette.secondary)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity, minHeight: 60)
             } else {
-                VStack(spacing: 0) {
-                    ForEach(Array(records.enumerated()), id: \.element.id) { index, record in
-                        if index > 0 {
-                            Rectangle().fill(palette.cardStroke).frame(height: 1)
+                // As many as the card has room for, at least three.
+                GeometryReader { room in
+                    VStack(spacing: 0) {
+                        ForEach(Array(all.prefix(max(3, Int(room.size.height / 31))).enumerated()), id: \.element.id) { index, record in
+                            if index > 0 {
+                                Rectangle().fill(palette.cardStroke).frame(height: 1)
+                            }
+                            row(record)
                         }
-                        row(record)
                     }
                 }
             }
@@ -232,7 +238,7 @@ private struct OverviewCard<Content: View>: View {
             content
         }
         .padding(12)
-        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .cardSurface(palette, radius: 12)
     }
 }
