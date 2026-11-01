@@ -62,7 +62,7 @@ Weitere Ordner: `Resources` (Info.plist, `AppIcon/` = fertig gebautes Glas-Icon)
 ## Offene Punkte
 
 - **Apple Developer ID** (Signatur + Notarisierung): größte Hürde für neue Nutzer (Gatekeeper „Trotzdem öffnen“, beim DMG `xattr`). Entscheidung und Konto liegen beim Nutzer.
-- Ältere Macs: CI-Job `compat` prüft bei jedem Push macOS 26 (Apple-Chip: Tests, App-Start, Vorschaubilder) und macOS 15 Intel (Tests grün; App-Start und Bilder gehen dort nicht, weil GitHubs virtueller Intel-Mac keinen nutzbaren Grafikchip hat). GitHub hat die macOS-14-Rechner am 2.11.2026 abgeschaltet, 1.1.8 war die letzte automatisch auf macOS 14 geprüfte Version; Fussel gibt macOS 14 aber weiter als Mindestsystem an. Offen: ob das so bleibt oder auf macOS 15 steigt, ein echter Intel-Mac, und das stille Update auf macOS 14.
+- Ältere Macs: CI-Job `compat` prüft bei jedem Push macOS 26 (Apple-Chip: Tests, App-Start, Vorschaubilder) und macOS 15 Intel (Tests grün; App-Start und Bilder gehen dort nicht, weil GitHubs virtueller Intel-Mac keinen nutzbaren Grafikchip hat). GitHub hat die macOS-14-Rechner am 2.11.2026 abgeschaltet, 1.1.8 war die letzte automatisch auf macOS 14 geprüfte Version; Fussel gibt macOS 14 aber weiter als Mindestsystem an. Entscheidung des Nutzers: macOS 14 bleibt unterstützt, mit Hinweis in README und Release-Notes (neue Notes aus der letzten kopieren, Hinweis bleibt drin). Offen: ein echter Intel-Mac, und das stille Update auf macOS 14.
 - Auf echtem Mac prüfen: ob die Locke in der Menüleiste bei 18 pt gut lesbar ist.
 - Ideen für später: Anmeldeobjekte verwalten, Homebrew-Cask.
 - Noch nicht auf echtem Mac geprüft: ob die Fenster-Knöpfe mit der leeren Toolbar mittig neben der oberen Leiste sitzen.

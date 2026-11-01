@@ -71,7 +71,7 @@ It works the same for `Fussel-Installer.pkg`, `Fussel.dmg` and `Fussel.zip`. A â
 Fussel lives in the menu bar: click the fluff to open or close it, right-click for more.
 It starts with your Mac; turn that off in Settings.
 
-Requires macOS 14 Sonoma or later. Runs natively on Apple Silicon and Intel.
+Requires macOS 14 Sonoma or later. macOS 14 is no longer tested automatically, because GitHub retired its macOS 14 test machines; if something looks off there, please open an issue. Runs natively on Apple Silicon and Intel.
 
 ## Build it yourself
 
