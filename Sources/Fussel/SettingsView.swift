@@ -9,6 +9,7 @@ enum SettingsKey {
     static let appearance = "appearance"
     static let showSidebar = "showSidebar"
     static let showInDock = "showInDock"
+    static let excludedFolders = "excludedFolders"
 }
 
 /// What Fussel calls you. Suggested from the Mac account's first name; changed in the tour or in Settings,
@@ -71,7 +72,19 @@ struct SettingsView: View {
     @AppStorage(SettingsKey.sounds) private var playSounds = false
     @AppStorage(SettingsKey.showInDock) private var showInDock = false
     @AppStorage(SettingsKey.appearance) private var appearance = AppearanceChoice.system.rawValue
+    @State private var excluded = Exclusions.folders
     @AppStorage(UserName.key) private var name = UserName.suggested
+
+    private func addExcludedFolder() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.allowsMultipleSelection = true
+        panel.prompt = "Leave Alone"
+        guard panel.runModal() == .OK else { return }
+        panel.urls.forEach(Exclusions.add)
+        excluded = Exclusions.folders
+    }
 
     var body: some View {
         Form {
@@ -92,6 +105,29 @@ struct SettingsView: View {
                     Text("Pure").tag(AppearanceChoice.pure.rawValue)
                 }
                 .pickerStyle(.segmented)
+            }
+            Section("Leave Alone") {
+                ForEach(excluded, id: \.self) { path in
+                    HStack {
+                        Image(systemName: "folder")
+                            .foregroundStyle(.secondary)
+                        Text(path.replacingOccurrences(of: FileManager.default.homeDirectoryForCurrentUser.path, with: "~"))
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        Spacer()
+                        Button("Remove") {
+                            Exclusions.remove(path)
+                            excluded = Exclusions.folders
+                        }
+                        .controlSize(.small)
+                    }
+                }
+                HStack {
+                    Text("Fussel skips these folders in every scan and never cleans anything in them.")
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Add Folder…") { addExcludedFolder() }
+                }
             }
             Section("Permissions") {
                 HStack {

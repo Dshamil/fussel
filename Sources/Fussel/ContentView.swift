@@ -610,6 +610,7 @@ private struct OverviewPage: View {
     /// The tool pointed at, in the storage bar or on its tile: both light up.
     @State private var highlighted: Module?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    private static let roomForHealth: CGFloat = 920
 
     var body: some View {
         // A bigger window fills up: the tiles grow a little and the cards below take all the rest.
@@ -654,7 +655,12 @@ private struct OverviewPage: View {
                     HStack(alignment: .top, spacing: 16) {
                         BiggestFolders()
                         RecentCleanups()
-                            .frame(width: 290)
+                            .frame(width: window.size.width >= Self.roomForHealth ? 270 : 290)
+                        // Only where the three cards don't squeeze each other; the same values are in the top bar's popovers.
+                        if window.size.width >= Self.roomForHealth {
+                            HealthCard()
+                                .frame(width: 220)
+                        }
                     }
                     .frame(minHeight: 156, maxHeight: .infinity)
                     .padding(.top, 4)
@@ -669,6 +675,7 @@ private struct OverviewPage: View {
             withAnimation(.spring(duration: 1.0, bounce: 0.2).delay(0.1)) { shown = true }
         }
         .task { if app.folders.isEmpty { await app.measureFolders() } }
+        .task { await app.refreshHealth() }
         .onChange(of: app.hasFullDiskAccess) { _, allowed in
             if allowed { Task { await app.measureFolders() } }
         }

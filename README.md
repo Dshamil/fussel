@@ -13,6 +13,9 @@
 - **Trash & Downloads**: empty the Trash and sweep out old downloads
 - **Large Files**: big files and things you haven't opened in ages
 - **Duplicates**: files you have more than once in your own folders; the oldest copy always stays
+- **What grew**: the overview remembers your folder sizes and shows what grew since about a week ago
+- **Mac Health**: battery capacity and charge cycles, your disk's own check, the last restart
+- **Leave Alone**: folders you pick never show up in a scan and are never cleaned
 - **Uninstaller**: remove apps together with their support files, caches and preferences; pick one from the list or drag it in from the Finder
 - **App Updates**: updates for apps from the App Store and the web
 

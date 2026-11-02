@@ -306,6 +306,11 @@ enum PreviewRenderer {
                 InstalledApp(url: URL(fileURLWithPath: "/System/Applications/\($0).app"), name: $0, bundleID: "")
             }
             model.uninstaller.selectedApp = model.uninstaller.apps[3]
+            model.folderGrowth = FolderGrowth(since: Date().addingTimeInterval(-7 * 86_400),
+                                              grown: [home.appendingPathComponent("Downloads").path: 8_200_000_000,
+                                                      home.appendingPathComponent("Library").path: 1_400_000_000])
+            model.health = MacHealth(batteryCapacity: 92, batteryCycles: 214, diskStatus: "Verified",
+                                     lastRestart: Date().addingTimeInterval(-6 * 86_400))
             model.folders = [("Library", 96_400_000_000), ("Pictures", 61_200_000_000), ("Applications", 38_900_000_000),
                              ("Movies", 24_700_000_000), ("Downloads", 9_300_000_000), ("Documents", 7_800_000_000),
                              ("Music", 5_200_000_000), ("Desktop", 3_100_000_000), ("Developer", 2_400_000_000)].map {

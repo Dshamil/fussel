@@ -23,6 +23,9 @@ final class AppModel {
     var permissionsAfterTour = false
     /// The biggest folders, largest first, for "Where your space goes".
     var folders: [FolderSize] = []
+    /// What grew most since an earlier measurement.
+    var folderGrowth: FolderGrowth?
+    var health: MacHealth?
     private var measuringFolders = false
     private var foldersMeasured: Date?
 
@@ -36,6 +39,14 @@ final class AppModel {
         folders = await FolderSizes.measure()
         foldersMeasured = Date()
         measuringFolders = false
+        let measured = folders
+        folderGrowth = await Task.detached(priority: .utility) { FolderHistory.record(measured) }.value
+    }
+
+    /// Reads the battery's wear, the disk's verdict and the last restart, in the background.
+    func refreshHealth() async {
+        guard !PreviewRenderer.isRendering else { return }
+        health = await Task.detached(priority: .utility) { MacHealth.read() }.value
     }
 
     func model(for module: Module) -> ModuleModel {
@@ -232,9 +243,10 @@ final class ModuleModel {
         let (found, stays) = await Task.detached(priority: .userInitiated) {
             module == .duplicates ? Scanner.findDuplicates() : (Scanner.scan(module, options: options), [:])
         }.value
-        items = found
+        // Folders the user told Fussel to leave alone don't show up at all.
+        items = found.filter { !Exclusions.covers($0.url) }
         kept = stays
-        selected = Set(found.filter(\.preselected).map(\.url))
+        selected = Set(items.filter(\.preselected).map(\.url))
         phase = .results
     }
 
@@ -311,8 +323,8 @@ final class UninstallerModel {
         loadingLeftovers = true
         let found = await Task.detached(priority: .userInitiated) { Scanner.leftovers(for: app) }.value
         guard selectedApp == app else { return }
-        leftovers = found
-        selected = Set(found.filter(\.preselected).map(\.url))
+        leftovers = found.filter { !Exclusions.covers($0.url) }
+        selected = Set(leftovers.filter(\.preselected).map(\.url))
         loadingLeftovers = false
     }
 

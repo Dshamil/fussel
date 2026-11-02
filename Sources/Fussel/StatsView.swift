@@ -14,12 +14,18 @@ struct StatsLine: View {
         let battery = s.battery
         let batteryLow = (battery?.percent ?? 100) <= 20 && !(battery?.isPluggedIn ?? false)
         HStack(spacing: 12) {
+            // All is well: the disk stays in the Mac Health card. A problem shows up here too, on every page.
+            if let health = app.health, health.diskVerdict != nil, !health.diskIsHealthy {
+                StatChip(kind: .disk, value: health.diskVerdict ?? "", tight: true) {
+                    DiskPopover(health: health, free: s.diskFree, total: s.diskTotal)
+                }
+            }
             StatChip(kind: .memory, value: ready ? memFree.byteString : "…", tight: memUsed > 0.9) {
                 AppsPopover(monitor: app.monitor, title: "Hungriest apps", load: { await app.monitor.memoryHogs() })
             }
             if let battery {
                 StatChip(kind: .battery, symbol: BatteryPopover.symbol(battery), value: "\(battery.percent) %", tight: batteryLow) {
-                    BatteryPopover(battery: battery)
+                    BatteryPopover(battery: battery, health: app.health)
                 }
             }
             StatChip(kind: .cpu, value: s.cpu.map { "\(Int(($0 * 100).rounded())) %" } ?? "…", tight: (s.cpu ?? 0) > 0.9) {
@@ -30,14 +36,16 @@ struct StatsLine: View {
             }
         }
         .onAppear { app.monitor.start() }
+        .task { if app.health == nil { await app.refreshHealth() } }
     }
 }
 
 enum StatKind {
-    case memory, battery, cpu, network
+    case disk, memory, battery, cpu, network
 
     var title: String {
         switch self {
+        case .disk: return "Disk"
         case .memory: return "Free memory"
         case .battery: return "Battery"
         case .cpu: return "CPU load"
@@ -47,6 +55,7 @@ enum StatKind {
 
     var symbol: String {
         switch self {
+        case .disk: return "internaldrive"
         case .memory: return "memorychip"
         case .battery: return "battery.75percent"
         case .cpu: return "cpu"
@@ -94,9 +103,37 @@ private struct StatChip<Details: View>: View {
     }
 }
 
+/// The disk's own check and how much room is left.
+private struct DiskPopover: View {
+    let health: MacHealth?
+    let free: Int64
+    let total: Int64
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(health?.diskVerdict ?? "Disk")
+                .font(.rounded(22, .heavy))
+            Text("\(free.byteString) free of \(total.byteString)")
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+            if let health, health.diskVerdict != nil {
+                Text(health.diskIsHealthy
+                     ? "The disk's own self-check found nothing wrong."
+                     : "The disk's self-check reports a problem. Back up your Mac soon.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(16)
+        .frame(width: 220, alignment: .leading)
+    }
+}
+
 /// Charge, time left and macOS's verdict on the battery's health.
 private struct BatteryPopover: View {
     let battery: BatteryInfo
+    var health: MacHealth?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -108,6 +145,22 @@ private struct BatteryPopover: View {
             if let health = battery.health {
                 Text("Health: \(health)")
                     .font(.system(size: 12, weight: .semibold))
+            }
+            if let capacity = health?.batteryCapacity {
+                Text("Holds \(capacity) % of what it did when new")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if let cycles = health?.batteryCycles {
+                Text("\(cycles) charge cycles")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+            }
+            if let earlier = health?.batteryEarlier {
+                Text("It was \(earlier.capacity) % \(earlier.date.formatted(.relative(presentation: .named).locale(Locale(identifier: "en_US"))))")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
             }
             Button("Battery Settings") { Permissions.openBatterySettings() }
                 .controlSize(.small)

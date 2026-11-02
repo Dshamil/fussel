@@ -59,13 +59,71 @@ enum FolderSizes {
     }
 }
 
-/// "Where your space goes": the four biggest folders, each a click away in Finder.
+/// One measurement of the big folders: path to bytes.
+struct FolderSnapshot: Codable, Sendable, Equatable {
+    var date: Date
+    var sizes: [String: Int64]
+}
+
+/// What grew since an earlier measurement, biggest first.
+struct FolderGrowth: Sendable, Equatable {
+    var since: Date
+    /// Bytes each folder grew by, by path. Only real growth is listed.
+    var grown: [String: Int64]
+
+    var biggest: (path: String, bytes: Int64)? {
+        grown.max { $0.value < $1.value }.map { ($0.key, $0.value) }
+    }
+}
+
+/// Remembers how big the folders were, one measurement a day for 60 days, to answer "what grew?".
+/// Stored in ~/Library/Application Support/Fussel/folders.json. It holds folder names and sizes, nothing else.
+enum FolderHistory {
+    /// Less than this is everyday noise, like a browser's cache coming and going.
+    static let noticeable: Int64 = 100_000_000
+
+    private static var file: URL {
+        let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("Fussel", isDirectory: true)
+        try? FileManager.default.createDirectory(at: support, withIntermediateDirectories: true)
+        return support.appendingPathComponent("folders.json")
+    }
+
+    static func record(_ folders: [FolderSize]) -> FolderGrowth? {
+        let saved = (try? Data(contentsOf: file)).flatMap { try? JSONDecoder().decode([FolderSnapshot].self, from: $0) } ?? []
+        let now = Date()
+        let sizes = Dictionary(folders.map { ($0.url.path, $0.bytes) }, uniquingKeysWith: { first, _ in first })
+        let history = adding(FolderSnapshot(date: now, sizes: sizes), to: saved)
+        if let data = try? JSONEncoder().encode(history) { try? data.write(to: file, options: .atomic) }
+        return growth(of: sizes, now: now, history: history)
+    }
+
+    /// Today's newest measurement replaces today's earlier one.
+    static func adding(_ snapshot: FolderSnapshot, to history: [FolderSnapshot]) -> [FolderSnapshot] {
+        let others = history.filter { !Calendar.current.isDate($0.date, inSameDayAs: snapshot.date) }
+        return Array((others + [snapshot]).sorted { $0.date < $1.date }.suffix(60))
+    }
+
+    /// Compares with a week ago, or with the oldest measurement that's at least a day old.
+    static func growth(of sizes: [String: Int64], now: Date, history: [FolderSnapshot]) -> FolderGrowth? {
+        let old = history.filter { now.timeIntervalSince($0.date) >= 86_400 }
+        guard let base = old.last(where: { now.timeIntervalSince($0.date) >= 7 * 86_400 }) ?? old.first else { return nil }
+        // A folder that wasn't measured back then isn't growth, just new to the list.
+        var grown: [String: Int64] = [:]
+        for (path, bytes) in sizes {
+            if let before = base.sizes[path], bytes - before >= noticeable { grown[path] = bytes - before }
+        }
+        return FolderGrowth(since: base.date, grown: grown)
+    }
+}
+
+/// "Where your space goes": the biggest folders, each a click away in Finder, and what grew lately.
 struct BiggestFolders: View {
     @Environment(AppModel.self) private var app
     @Environment(\.palette) private var palette
 
     var body: some View {
-        OverviewCard(title: "Where your space goes") {
+        OverviewCard(title: "Where your space goes", note: growthNote, shortNote: shortGrowthNote) {
             if !app.hasFullDiskAccess {
                 note("Allow Full Disk Access so I can measure your folders.") {
                     Button("Open Settings") { Permissions.openFullDiskAccessSettings() }
@@ -86,12 +144,31 @@ struct BiggestFolders: View {
                     let largest = Double(max(1, top.first?.bytes ?? 1))
                     VStack(spacing: 2) {
                         ForEach(top) { folder in
-                            FolderRow(folder: folder, share: Double(folder.bytes) / largest)
+                            FolderRow(folder: folder, share: Double(folder.bytes) / largest,
+                                      grew: app.folderGrowth?.grown[folder.url.path],
+                                      showsGrowth: top.contains { app.folderGrowth?.grown[$0.url.path] != nil })
                         }
                     }
                 }
             }
         }
+    }
+
+    /// Answers "what grew?" even when that folder isn't one of the rows shown.
+    private var growthNote: String? {
+        guard !app.folders.isEmpty else { return nil }
+        guard let growth = app.folderGrowth else { return "Shows what grew after a day or two" }
+        let since = growth.since.formatted(.relative(presentation: .named).locale(Locale(identifier: "en_US")))
+        guard let top = growth.biggest else { return "Nothing grew much since \(since)" }
+        let name = app.folders.first { $0.url.path == top.path }?.name ?? URL(fileURLWithPath: top.path).lastPathComponent
+        return "\(name) grew most: +\(top.bytes.byteString) since \(since)"
+    }
+
+    /// The same, for a narrow card: just the folder and how much.
+    private var shortGrowthNote: String? {
+        guard let growth = app.folderGrowth, let top = growth.biggest else { return nil }
+        let name = app.folders.first { $0.url.path == top.path }?.name ?? URL(fileURLWithPath: top.path).lastPathComponent
+        return "\(name) +\(top.bytes.byteString)"
     }
 
     private func note<Action: View>(_ text: String, @ViewBuilder action: () -> Action) -> some View {
@@ -109,6 +186,9 @@ struct BiggestFolders: View {
 private struct FolderRow: View {
     let folder: FolderSize
     let share: Double
+    var grew: Int64?
+    /// Keeps the room for the growth on every row, so the bars stay comparable.
+    var showsGrowth = false
     @Environment(\.palette) private var palette
     @State private var hovering = false
 
@@ -129,6 +209,14 @@ private struct FolderRow: View {
                     .frame(width: max(4, geo.size.width * share))
             }
             .frame(height: 6)
+            if showsGrowth {
+                Text(grew.map { "+\($0.byteString)" } ?? "")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(palette.secondary)
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .frame(width: 60, alignment: .trailing)
+            }
             Text(folder.bytes.byteString)
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(palette.text)
@@ -144,7 +232,7 @@ private struct FolderRow: View {
         .onTapGesture { NSWorkspace.shared.open(folder.url) }
         .help("Show \(folder.name) in Finder")
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(folder.name), \(folder.bytes.byteString)")
+        .accessibilityLabel("\(folder.name), \(folder.bytes.byteString)" + (grew.map { ", grew by \($0.byteString)" } ?? ""))
         .accessibilityHint("Opens it in Finder")
         .accessibilityAddTraits(.isButton)
         .accessibilityAction { NSWorkspace.shared.open(folder.url) }
@@ -223,22 +311,96 @@ struct RecentCleanups: View {
     }
 }
 
+/// "Mac Health": how the battery and the disk are holding up, and when the Mac last restarted.
+struct HealthCard: View {
+    @Environment(AppModel.self) private var app
+    @Environment(\.palette) private var palette
+
+    var body: some View {
+        OverviewCard(title: "Mac Health") {
+            VStack(spacing: 0) {
+                if let health = app.health {
+                    if let capacity = health.batteryCapacity {
+                        row("battery.75percent", "Battery", "\(capacity) %")
+                    }
+                    if let cycles = health.batteryCycles {
+                        row("arrow.triangle.2.circlepath", "Charge cycles", "\(cycles)")
+                    }
+                    if let verdict = health.diskVerdict {
+                        row("internaldrive", "Disk", verdict, warn: !health.diskIsHealthy)
+                    }
+                    if let restart = health.lastRestart {
+                        row("power", "Restarted", restart.formatted(.relative(presentation: .named).locale(Locale(identifier: "en_US"))))
+                    }
+                } else {
+                    Spinner(tint: palette.secondary)
+                        .frame(maxWidth: .infinity, minHeight: 60)
+                }
+            }
+        }
+    }
+
+    private func row(_ symbol: String, _ name: String, _ value: String, warn: Bool = false) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: symbol)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(palette.secondary)
+                .frame(width: 16)
+            Text(name)
+                .font(.system(size: 12))
+                .foregroundStyle(palette.secondary)
+                .lineLimit(1)
+            Spacer(minLength: 6)
+            Text(value)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(warn ? Palette.caution : palette.text)
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .padding(.horizontal, 8)
+        .frame(height: 30)
+        .accessibilityElement(children: .combine)
+    }
+}
+
 /// A titled card for the lower part of the overview.
 private struct OverviewCard<Content: View>: View {
     let title: String
+    var note: String? = nil
+    var shortNote: String? = nil
     @ViewBuilder var content: Content
     @Environment(\.palette) private var palette
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(title)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(palette.text)
-                .padding(.horizontal, 8)
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(title)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(palette.text)
+                    .fixedSize()
+                Spacer(minLength: 4)
+                if let note {
+                    ViewThatFits(in: .horizontal) {
+                        noteText(note).fixedSize()
+                        noteText(shortNote ?? note)
+                    }
+                }
+            }
+            .padding(.horizontal, 8)
             content
         }
         .padding(12)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .cardSurface(palette, radius: 12)
+    }
+
+    private func noteText(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 11))
+            .foregroundStyle(palette.secondary)
+            .monospacedDigit()
+            .lineLimit(1)
+            .truncationMode(.tail)
     }
 }

@@ -428,6 +428,94 @@ final class CleaningTests: XCTestCase {
         }
     }
 
+    // MARK: Folders to leave alone
+
+    func testExcludedFoldersCoverEverythingInsideAndNothingElse() throws {
+        let folder = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let kept = folder.appendingPathComponent("Keep")
+        let neighbour = folder.appendingPathComponent("Keeper")
+        for place in [kept.appendingPathComponent("deep"), neighbour] { try fm.createDirectory(at: place, withIntermediateDirectories: true) }
+        defer { try? fm.removeItem(at: folder) }
+        let link = folder.appendingPathComponent("Shortcut")
+        try fm.createSymbolicLink(at: link, withDestinationURL: kept)
+        let list = [kept.path]
+
+        XCTAssertTrue(Exclusions.covers(kept, folders: list))
+        XCTAssertTrue(Exclusions.covers(kept.appendingPathComponent("deep/file.mov"), folders: list))
+        XCTAssertTrue(Exclusions.covers(URL(fileURLWithPath: kept.path.uppercased() + "/FILE"), folders: list), "the disk ignores case")
+        XCTAssertTrue(Exclusions.covers(link.appendingPathComponent("deep"), folders: list), "a redirect still leads inside")
+        XCTAssertTrue(Exclusions.covers(folder.appendingPathComponent("Keeper/../Keep/x"), folders: list))
+        XCTAssertFalse(Exclusions.covers(neighbour.appendingPathComponent("x"), folders: list), "Keeper isn't Keep")
+        XCTAssertFalse(Exclusions.covers(folder, folders: list))
+        XCTAssertFalse(Exclusions.covers(kept, folders: []))
+    }
+
+    func testCleaningSkipsFoldersTheUserExcluded() throws {
+        let folder = home.appendingPathComponent("Library/Caches/FusselTest-\(UUID().uuidString)")
+        let file = folder.appendingPathComponent("stay.bin")
+        try fm.createDirectory(at: folder, withIntermediateDirectories: true)
+        fm.createFile(atPath: file.path, contents: Data([1]))
+        defer {
+            try? fm.removeItem(at: folder)
+            Exclusions.remove(folder.standardizedFileURL.path)
+        }
+        Exclusions.add(folder)
+        let result = Cleaner.clean([CleanupItem(url: file, name: "stay.bin", group: "Test", size: 1)])
+        XCTAssertTrue(fm.fileExists(atPath: file.path))
+        XCTAssertEqual(result.freed, 0)
+        XCTAssertEqual(result.failures.count, 1)
+    }
+
+    // MARK: What grew
+
+    func testWhatGrewComparesWithAboutAWeekAgo() {
+        let now = Date()
+        let day = 86_400.0
+        let gb: Int64 = 1_000_000_000
+        func snapshot(_ days: Double, _ sizes: [String: Int64]) -> FolderSnapshot {
+            FolderSnapshot(date: now.addingTimeInterval(-days * day), sizes: sizes)
+        }
+        let history = [snapshot(20, ["/a": 1 * gb]), snapshot(8, ["/a": 2 * gb, "/b": 5 * gb, "/c": 1 * gb]), snapshot(2, ["/a": 9 * gb])]
+        let now_sizes: [String: Int64] = ["/a": 3 * gb, "/b": 4 * gb, "/c": 1 * gb + 1_000, "/new": 50 * gb]
+        let growth = FolderHistory.growth(of: now_sizes, now: now, history: history)
+        XCTAssertEqual(growth?.since, history[1].date, "the newest measurement that's at least a week old")
+        XCTAssertEqual(growth?.grown, ["/a": 1 * gb], "shrunk, barely changed and brand-new folders aren't growth")
+        XCTAssertEqual(growth?.biggest?.path, "/a")
+
+        XCTAssertNil(FolderHistory.growth(of: now_sizes, now: now, history: [snapshot(0.5, ["/a": gb])]), "too early to compare")
+        XCTAssertEqual(FolderHistory.growth(of: ["/a": 2 * gb], now: now, history: [snapshot(2, ["/a": gb])])?.grown, ["/a": gb],
+                       "without a week of history, the oldest day counts")
+    }
+
+    func testFolderHistoryKeepsOneMeasurementADay() {
+        let now = Date()
+        let first = FolderSnapshot(date: now.addingTimeInterval(-3 * 86_400), sizes: ["/a": 1])
+        let morning = FolderSnapshot(date: Calendar.current.startOfDay(for: now), sizes: ["/a": 2])
+        let later = FolderSnapshot(date: now, sizes: ["/a": 3])
+        XCTAssertEqual(FolderHistory.adding(later, to: [first, morning]), [first, later])
+        let many = (0..<80).map { FolderSnapshot(date: now.addingTimeInterval(-Double($0 + 1) * 86_400), sizes: [:]) }
+        XCTAssertEqual(FolderHistory.adding(later, to: many).count, 60)
+    }
+
+    // MARK: Mac Health
+
+    func testBatteryCapacityAndItsHistory() {
+        XCTAssertEqual(MacHealth.capacity(full: 3825, design: 4563), 84)
+        XCTAssertEqual(MacHealth.capacity(full: 5000, design: 4563), 100, "a new battery can hold a little more than its label")
+        XCTAssertNil(MacHealth.capacity(full: nil, design: 4563))
+        XCTAssertNil(MacHealth.capacity(full: 3000, design: 0))
+
+        let now = Date()
+        var readings = BatteryHistory.adding(90, on: now, to: [])
+        readings = BatteryHistory.adding(80, on: now, to: readings)
+        XCTAssertEqual(readings.map(\.capacity), [90], "one reading a month")
+        XCTAssertNil(BatteryHistory.earlier(than: now, in: readings), "too new to compare")
+        let old = [BatteryReading(date: now.addingTimeInterval(-500 * 86_400), capacity: 99),
+                   BatteryReading(date: now.addingTimeInterval(-370 * 86_400), capacity: 96),
+                   BatteryReading(date: now.addingTimeInterval(-40 * 86_400), capacity: 91)]
+        XCTAssertEqual(BatteryHistory.earlier(than: now, in: old)?.capacity, 96, "closest to a year ago")
+    }
+
     func testTheUpdateInstallsOnlyTheCheckedFile() {
         let script = FusselUpdater.installCommand(package: "/Users/me/Library/Caches/it's.pkg", sha256: "abc123")
         XCTAssertFalse(script.contains("/tmp/"), script)

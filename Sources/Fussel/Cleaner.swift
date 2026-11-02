@@ -11,6 +11,10 @@ enum Cleaner {
                 result.failures.append("\(item.name): skipped for safety")
                 continue
             }
+            guard !Exclusions.covers(item.url) else {
+                result.failures.append("\(item.name): in a folder you told Fussel to leave alone")
+                continue
+            }
             do {
                 if item.permanent {
                     try fm.removeItem(at: item.url)
